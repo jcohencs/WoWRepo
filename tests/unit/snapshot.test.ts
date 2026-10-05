@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HOUR, TtlCache } from '../../server/cache';
+import { HOUR, MINUTE, TtlCache } from '../../server/cache';
 import { ApiFailure } from '../../server/errors';
 import { packSaved, persisted, Puller, SnapshotProvider } from '../../server/snapshot';
 import { fakeWcl, handler } from './fake-wcl';
@@ -68,18 +68,44 @@ describe('saved pages + scheduled puller', () => {
     expect(queries.length).toBe(before);
   });
 
-  it('re-pulls pages people opened once they are old, and keeps showing the old copy meanwhile', async () => {
+  it('keeps opened pages for a day, then shows the saved copy while pulling a newer one', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     const { site, puller, queries } = setup();
     await puller.run();
     const first = await site.zoneReport(newcomer, raid);
+    const pulls = () => queries.filter((q) => q.includes('zoneRankings')).length;
 
     vi.setSystemTime(Date.now() + 3 * HOUR);
-    expect((await site.zoneReport(newcomer, raid)).updatedAt).toBe(first.updatedAt); // old copy, no waiting
-    const before = queries.filter((q) => q.includes('zoneRankings')).length;
+    const before = pulls();
     await puller.run();
-    expect(queries.filter((q) => q.includes('zoneRankings')).length).toBe(before + 1);
-    expect((await site.zoneReport(newcomer, raid)).updatedAt).toBeGreaterThan(first.updatedAt);
+    expect((await site.zoneReport(newcomer, raid)).updatedAt).toBe(first.updatedAt);
+    expect(pulls()).toBe(before); // no 2-hour refresh any more
+
+    vi.setSystemTime(Date.now() + 22 * HOUR);
+    expect((await site.zoneReport(newcomer, raid)).updatedAt).toBe(first.updatedAt); // old copy, no waiting
+    await vi.waitFor(() => expect(pulls()).toBe(before + 1)); // newer one pulled for next time
+    await vi.waitFor(async () => expect((await site.zoneReport(newcomer, raid)).updatedAt).toBeGreaterThan(first.updatedAt));
+  });
+
+  it('Refresh re-pulls the raid page and drops saved comparisons, but not twice within minutes', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const { site, puller, queries, cache } = setup();
+    await puller.run();
+    const first = await site.zoneReport(brannoc, raid);
+    await site.compare(brannoc, 601, 'Fury');
+    expect(cache.peekAny('view|compare|US|nightslayer|Brannoc|601|Fury')).toBeDefined();
+
+    vi.setSystemTime(Date.now() + HOUR);
+    const before = queries.length;
+    const fresh = await site.refresh(brannoc, raid);
+    expect(fresh.updatedAt).toBeGreaterThan(first.updatedAt);
+    expect(queries.slice(before).filter((q) => q.includes('zoneRankings'))).toHaveLength(1);
+    expect(cache.peekAny('view|compare|US|nightslayer|Brannoc|601|Fury')).toBeUndefined();
+
+    const after = queries.length;
+    vi.setSystemTime(Date.now() + 2 * MINUTE);
+    expect((await site.refresh(brannoc, raid)).updatedAt).toBe(fresh.updatedAt); // cooldown: saved copy
+    expect(queries.length).toBe(after);
   });
 
   it('finds everyone who raids on the realms and pulls their pages ahead of time', async () => {

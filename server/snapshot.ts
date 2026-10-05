@@ -23,13 +23,6 @@ type Job =
   | { kind: 'zone'; ref: CharacterRef; raidId: string; spec?: string }
   | { kind: 'compare'; ref: CharacterRef; encounterId: number; spec: string; week?: number };
 
-interface SavedPage {
-  job: Job;
-  lastViewed: number;
-}
-
-/** Re-pull saved pages people open once they are this old. */
-const REFRESH_AFTER = { zone: 2 * HOUR, compare: 12 * HOUR };
 /** Pages built by the realm-wide sweep are re-pulled once this old (default daily; RAIDER_REFRESH_HOURS). */
 const SWEEP_REFRESH = (Number(process.env.RAIDER_REFRESH_HOURS) || 24) * HOUR;
 /** Who raids on each realm is re-discovered daily. */
@@ -54,13 +47,13 @@ interface Roster {
   /** Progress of the discovery in flight, if any. */
   tasks: DiscoveryTask[] | null;
 }
-/** Stop re-pulling pages nobody has opened for this long. */
-const FORGET_AFTER = 14 * DAY;
 /** How long a "character not found" answer is remembered. */
 const NOT_FOUND_TTL = 6 * HOUR;
 /** How long before an unexpected failure is retried. */
 const RETRY_AFTER = 15 * MINUTE;
-/** Keep this much of the hourly allowance unspent by refreshes, so queued lookups can still run. */
+/** A visitor's Refresh only re-pulls a page older than this, so the button can't drain the allowance. */
+export const REFRESH_COOLDOWN = 10 * MINUTE;
+/** Keep this much of the hourly allowance for first-time lookups; Refresh is refused below it. */
 const REFRESH_RESERVE = 0.15;
 /**
  * The realm-wide discovery and sweep only use the allowance while this much is left, so a share
@@ -196,6 +189,7 @@ export class Puller {
 
   private async pass(): Promise<void> {
     await this.live.raids().catch(() => undefined); // keeps the raid list current (cached a week)
+    this.cache.delete('pages'); // list of opened pages kept by older versions; no longer used
 
     // 1. Anything a visitor opened while the allowance was used up, oldest first.
     while (this.queue().length) {
@@ -205,30 +199,10 @@ export class Puller {
       this.cache.set('queue', this.queue().filter((j) => jobKey(j) !== jobKey(job)), KEEP);
     }
 
-    // 2. Re-pull saved pages, stalest first, keeping some allowance back.
-    const pages = this.cache.peekAny<Record<string, SavedPage>>('pages')?.value ?? {};
-    const now = Date.now();
-    const due: { page: SavedPage; at: number }[] = [];
-    for (const [key, page] of Object.entries(pages)) {
-      if (now - page.lastViewed > FORGET_AFTER) {
-        delete pages[key];
-        continue;
-      }
-      const at = this.cache.fetchedAt(`view|${key}`) ?? 0;
-      if (now - at > REFRESH_AFTER[page.job.kind]) due.push({ page, at });
-    }
-    this.cache.set('pages', pages, KEEP);
-    due.sort((a, b) => a.at - b.at);
-    for (const { page } of due) {
-      if (this.live.headroom() <= REFRESH_RESERVE) return;
-      if (this.log) console.log(`[parsecheck] Refreshing a page someone opened: ${page.job.ref.name} (${page.job.kind === 'zone' ? page.job.raidId : `boss ${page.job.encounterId}`})`);
-      if ((await this.pull(page.job)) === 'limited') return;
-    }
-
-    // 3. Find who raids on each realm (re-checked daily).
+    // 2. Find who raids on each realm (re-checked daily).
     for (const realm of REALMS) if ((await this.discover(realm.slug)) === 'limited') return;
 
-    // 4. Pull everyone on the realms, newest raid first.
+    // 3. Pull everyone on the realms, newest raid first.
     await this.sweep();
   }
 
@@ -423,9 +397,13 @@ export class SnapshotProvider implements Provider {
 
   private async read<T>(job: Job): Promise<T> {
     const key = jobKey(job);
-    this.touch(key, job);
     const saved = this.cache.peekAny<T>(`view|${key}`);
-    if (saved) return this.withBenchmarks(upgradePage(saved.value, saved.fetchedAt, job), job);
+    if (saved) {
+      // Pages outside the realm sweep (comparisons, other specs) follow the same daily refresh:
+      // the saved copy is shown now and a newer one is pulled for next time.
+      if (Date.now() - saved.fetchedAt > SWEEP_REFRESH && this.live.headroom() > REFRESH_RESERVE) void this.puller.pullNow(job);
+      return this.withBenchmarks(upgradePage(saved.value, saved.fetchedAt, job), job);
+    }
     const failed = this.cache.peek<{ message: string; code: ApiFailure['code'] } | null>(`notfound|${key}`);
     if (failed) throw new ApiFailure(failed.code, failed.message);
 
@@ -440,6 +418,32 @@ export class SnapshotProvider implements Provider {
     throw new ApiFailure(why?.code ?? 'upstream', why?.message ?? 'Warcraft Logs returned an error. Please try again shortly.');
   }
 
+
+  /**
+   * The page's Refresh button: forgets everything saved for this character (their raid pages'
+   * source data and every boss comparison) and pulls the raid page again now. A page refreshed in
+   * the last few minutes is just returned, and nothing is pulled while the allowance is low.
+   */
+  async refresh(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
+    const raids = await this.raids();
+    const id = raidId ? normaliseRaidId(raidId) : raids[raids.length - 1]?.id;
+    if (!raids.some((r) => r.id === id)) throw new ApiFailure('not_found', `That raid isn't on Warcraft Logs yet.`);
+    if (spec && !/^[A-Za-z]+$/.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
+    const job: Job = { kind: 'zone', ref, raidId: id!, ...(spec ? { spec } : {}) };
+    const at = this.cache.fetchedAt(`view|${jobKey(job)}`);
+    if (at != null && Date.now() - at < REFRESH_COOLDOWN) return this.read<ZoneReport>(job);
+    if (this.live.headroom() <= REFRESH_RESERVE) {
+      throw new ApiFailure('rate_limited', 'Warcraft Logs is busy right now, so refreshing has to wait. The saved data is still shown and updates daily.');
+    }
+    const who = refKey(ref);
+    for (const prefix of [`char|${who}|`, `kills|${who}|`, `compare2|${who}|`, `view|compare|${who}|`, `notfound|compare|${who}|`, `notfound|zone|${who}|`]) {
+      this.cache.deletePrefix(prefix);
+    }
+    if ((await this.puller.pullNow(job)) === 'limited') {
+      throw new ApiFailure('rate_limited', 'Warcraft Logs is busy right now, so refreshing has to wait. The saved data is still shown and updates daily.');
+    }
+    return this.read<ZoneReport>(job);
+  }
 
   /** Fills each boss row's benchmark back in from the shared saved benchmarks (see `packSaved`). */
   private withBenchmarks<T>(page: T, job: Job): T {
@@ -456,10 +460,5 @@ export class SnapshotProvider implements Provider {
     return { ...report, rows, summary: summarise(rows) } as T;
   }
 
-  /** Records that a page was opened, so the puller keeps it fresh. */
-  private touch(key: string, job: Job) {
-    const pages = this.cache.peekAny<Record<string, SavedPage>>('pages')?.value ?? {};
-    pages[key] = { job, lastViewed: Date.now() };
-    this.cache.set('pages', pages, KEEP);
-  }
+
 }

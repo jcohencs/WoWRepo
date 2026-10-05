@@ -111,6 +111,10 @@ export class DemoProvider implements Provider {
     return Math.round(b.p99 * (0.74 + r() * 0.31));
   }
 
+  async refresh(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
+    return { ...(await this.zoneReport(ref, raidId, spec)), updatedAt: Date.now() };
+  }
+
   async zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
     const shown = spec && WARRIOR_SPECS.includes(spec) ? spec : SPEC;
     const raid = raidId ? this.allRaids.find((r) => r.id === raidId) : this.allRaids[this.allRaids.length - 1];

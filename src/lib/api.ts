@@ -12,10 +12,10 @@ export class RequestError extends Error {
   }
 }
 
-async function get<T>(path: string, params: Record<string, string | number | undefined> = {}, signal?: AbortSignal): Promise<T> {
+async function get<T>(path: string, params: Record<string, string | number | undefined> = {}, signal?: AbortSignal, method = 'GET'): Promise<T> {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') qs.set(k, String(v));
-  const res = await fetch(`${path}${qs.size ? `?${qs}` : ''}`, { signal });
+  const res = await fetch(`${path}${qs.size ? `?${qs}` : ''}`, { signal, method });
   const body = (await res.json().catch(() => null)) as T | ApiError | null;
   if (!res.ok || !body) {
     const err = (body as ApiError | null)?.error;
@@ -55,4 +55,10 @@ export const api = {
   character: (q: Query, raid?: string, spec?: string, signal?: AbortSignal) =>
     get<ZoneReport>('/api/character', { ...q, raid, spec }, signal),
   compare,
+  /** Pulls the character again now; their comparisons are re-fetched on the next click. */
+  refresh: (q: Query, raid?: string, spec?: string) => {
+    const who = `${q.region}|${q.realm}|${q.name}|`.toLowerCase();
+    for (const k of [...comparisons.keys()]) if (k.startsWith(who)) comparisons.delete(k);
+    return get<ZoneReport>('/api/refresh', { ...q, raid, spec }, undefined, 'POST');
+  },
 };

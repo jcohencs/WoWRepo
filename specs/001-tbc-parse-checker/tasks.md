@@ -157,3 +157,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T079 "Where you sit" in the boss header is now the percentile ladder (10th…99th) with your best kill marked; the full-width rank chart is removed
 - [x] T080 Output-over-the-fight chart shows a dot at every 15-second mark
 - [x] T081 Explain re-pulls in the log (new vs refreshing, per batch; opened-page refreshes); `RAIDER_REFRESH_HOURS` (default 24); test that a restart re-pulls nobody. Root cause of the churn was the old 50,000-entry cap (fixed in T077)
+- [x] T082 Drop the 2-hour refresh of opened pages; everything follows the daily refresh (pages outside the sweep re-pull in the background when opened after a day). Refresh button on the character header (`POST /api/refresh`, 10-minute cooldown, refused when the allowance is low)

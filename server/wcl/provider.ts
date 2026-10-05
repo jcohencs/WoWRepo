@@ -271,6 +271,13 @@ export class WclProvider implements Provider {
     };
   }
 
+  /** Re-fetches the character's raid page, ignoring what is saved. */
+  async refresh(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
+    const who = `${ref.region}|${ref.realm}|${ref.name}|`;
+    for (const prefix of [`char|${who}`, `kills|${who}`, `compare2|${who}`]) this.cache.deletePrefix(prefix);
+    return this.zoneReport(ref, raidId, spec);
+  }
+
   charKey(ref: CharacterRef, zoneId: number, spec?: string) {
     return `char|${ref.region}|${ref.realm}|${ref.name}|${zoneId}${spec ? `|${spec}` : ''}`;
   }

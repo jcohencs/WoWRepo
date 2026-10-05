@@ -145,6 +145,16 @@ export class TtlCache {
     if (persisted) this.scheduleSave();
   }
 
+  /** Removes every entry whose key starts with `prefix`. */
+  deletePrefix(prefix: string): number {
+    let n = 0;
+    for (const map of [this.entries, this.transient]) {
+      for (const k of [...map.keys()]) if (k.startsWith(prefix) && map.delete(k)) n++;
+    }
+    if (n) this.scheduleSave();
+    return n;
+  }
+
   delete(key: string): void {
     if (this.mapFor(key).delete(key) && this.persist(key)) this.scheduleSave();
   }

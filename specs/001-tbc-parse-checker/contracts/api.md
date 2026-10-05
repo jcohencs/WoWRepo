@@ -12,6 +12,9 @@ All responses are JSON. Errors: `{ "error": { "code": string, "message": string 
 ## GET /api/compare?region=US&realm=nightslayer&name=Foo&encounter=601&spec=Fury&week=1759762800000
 → `Comparison` (incl. `weeks`, `benchmark.ladder`, and per side `timeline`, `taken`, `prep`). `week` optional: your best kill in that raid week (epoch ms of the US reset). 404 `not_found` if there is no kill.
 
+## POST /api/refresh?region=US&realm=nightslayer&name=Foo&raid=black-temple&spec=Fury
+→ `ZoneReport`, pulled again now. Forgets the character's saved comparisons so they re-pull on the next click. A page refreshed in the last 10 minutes is returned as-is; 429 `rate_limited` when the hourly allowance is low (the saved page is still served by `GET /api/character`).
+
 ## GET /api/status
 → `ApiStatus | null` — `{ limitPerHour, pointsSpent, resetsInSec, savedResults }` (null in demo mode).
 

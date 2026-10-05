@@ -10,4 +10,6 @@ export interface Provider {
   raids(): Promise<Raid[]>;
   zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;
   compare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison>;
+  /** Pulls the character's raid page again now (the page's Refresh button). */
+  refresh(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;
 }

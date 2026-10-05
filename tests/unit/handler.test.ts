@@ -25,6 +25,15 @@ describe('API (demo provider)', () => {
     expect(providerFromEnv({}).demo).toBe(true);
   });
 
+  it('refreshes a character page with POST only', async () => {
+    const qs = '?region=us&realm=nightslayer&name=Brannoc&raid=black-temple';
+    expect((await fetch(`${base}/api/refresh${qs}`)).status).toBe(405);
+    const res = await fetch(`${base}/api/refresh${qs}`, { method: 'POST' });
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as ZoneReport).character.name).toBe('Brannoc');
+    expect((await fetch(`${base}/api/meta`, { method: 'POST' })).status).toBe(405);
+  });
+
   it('lists TBC raids', async () => {
     const { body } = await get('/api/meta');
     const meta = body as Meta;

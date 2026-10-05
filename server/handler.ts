@@ -63,7 +63,8 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
   return async (req, res, next) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (!url.pathname.startsWith('/api/')) return next ? next() : send(res, 404, { error: { code: 'not_found', message: 'Not found' } });
-    if (req.method !== 'GET') return send(res, 405, { error: { code: 'bad_request', message: 'GET only' } });
+    const write = url.pathname === '/api/refresh';
+    if (req.method !== (write ? 'POST' : 'GET')) return send(res, 405, { error: { code: 'bad_request', message: write ? 'POST only' : 'GET only' } });
     const p = url.searchParams;
     try {
       switch (url.pathname) {
@@ -80,6 +81,8 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
           return send(res, 200, provider.status());
         case '/api/character':
           return send(res, 200, await provider.zoneReport(ref(p), p.get('raid') || undefined, p.get('spec') || undefined));
+        case '/api/refresh':
+          return send(res, 200, await provider.refresh(ref(p), p.get('raid') || undefined, p.get('spec') || undefined));
         case '/api/compare': {
           const spec = p.get('spec') ?? '';
           if (!spec) throw new ApiFailure('bad_request', 'Missing "spec".');

@@ -37,6 +37,8 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshNote, setRefreshNote] = useState<string | null>(null);
 
   useEffect(() => {
     api.meta().then(setMeta, (e: Error) => setMetaError(e.message));
@@ -60,6 +62,21 @@ export function App() {
       .finally(() => !ctrl.signal.aborted && setLoading(false));
     return () => ctrl.abort();
   }, [query, raidId, spec, attempt]);
+
+  const refresh = useCallback(() => {
+    if (!query) return;
+    setRefreshing(true);
+    setRefreshNote(null);
+    api
+      .refresh(query, raidId, spec)
+      .then(
+        (r) => setReport(r),
+        (e: Error) => setRefreshNote(e.message),
+      )
+      .finally(() => setRefreshing(false));
+  }, [query, raidId, spec]);
+
+  useEffect(() => setRefreshNote(null), [query, raidId, spec]);
 
   const search = useCallback((q: Query) => {
     setQuery(q);
@@ -103,7 +120,7 @@ export function App() {
 
       {query && (
         <main className="content">
-          {shown && <CharacterHeader report={shown} site={meta?.site ?? 'fresh'} />}
+          {shown && <CharacterHeader report={shown} site={meta?.site ?? 'fresh'} onRefresh={refresh} refreshing={refreshing} refreshNote={refreshNote} />}
           <div className="controls">
             {shown && shown.specs?.length > 0 && (
               <SpecBar className={shown.character.className} specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec ?? ''} onSelect={(s) => setSpec(s ?? undefined)} />
@@ -120,7 +137,7 @@ export function App() {
             </div>
           ) : shown ? (
             <ErrorBoundary what="this raid" resetKey={shown}>
-              <div className={loading ? 'is-stale' : undefined}>
+              <div className={loading || refreshing ? 'is-stale' : undefined}>
                 <RaidView report={shown} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} />
               </div>
             </ErrorBoundary>

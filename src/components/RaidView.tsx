@@ -98,7 +98,7 @@ export function RaidView({ report, query, site, demo }: Props) {
           <>
             <BossStats row={row} />
             <ErrorBoundary what="this breakdown" resetKey={`${row.encounter.id}|${row.spec}`}>
-              <ComparePanel key={`${row.encounter.id}|${row.spec}`} query={query} row={row} site={site} demo={demo} onData={setShown} />
+              <ComparePanel key={`${row.encounter.id}|${row.spec}|${report.updatedAt}`} query={query} row={row} site={site} demo={demo} onData={setShown} />
             </ErrorBoundary>
           </>
         ) : (

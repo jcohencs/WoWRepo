@@ -4,7 +4,16 @@ import { ago, CLASS_COLORS, specLabel } from '../lib/format';
 import { characterUrl } from '../lib/links';
 import { SpecIcon } from './SpecIcon';
 
-export function CharacterHeader({ report, site, children }: { report: ZoneReport; site: Site; children?: ReactNode }) {
+interface Props {
+  report: ZoneReport;
+  site: Site;
+  children?: ReactNode;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  refreshNote?: string | null;
+}
+
+export function CharacterHeader({ report, site, children, onRefresh, refreshing, refreshNote }: Props) {
   const { character, rows } = report;
   const specs = [...new Set(rows.filter((r) => r.best != null).map((r) => r.spec))];
   const spec = specs.length ? specs.map(specLabel).join(' / ') : specLabel(rows[0]?.spec ?? '');
@@ -30,6 +39,15 @@ export function CharacterHeader({ report, site, children }: { report: ZoneReport
         <span className="soft" title={new Date(report.updatedAt).toLocaleString()}>
           Updated {ago(report.updatedAt)}
         </span>
+        {onRefresh && (
+          <button className="refresh-button" onClick={onRefresh} disabled={refreshing} title="Pull this character from Warcraft Logs again now">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className={refreshing ? 'spin' : undefined}>
+              <path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+        )}
+        {refreshNote && <span className="refresh-note soft">{refreshNote}</span>}
       </p>
       {children}
     </section>

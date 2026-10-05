@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "tsx --env-file-if-exists=.env server/index.ts",
+    "start": "tsx server/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

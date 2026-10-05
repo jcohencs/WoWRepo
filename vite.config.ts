@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react';
-import { defineConfig, loadEnv, type Plugin } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+import { loadWclEnv } from './server/env';
 
 /** Mounts the /api handler inside the Vite dev server so one command runs everything. */
 function api(): Plugin {
@@ -12,8 +13,8 @@ function api(): Plugin {
   };
 }
 
-export default defineConfig(({ mode }) => {
-  Object.assign(process.env, loadEnv(mode, process.cwd(), 'WCL_'));
+export default defineConfig(({ command }) => {
+  if (command === 'serve' && !process.env.VITEST) loadWclEnv(import.meta.dirname);
   return {
     plugins: [react(), api()],
     test: { include: ['tests/**/*.test.ts'] },

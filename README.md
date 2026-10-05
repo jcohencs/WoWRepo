@@ -18,6 +18,8 @@ npm run dev            # http://localhost:5173
 
 Create an API client at <https://www.warcraftlogs.com/api/clients> (any redirect URL works; the app uses the client-credentials flow). Your secret stays on the server. The browser only talks to `/api/*`.
 
+When `npm run dev` starts, a `[parsecheck]` line in the terminal tells you whether the key was loaded or what is missing. `.env.txt` also works.
+
 `WCL_SITE=fresh` (default) reads TBC Anniversary logs, while `WCL_SITE=classic` reads original TBC Classic logs.
 
 Without credentials the app runs on generated **demo data**, labelled as such in the header.

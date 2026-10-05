@@ -1,7 +1,10 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
+import { loadWclEnv } from './env.js';
 import { createApiHandler } from './handler.js';
+
+loadWclEnv();
 
 const dist = resolve(import.meta.dirname, '../dist');
 const port = Number(process.env.PORT ?? 8787);

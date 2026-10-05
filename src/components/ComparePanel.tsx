@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AbilityLine, BossRow, Comparison, FightSide, Site } from '../../shared/types';
 import { api, type Query } from '../lib/api';
-import { ago, percent, specLabel } from '../lib/format';
+import { percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 import { CastsChart } from './CastsChart';
@@ -50,6 +50,7 @@ export function ComparePanel({ query, row, site, demo }: Props) {
     (a, b) => (b.ref?.share ?? 0) - (a.ref?.share ?? 0) || (b.you?.share ?? 0) - (a.you?.share ?? 0),
   );
   const maxShare = Math.max(...abilities.map((a) => Math.max(a.you?.share ?? 0, a.ref?.share ?? 0)), 0.01);
+  const maxCpm = Math.max(...abilities.map((a) => Math.max(a.you?.cpm ?? 0, a.ref?.cpm ?? 0)), 0.1);
   const colors = new Map(buildSlices(abilities).flatMap((s) => (s.id === 'other' ? [] : [[s.id, s.color] as const])));
   const hasRef = data.ref != null;
 
@@ -103,16 +104,10 @@ export function ComparePanel({ query, row, site, demo }: Props) {
                 </span>
               </div>
               {abilities.map((a) => (
-                <AbilityRow key={a.id} a={a} maxShare={maxShare} color={colors.get(a.id)} noun={noun} hasRef={hasRef} />
+                <AbilityRow key={a.id} a={a} maxShare={maxShare} maxCpm={maxCpm} color={colors.get(a.id)} noun={noun} hasRef={hasRef} />
               ))}
             </div>
           )}
-          <p className="footnote">
-            {tab === 'casts'
-              ? 'Uses per minute accounts for kill time, so a longer fight isn\'t held against you.'
-              : `"Share" is how much of each player's total ${noun} came from that ability.`}{' '}
-            Logs pulled {ago(data.updatedAt)}.
-          </p>
         </div>
       </div>
     </div>
@@ -156,7 +151,21 @@ function differenceTip(delta: number): string {
   return `${pts.toFixed(1)}% ${delta > 0 ? 'more for you' : 'more for the top 1% player'}`;
 }
 
-function AbilityRow({ a, maxShare, color, noun, hasRef }: { a: AbilityLine; maxShare: number; color?: string; noun: string; hasRef: boolean }) {
+function AbilityRow({
+  a,
+  maxShare,
+  maxCpm,
+  color,
+  noun,
+  hasRef,
+}: {
+  a: AbilityLine;
+  maxShare: number;
+  maxCpm: number;
+  color?: string;
+  noun: string;
+  hasRef: boolean;
+}) {
   const icon = abilityIcon(a.icon);
   const hasShare = (a.you?.share ?? 0) > 0 || (a.ref?.share ?? 0) > 0;
   const tip = !hasRef
@@ -188,7 +197,17 @@ function AbilityRow({ a, maxShare, color, noun, hasRef }: { a: AbilityLine; maxS
             )}
           </>
         ) : (
-          <span className="soft ab-utility">No direct {noun}</span>
+          // Abilities that deal no damage (Hamstring, Rampage…) show how often they're used instead.
+          <>
+            <span className="cb you uses-bar" style={{ width: `${((a.you?.cpm ?? 0) / maxCpm) * 100}%` }}>
+              <em>{a.you?.cpm ? `${a.you.cpm.toFixed(1)}/min` : '—'}</em>
+            </span>
+            {hasRef && (
+              <span className="cb ref uses-bar" style={{ width: `${((a.ref?.cpm ?? 0) / maxCpm) * 100}%` }}>
+                <em>{a.ref?.cpm ? `${a.ref.cpm.toFixed(1)}/min` : '—'}</em>
+              </span>
+            )}
+          </>
         )}
       </span>
       <span className="ab-uses num" role="cell">

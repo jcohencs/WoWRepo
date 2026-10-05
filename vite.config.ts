@@ -1,6 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
-import { loadWclEnv } from './server/env';
+import { loadWclEnv } from './server/env.ts';
 
 /** Mounts the /api handler inside the Vite dev server so one command runs everything. */
 function api(): Plugin {

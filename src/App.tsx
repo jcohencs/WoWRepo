@@ -82,8 +82,8 @@ export function App() {
             <i />
           </span>
           <span className="brand-name">Parsecheck</span>
-          <span className="brand-sub">How close are your TBC parses to the top 1% of your spec?</span>
         </div>
+        <SearchBar initial={query} onSearch={search} busy={loading} />
         {meta && (
           <div className="site-tag">
             <ThemeToggle />
@@ -92,8 +92,6 @@ export function App() {
           </div>
         )}
       </header>
-
-      <SearchBar initial={query} onSearch={search} busy={loading} />
 
       {metaError && <p className="notice error">Could not load raids: {metaError}</p>}
       {meta?.demo && !report && !query && (
@@ -105,18 +103,13 @@ export function App() {
 
       {query && (
         <main className="content">
-          {shown ? (
-            <>
-              <CharacterHeader report={shown} site={meta?.site ?? 'fresh'}>
-                {raidPicker}
-              </CharacterHeader>
-              {shown.specs?.length > 0 && (
-                <SpecBar className={shown.character.className} specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec ?? ''} onSelect={(s) => setSpec(s ?? undefined)} />
-              )}
-            </>
-          ) : (
-            <div className="character-placeholder">{raidPicker}</div>
-          )}
+          {shown && <CharacterHeader report={shown} site={meta?.site ?? 'fresh'} />}
+          <div className="controls">
+            {shown && shown.specs?.length > 0 && (
+              <SpecBar className={shown.character.className} specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec ?? ''} onSelect={(s) => setSpec(s ?? undefined)} />
+            )}
+            {raidPicker}
+          </div>
 
           {error ? (
             <div className="state">
@@ -158,7 +151,7 @@ function EmptyIntro() {
     <section className="intro">
       <ol>
         <li>
-          <strong>Find your character</strong> Type your Nightslayer character's name.
+          <strong>Find your character</strong> Type your Nightslayer character's name in the search box above.
         </li>
         <li>
           <strong>See every boss</strong> Your best kill next to a typical player and the top 1% of your spec.

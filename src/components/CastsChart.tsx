@@ -5,18 +5,18 @@ import { abilityIcon } from '../lib/links';
  * Paired bars of how often each ability is used per minute, you vs the top 1% player.
  * Missed casts on core abilities are the most common reason for a gap.
  */
-export function CastsChart({ abilities, hasRef = true }: { abilities: AbilityLine[]; hasRef?: boolean }) {
+export function CastsChart({ abilities, hasRef = true, bare = false }: { abilities: AbilityLine[]; hasRef?: boolean; bare?: boolean }) {
   const rows = abilities
     .filter((a) => (a.you?.cpm ?? 0) > 0 || (a.ref?.cpm ?? 0) > 0)
     .sort((a, b) => (b.ref?.cpm ?? 0) - (a.ref?.cpm ?? 0) || (b.you?.cpm ?? 0) - (a.you?.cpm ?? 0));
-  if (!rows.length) return null;
+  if (!rows.length) return bare ? <p className="soft casts-empty">No cast data for this kill.</p> : null;
   const max = Math.max(...rows.map((a) => Math.max(a.you?.cpm ?? 0, a.ref?.cpm ?? 0)));
 
   return (
     <figure className="casts">
-      <figcaption>
+      <figcaption className={bare ? 'visually-hidden' : undefined}>
         <span>Buttons pressed per minute</span>
-        {hasRef && (
+        {hasRef && !bare && (
           <span className="legend" aria-hidden>
             <span className="legend-you">You</span>
             <span className="legend-ref">Top 1%</span>

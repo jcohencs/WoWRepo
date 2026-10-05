@@ -1632,3 +1632,147 @@ td {
     margin-right: 6px;
   }
 }
+
+
+/* ---------- Compact layout: search in the top bar, controls on one row ---------- */
+
+.masthead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 440px) 1fr;
+  gap: 24px;
+  padding: 14px 0;
+}
+.masthead .site-tag {
+  justify-self: end;
+}
+.masthead .search {
+  display: flex;
+  align-items: stretch;
+  height: 40px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+.masthead .search:focus-within {
+  border-color: var(--focus);
+}
+.search-realm {
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 14px;
+  color: var(--soft);
+  border-right: 1px solid var(--line);
+  white-space: nowrap;
+}
+.search-realm select {
+  border: 0;
+  height: 100%;
+  background-color: transparent;
+}
+.masthead .search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.search-go {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  border: 0;
+  background: var(--text);
+  color: var(--bg);
+  cursor: pointer;
+}
+.search-go:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.character {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  padding: 16px 0 0;
+}
+.character h1 {
+  font-size: 26px;
+}
+.character p {
+  margin: 0;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin-top: 12px;
+}
+.controls .spec-bar {
+  margin-top: 0;
+}
+.controls .raid-select {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: auto;
+}
+.controls .raid-select select {
+  width: 230px;
+  height: 40px;
+}
+
+.raid-view {
+  margin-top: 16px;
+}
+.boss-stats {
+  padding: 12px 16px;
+}
+.bs-title h2 {
+  font-size: 18px;
+}
+.bs-tiles {
+  margin-top: 8px;
+}
+
+.tab-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.compare-cols .casts {
+  padding-top: 8px;
+}
+.casts-empty {
+  padding: 20px 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .masthead {
+    grid-template-columns: auto 1fr;
+  }
+  .masthead .search {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}

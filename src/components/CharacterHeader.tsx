@@ -10,7 +10,6 @@ export function CharacterHeader({ report, site, children }: { report: ZoneReport
   const spec = specs.length ? specs.map(specLabel).join(' / ') : specLabel(rows[0]?.spec ?? '');
   return (
     <section className="character">
-      <div>
       <h1 style={{ '--class': CLASS_COLORS[character.className] } as CSSProperties}>{character.name}</h1>
       <p>
         {specs.length === 1 && <SpecIcon className={character.className} spec={specs[0]} size={20} />}
@@ -32,7 +31,6 @@ export function CharacterHeader({ report, site, children }: { report: ZoneReport
           Updated {ago(report.updatedAt)}
         </span>
       </p>
-      </div>
       {children}
     </section>
   );

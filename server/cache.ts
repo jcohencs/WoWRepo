@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { gunzipSync, gzipSync } from 'node:zlib';
 import { dirname } from 'node:path';
 import { ApiFailure } from './errors.js';
 
@@ -16,6 +17,11 @@ interface Entry {
 export interface CacheOptions {
   /** JSON file the cache is kept in between restarts. */
   file?: string | null;
+  /**
+   * Gzipped JSON snapshot (made by `npm run prefill`) loaded when there is no saved file yet,
+   * e.g. on a fresh Render disk. Lets the site start with everyone already pulled.
+   */
+  seed?: string | null;
   /** Asked before refreshing a stale entry in the background; return false to save the allowance. */
   canRefresh?: () => boolean;
   /**
@@ -57,6 +63,16 @@ export class TtlCache {
         for (const [k, e] of Object.entries(saved)) this.entries.set(k, { ...e, fetchedAt: e.fetchedAt ?? Date.now() });
       } catch {
         // A corrupt cache file is not worth failing over; start empty.
+      }
+    }
+    if (!this.entries.size && o.seed && existsSync(o.seed)) {
+      try {
+        const seed = JSON.parse(gunzipSync(readFileSync(o.seed)).toString('utf8')) as Record<string, Entry>;
+        for (const [k, e] of Object.entries(seed)) this.entries.set(k, e);
+        console.log(`[parsecheck] Started from ${o.seed} (${this.entries.size} saved results).`);
+        this.scheduleSave();
+      } catch (err) {
+        console.error(`[parsecheck] Could not read ${o.seed}: ${err instanceof Error ? err.message : err}`);
       }
     }
   }
@@ -133,6 +149,14 @@ export class TtlCache {
       this.flush();
     }, 1000);
     this.saveTimer.unref?.();
+  }
+
+  /** Writes the entries whose keys match to a gzipped JSON file (a seed for another server). */
+  exportSeed(file: string, keep: (key: string) => boolean): number {
+    const picked = Object.fromEntries([...this.entries].filter(([k]) => keep(k)));
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, gzipSync(JSON.stringify(picked)));
+    return Object.keys(picked).length;
   }
 
   flush(): void {

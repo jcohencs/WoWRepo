@@ -3,10 +3,10 @@ import { REALMS, type Meta, type Site } from '../shared/types.js';
 import { MINUTE, TtlCache } from './cache.js';
 import { validateRef } from './core/input.js';
 import { DemoProvider } from './demo/provider.js';
-import { ApiFailure, PendingPull } from './errors.js';
+import { ApiFailure } from './errors.js';
 import type { Provider } from './provider.js';
 import { WclClient } from './wcl/client.js';
-import { cacheFile, WclProvider } from './wcl/provider.js';
+import { cacheFile, seedFile, WclProvider } from './wcl/provider.js';
 import { Puller, SnapshotProvider } from './snapshot.js';
 
 /** The live Warcraft Logs provider: it calls the API. Used by the scheduled puller and `npm run sync`. */
@@ -15,7 +15,7 @@ export function liveProviderFromEnv(env: Record<string, string | undefined> = pr
   const site: Site = env.WCL_SITE === 'classic' ? 'classic' : 'fresh';
   const client = new WclClient({ clientId: env.WCL_CLIENT_ID, clientSecret: env.WCL_CLIENT_SECRET, site });
   // serveStale off: the puller always saves current data.
-  const cache = new TtlCache({ file: cacheFile(site, env.CACHE_DIR), serveStale: false });
+  const cache = new TtlCache({ file: cacheFile(site, env.CACHE_DIR), seed: seedFile(site), serveStale: false });
   return { live: new WclProvider(client, site, cache), cache };
 }
 
@@ -88,9 +88,6 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
           return send(res, 404, { error: { code: 'not_found', message: 'Not found' } });
       }
     } catch (err) {
-      if (err instanceof PendingPull) {
-        return send(res, 202, { pending: { position: err.position, nextUpdateInSec: err.nextUpdateInSec } });
-      }
       if (err instanceof ApiFailure) return send(res, err.status, { error: { code: err.code, message: err.message } });
       console.error(err);
       return send(res, 502, { error: { code: 'upstream', message: 'Could not reach Warcraft Logs.' } });

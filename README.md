@@ -30,25 +30,31 @@ Production: `npm run build && npm start` serves the built app and API on `PORT` 
 
 ## How data is pulled
 
-Visitors only ever see **saved data**. The site never calls Warcraft Logs because someone opened a page; a scheduled job does all the pulling.
+There is no waiting line. The site keeps everyone on the realm pulled ahead of time, and anything else is fetched the moment someone opens it.
 
-- **Every 10 minutes** (`PULL_INTERVAL_MINUTES`) the puller runs, in this order, until the hourly allowance runs low:
-  1. Anything a visitor is waiting on (a character or boss comparison not saved yet), in the order asked.
-  2. Saved pages people still open: characters older than 2 hours, comparisons older than 12 hours, stalest first.
-  3. **Finding everyone on the realms** (daily): it reads the Nightslayer rankings for the first boss of every raid and keeps a list of everyone with a ranked kill.
-  4. **Pulling everyone**: every listed character's raid pages, ten characters per request, newest raid first, refreshed daily.
-
-  Step 2 stops while 15% of the hourly allowance is left and steps 3–4 while 40% is left (`SWEEP_RESERVE`), so a visitor's new lookup always fits in the next run. The first full pass over both realms takes a while on a 720-point allowance; each run logs how far it got, e.g. `Up to date (latest raid): Nightslayer 412/1530`.
-- The search box suggests names from that list.
-- A character that isn't saved yet shows "not pulled yet, number 2 in line, about 8 minutes" and fills in by itself after the next run.
+- **Every raider, ahead of time.** Every 10 minutes (`PULL_INTERVAL_MINUTES`) a background job finds everyone with a ranked kill on Nightslayer (re-checked daily) and pulls each character's page for every released raid, ten characters per request, newest raid first. Pages are refreshed daily, and ones people open every 2 hours.
+- **Anything else, on first click.** A boss's ability comparison, or a spec nobody has opened yet, is fetched right away (a few seconds), saved, and instant for everyone after that.
+- **Allowance.** The background job stops while 20% of the hourly allowance is left (`SWEEP_RESERVE`), so first clicks always have room. If Warcraft Logs is ever out of allowance at that moment, the visitor is told roughly when it'll be ready and it is pulled automatically after the reset.
 - Every page shows when it was pulled ("Updated 25 min ago").
-- Pages nobody opens for two weeks stop being refreshed.
 
-Everything lives in one file, `.cache/wcl-<site>.json` (or `$CACHE_DIR`). To fill in benchmarks ahead of time, stop the site and run:
+### Start with everyone already there
+
+With a 720-point allowance the first full pull takes a while. Do it once on your computer, then ship the result with the site:
 
 ```bash
-npm run sync -- --class Warrior --spec Fury
+# stop the website first: both share the hourly allowance
+npm run prefill
 ```
+
+It keeps going through hourly resets (leave it running overnight), prints progress and an estimate, and when everyone is pulled writes `data/seed-fresh.json.gz`. Commit and push that file:
+
+```bash
+git add data/seed-fresh.json.gz && git commit -m "Update data snapshot" && git push
+```
+
+A server with no saved data yet (like a new Render disk) starts from that snapshot, and the background job keeps it fresh from there. You can stop `prefill` with Ctrl+C at any time and run it again later; nothing is lost.
+
+To pre-pull only benchmarks for one spec: `npm run sync -- --class Warrior --spec Fury`.
 
 ## Something not working?
 

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "sync": "tsx scripts/sync.ts",
-    "doctor": "tsx scripts/doctor.ts"
+    "doctor": "tsx scripts/doctor.ts",
+    "prefill": "tsx scripts/prefill.ts"
   },
   "engines": {
     "node": ">=20"

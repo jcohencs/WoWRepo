@@ -105,13 +105,9 @@ are at or above p99, and the median gap to p99.
   hourly allowance: show usage, stop before the limit, and fall back to saved data.
 - **FR-011**: Users MUST be able to pre-download benchmarks for their class and spec in the
   background, resuming across hourly windows.
-- **FR-012**: Visitors MUST only be shown saved data (with its age) and MUST NOT trigger calls to
-  Warcraft Logs. All pulls happen on a schedule: queued first-time lookups first, then the
-  stalest saved pages, within the hourly allowance. Not-yet-pulled lookups show their place in
-  line and the time to the next update, and fill in automatically.
-- **FR-014**: The scheduled pulls MUST discover every character with a ranked kill on the
-  supported realms and pull their raid pages ahead of time (newest raid first, daily refresh),
-  after visitor requests and refreshes of opened pages. The search box MUST suggest known names.
+- **FR-012**: Visitors MUST NOT wait in a queue. Saved pages are served instantly; anything not
+  saved yet is pulled on demand and saved. Only if the hourly allowance is exhausted is the visitor
+  told when it will be ready (and it is pulled automatically after the reset).
 - **FR-013**: The app MUST be deployable as a public website with the API key held only in the
   host's environment.
 

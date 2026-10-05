@@ -82,6 +82,9 @@ const bestKillFrom = (ranks: EncounterRanks | null | undefined) =>
   [...(ranks?.ranks ?? [])].sort((a, b) => b.amount - a.amount)[0];
 
 /** Where cached Warcraft Logs responses live between restarts. */
+/** Snapshot made by `npm run prefill`, committed to the repo so a new server starts with everyone pulled. */
+export const seedFile = (site: Site) => join(resolve(import.meta.dirname, '../..'), 'data', `seed-${site}.json.gz`);
+
 export const cacheFile = (site: Site, dir?: string) => join(dir || join(resolve(import.meta.dirname, '../..'), '.cache'), `wcl-${site}.json`);
 
 /**

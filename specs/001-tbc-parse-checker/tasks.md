@@ -115,3 +115,9 @@ description: "Task list for TBC Parse Checker"
 
 - [x] T056 Raid ids are the raid's name (`black-temple`) so the visitor side and the puller always agree; old numbered ids still accepted
 - [x] T057 Only list raids whose first boss has ranked kills (checked daily, saved as `raids-v1`), so unreleased raids like Sunwell stay hidden and the default is the newest released raid
+
+## Phase 18: No waiting line
+
+- [x] T058 Replace the queue with on-demand pulls for anything not saved (shared between simultaneous visitors); rate-limited requests are queued silently for after the reset
+- [x] T059 Sweep keeps only 20% back (`SWEEP_RESERVE`); skip characters Warcraft Logs recently couldn't find
+- [x] T060 `npm run prefill`: pull the whole realm across hourly resets with progress/ETA, then write `data/seed-<site>.json.gz`; servers with no saved data start from the seed

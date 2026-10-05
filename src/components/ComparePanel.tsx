@@ -1,12 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AbilityLine, BossRow, Comparison, FightSide, Site } from '../../shared/types';
-import { api, PendingError, type Query } from '../lib/api';
+import { api, type Query } from '../lib/api';
 import { ago, percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 import { CastsChart } from './CastsChart';
 import { HeadToHead } from './HeadToHead';
-import { Pending } from './Pending';
 
 interface Props {
   query: Query;
@@ -18,19 +17,15 @@ interface Props {
 export function ComparePanel({ query, row, site, demo }: Props) {
   const [data, setData] = useState<Comparison | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState<PendingError | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   useEffect(() => {
     let live = true;
-    setPending(null);
+    setError(null);
     api.compare(query, row.encounter.id, row.spec).then(
       (c) => live && setData(c),
       (e: Error) => {
-        if (!live) return;
-        if (e instanceof PendingError) setPending(e);
-        else setError(e.message);
+        if (live) setError(e.message);
       },
     );
     return () => {
@@ -38,8 +33,15 @@ export function ComparePanel({ query, row, site, demo }: Props) {
     };
   }, [query, row.encounter.id, row.spec, attempt]);
 
-  if (error) return <div className="compare state">{error}</div>;
-  if (pending) return <Pending pending={pending} what={`This ${row.encounter.name} comparison`} onRetry={retry} />;
+  if (error)
+    return (
+      <div className="compare state">
+        <p>{error}</p>
+        <button className="button ghost" onClick={() => setAttempt((n) => n + 1)}>
+          Try again
+        </button>
+      </div>
+    );
   if (!data) return <CompareSkeleton />;
 
   const noun = data.metric === 'hps' ? 'healing' : 'damage';
@@ -104,7 +106,7 @@ function CompareSkeleton() {
         <div className="side skeleton-block" />
         <div className="side skeleton-block" />
       </div>
-      <p className="soft loading-note">Loading your log and the top 1% log…</p>
+      <p className="soft loading-note">Loading your log and the top 1% log — the first time can take a few seconds…</p>
     </div>
   );
 }

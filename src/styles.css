@@ -289,22 +289,6 @@ select option {
   font: 13px var(--mono);
   word-break: break-word;
 }
-.state.pending {
-  border-style: solid;
-  border-color: var(--line);
-  background: var(--surface);
-  margin: 12px 0;
-}
-.state.pending p {
-  margin: 0;
-  color: var(--text-2);
-}
-.state.pending .pending-title {
-  color: var(--text);
-  font-weight: 600;
-  font-size: 16px;
-  margin-bottom: 6px;
-}
 
 .intro ol {
   list-style: none;

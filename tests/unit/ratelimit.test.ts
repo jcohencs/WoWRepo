@@ -26,6 +26,17 @@ describe('TtlCache', () => {
     expect(calls).toBe(0);
   });
 
+  it('starts from a seed snapshot when there is no saved file yet', () => {
+    const a = new TtlCache();
+    a.set('view|zone|x', { ok: 1 }, 60_000);
+    a.set('queue', [], 60_000);
+    const seed = tmpFile().replace('cache.json', 'seed.json.gz');
+    expect(a.exportSeed(seed, (k) => k.startsWith('view|'))).toBe(1);
+    const b = new TtlCache({ file: tmpFile(), seed });
+    expect(b.peek('view|zone|x')).toEqual({ ok: 1 });
+    expect(b.peek('queue')).toBeUndefined();
+  });
+
   it('falls back to an expired value when the allowance is used up', async () => {
     const c = new TtlCache();
     c.set('k', 'old', -1);

@@ -12,25 +12,11 @@ export class RequestError extends Error {
   }
 }
 
-/** The page hasn't been pulled from Warcraft Logs yet; it's queued for the next scheduled update. */
-export class PendingError extends RequestError {
-  constructor(
-    readonly position: number,
-    readonly nextUpdateInSec: number,
-  ) {
-    super('pending', 'Not pulled yet.');
-  }
-}
-
 async function get<T>(path: string, params: Record<string, string | number | undefined> = {}, signal?: AbortSignal): Promise<T> {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== undefined && v !== '') qs.set(k, String(v));
   const res = await fetch(`${path}${qs.size ? `?${qs}` : ''}`, { signal });
   const body = (await res.json().catch(() => null)) as T | ApiError | null;
-  if (res.status === 202) {
-    const p = (body as { pending?: { position: number; nextUpdateInSec: number } } | null)?.pending;
-    throw new PendingError(p?.position ?? 1, p?.nextUpdateInSec ?? 600);
-  }
   if (!res.ok || !body) {
     const err = (body as ApiError | null)?.error;
     throw new RequestError(err?.code ?? 'upstream', err?.message ?? `Request failed (${res.status}).`);

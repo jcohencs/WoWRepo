@@ -4,17 +4,17 @@ import { classByName } from './core/classes.js';
 import type { CharacterRef } from './core/input.js';
 import { normaliseRaidId, raidsFromZones } from './core/raids.js';
 import { TBC_ZONES } from './core/zones.js';
-import { ApiFailure, PendingPull } from './errors.js';
+import { ApiFailure } from './errors.js';
 import type { Provider } from './provider.js';
 import type { WclProvider } from './wcl/provider.js';
 
 /**
  * The site works in two halves that share one saved store:
  *
- * - `SnapshotProvider` answers visitors. It only reads finished, saved pages and never calls
- *   Warcraft Logs. Anything not saved yet is put in a queue.
- * - `Puller` runs on a timer. It works through the queue, then re-pulls the oldest saved pages,
- *   for as long as this hour's allowance lasts.
+ * - `SnapshotProvider` answers visitors from finished, saved pages. Something not saved yet (an
+ *   ability comparison, a spec nobody opened) is pulled right away, saved, and shown — no queue.
+ * - `Puller` runs on a timer. It finds everyone raiding on the realm and pulls their raid pages
+ *   ahead of time, then keeps opened pages fresh, for as long as this hour's allowance lasts.
  */
 
 type Job =
@@ -64,7 +64,7 @@ const REFRESH_RESERVE = 0.15;
  * The realm-wide discovery and sweep only use the allowance while this much is left, so a share
  * of every hour stays free for visitors' lookups, refreshes and `npm run doctor`.
  */
-const SWEEP_RESERVE = Number(process.env.SWEEP_RESERVE) || 0.4;
+const SWEEP_RESERVE = Number(process.env.SWEEP_RESERVE) || 0.2;
 const KEEP = 365 * DAY;
 
 const refKey = (r: CharacterRef) => `${r.region}|${r.realm}|${r.name}`;
@@ -136,6 +136,27 @@ export class Puller {
     return this.cache.peekAny<Raid[]>('raids-v1')?.value ?? raidsFromZones(TBC_ZONES);
   }
 
+  private readonly pulling = new Map<string, Promise<'ok' | 'limited' | 'failed'>>();
+
+  /**
+   * Pulls one page right now (for a visitor), sharing the work if several people ask at once.
+   * If the allowance is used up, the page is queued for the next scheduled pass instead.
+   */
+  pullNow(job: Job): Promise<'ok' | 'limited' | 'failed'> {
+    const key = jobKey(job);
+    let run = this.pulling.get(key);
+    if (!run) {
+      run = this.pull(job)
+        .then((outcome) => {
+          if (outcome === 'limited') this.enqueue(job);
+          return outcome;
+        })
+        .finally(() => this.pulling.delete(key));
+      this.pulling.set(key, run);
+    }
+    return run;
+  }
+
   /** One scheduled pass. Overlapping calls share the same pass. */
   run(): Promise<void> {
     if (!this.running) {
@@ -155,7 +176,7 @@ export class Puller {
   private async pass(): Promise<void> {
     await this.live.raids().catch(() => undefined); // keeps the raid list current (cached a week)
 
-    // 1. Things visitors asked for that aren't saved yet, oldest request first.
+    // 1. Anything a visitor opened while the allowance was used up, oldest first.
     while (this.queue().length) {
       const job = this.queue()[0];
       const outcome = await this.pull(job);
@@ -227,6 +248,43 @@ export class Puller {
     return 'ok';
   }
 
+  /**
+   * Rostered characters whose pages for these raids are missing or a day old. Characters Warcraft
+   * Logs couldn't find recently are skipped, so a renamed character isn't retried every pass.
+   */
+  private dueFor(zoneRaids: Raid[], realm: string): CharacterRef[] {
+    return this.roster(realm)
+      .names.map((name) => ({ region: REALM_REGION, realm, name }))
+      .filter((ref) =>
+        zoneRaids.some((raid) => {
+          const key = jobKey({ kind: 'zone', ref, raidId: raid.id });
+          if (this.cache.peek(`notfound|${key}`)) return false;
+          const at = this.cache.fetchedAt(`view|${key}`);
+          return at == null || Date.now() - at > SWEEP_REFRESH;
+        }),
+      );
+  }
+
+  /** How much of the realm-wide pull is left: discovery still running, and characters still due per raid tier. */
+  remaining(): { discovering: boolean; characters: number; total: number } {
+    const raids = this.cachedRaids();
+    const zoneIds = [...new Set(raids.map((r) => r.zoneId))];
+    let characters = 0;
+    let total = 0;
+    for (const realm of REALMS) {
+      const names = this.roster(realm.slug).names.length;
+      for (const zoneId of zoneIds) {
+        characters += this.dueFor(raids.filter((r) => r.zoneId === zoneId), realm.slug).length;
+        total += names;
+      }
+    }
+    const discovering = REALMS.some((r) => {
+      const roster = this.roster(r.slug);
+      return roster.tasks != null || roster.discoveredAt === 0;
+    });
+    return { discovering, characters, total };
+  }
+
   /** Pulls every rostered character's raid pages that are missing or a day old, newest raid first. */
   private async sweep(): Promise<void> {
     const raids = this.cachedRaids();
@@ -234,14 +292,7 @@ export class Puller {
     for (const zoneId of zoneIds) {
       const zoneRaids = raids.filter((r) => r.zoneId === zoneId);
       for (const realm of REALMS) {
-        const due = this.roster(realm.slug)
-          .names.map((name) => ({ region: REALM_REGION, realm: realm.slug, name }))
-          .filter((ref) =>
-            zoneRaids.some((raid) => {
-              const at = this.cache.fetchedAt(`view|${jobKey({ kind: 'zone', ref, raidId: raid.id })}`);
-              return at == null || Date.now() - at > SWEEP_REFRESH;
-            }),
-          );
+        const due = this.dueFor(zoneRaids, realm.slug);
         for (let i = 0; i < due.length; i += SWEEP_BATCH) {
           if (this.live.headroom() <= SWEEP_RESERVE) return;
           const chunk = due.slice(i, i + SWEEP_BATCH);
@@ -343,15 +394,25 @@ export class SnapshotProvider implements Provider {
     return this.read<Comparison>({ kind: 'compare', ref, encounterId, spec });
   }
 
-  private read<T>(job: Job): T {
+  private async read<T>(job: Job): Promise<T> {
     const key = jobKey(job);
     this.touch(key, job);
     const saved = this.cache.peekAny<T>(`view|${key}`);
     if (saved) return upgradePage(saved.value, saved.fetchedAt, job);
     const failed = this.cache.peek<{ message: string; code: ApiFailure['code'] } | null>(`notfound|${key}`);
     if (failed) throw new ApiFailure(failed.code, failed.message);
-    throw new PendingPull(this.puller.enqueue(job), this.puller.secondsUntilNextRun());
+
+    const outcome = await this.puller.pullNow(job);
+    const fresh = this.cache.peekAny<T>(`view|${key}`);
+    if (outcome === 'ok' && fresh) return upgradePage(fresh.value, fresh.fetchedAt, job);
+    if (outcome === 'limited') {
+      const mins = Math.max(1, Math.ceil(this.live.status().resetsInSec ?? 600) / 60);
+      throw new ApiFailure('rate_limited', `Warcraft Logs is busy right now. This will be ready in about ${Math.ceil(mins)} minutes — check back then.`);
+    }
+    const why = this.cache.peek<{ message: string; code: ApiFailure['code'] } | null>(`notfound|${key}`);
+    throw new ApiFailure(why?.code ?? 'upstream', why?.message ?? 'Warcraft Logs returned an error. Please try again shortly.');
   }
+
 
   /** Records that a page was opened, so the puller keeps it fresh. */
   private touch(key: string, job: Job) {

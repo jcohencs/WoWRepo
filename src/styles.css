@@ -682,10 +682,10 @@ td {
 .legend-you::before { background: var(--you); }
 .legend-ref::before { background: var(--ref); }
 
-/* Ability rows: name | uses per minute | share chart | difference */
+/* Ability rows: name | uses per minute | share chart */
 .bd-row {
   display: grid;
-  grid-template-columns: minmax(170px, 1.1fr) 120px minmax(180px, 1.6fr) minmax(170px, 1.1fr);
+  grid-template-columns: minmax(200px, 1.2fr) 130px minmax(220px, 2fr);
   align-items: center;
   gap: 16px;
   padding: 9px 4px;
@@ -764,82 +764,107 @@ td {
   text-align: right;
 }
 
-.diff {
-  display: block;
-  min-width: 0;
+.pies {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 20px 36px;
+  align-items: center;
+  padding: 16px 18px;
+  margin-bottom: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
 }
-.diff-head small {
+.pie-pair {
   display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--soft);
+  gap: 24px;
 }
-.diff-bar {
-  position: relative;
+.donut {
+  margin: 0;
+  text-align: center;
+}
+.donut svg {
   display: block;
-  height: 26px;
+  overflow: visible;
 }
-.diff-axis {
-  position: absolute;
-  left: 50%;
-  top: 2px;
-  bottom: 2px;
-  width: 1px;
-  background: var(--line-strong);
+.donut circle {
+  cursor: pointer;
+  transition: opacity 120ms, stroke-width 120ms;
 }
-.diff-axis.only {
-  position: relative;
-  left: auto;
-  display: block;
-  height: 26px;
-  margin-left: 50%;
-}
-.diff-fill {
-  position: absolute;
-  top: 8px;
-  height: 10px;
-  width: var(--w);
-}
-.diff-bar.you .diff-fill {
-  left: 50%;
-  background: var(--you);
-  border-radius: 0 4px 4px 0;
-}
-.diff-bar.ref .diff-fill {
-  right: 50%;
-  background: var(--ref);
-  border-radius: 4px 0 0 4px;
-}
-.diff-value {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 13px;
+.donut-value {
+  fill: var(--text);
+  font-size: 20px;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--text-2);
+}
+.donut-sub {
+  fill: var(--soft);
+  font-size: 12px;
+}
+.donut figcaption {
+  margin-top: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.donut-you figcaption::before,
+.donut-ref figcaption::before {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.donut-you figcaption::before { background: var(--you); }
+.donut-ref figcaption::before { background: var(--ref); }
+
+.pie-legend th {
+  padding: 0 8px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.pie-legend td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
-.diff-bar.you .diff-value,
-.diff-bar.same .diff-value {
-  left: calc(50% + var(--w) + 6px);
+.pie-legend tr:last-child td {
+  border-bottom: 0;
 }
-.diff-bar.ref .diff-value {
-  right: calc(50% + var(--w) + 6px);
+.pie-legend tbody tr {
+  transition: opacity 120ms;
 }
-.bd-row.notable .diff-value {
+.pie-legend tr.dim {
+  opacity: 0.4;
+}
+.pie-legend tr.active td {
+  background: var(--surface);
+}
+.pie-diff {
+  color: var(--text-2);
+}
+.pie-diff.big {
   color: var(--text);
   font-weight: 600;
 }
-
-.diff-explain {
-  display: none;
-  margin: 0 0 8px;
-  font-size: 13px;
-  color: var(--text-2);
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: 10px;
+  vertical-align: -1px;
+  flex: none;
 }
-.legend-ref-text { color: var(--ref); font-weight: 600; }
-.legend-you-text { color: var(--you); font-weight: 600; }
+.ability .swatch {
+  margin: 0 0 0 auto;
+}
+.breakdown-head.sub {
+  margin-top: 22px;
+}
+.breakdown-head.sub h3 {
+  font-size: 15px;
+}
 
 .footnote {
   margin: 16px 0 0;
@@ -948,28 +973,33 @@ td {
   .bd-header {
     display: none;
   }
-  .diff-explain {
-    display: block;
+  .pies {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 14px 10px;
+  }
+  .pie-legend {
+    width: 100%;
+  }
+  .pie-pair {
+    justify-content: space-around;
+    gap: 8px;
   }
   .bd-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
       'name name'
       'chart chart'
-      'diff diff'
       'uses uses';
     gap: 6px 12px;
     padding: 12px 2px;
   }
   .bd-row .ability { grid-area: name; }
-  .bd-row .diff { grid-area: diff; }
   .bd-row .share-chart { grid-area: chart; }
   .bd-row .uses {
     grid-area: uses;
     text-align: left;
     font-size: 13px;
   }
-  .bd-row .diff.no-diff,
   .bd-row .uses.no-uses {
     display: none;
   }
@@ -991,5 +1021,40 @@ td {
   }
   .character h1 {
     font-size: 26px;
+  }
+  .pie-pair {
+    gap: 4px;
+  }
+  .donut svg {
+    width: 128px;
+    height: 128px;
+  }
+  .donut-value {
+    font-size: 22px;
+  }
+  .pie-legend {
+    table-layout: fixed;
+    font-size: 13px;
+  }
+  .pie-legend th {
+    font-size: 12px;
+  }
+  .pie-legend th,
+  .pie-legend td {
+    padding-left: 3px;
+    padding-right: 3px;
+  }
+  .pie-legend th:nth-child(2),
+  .pie-legend th:nth-child(3) {
+    width: 50px;
+  }
+  .pie-legend th:nth-child(4) {
+    width: 66px;
+  }
+  .pie-legend td:first-child {
+    white-space: normal;
+  }
+  .pie-legend .swatch {
+    margin-right: 6px;
   }
 }

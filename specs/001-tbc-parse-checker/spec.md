@@ -50,8 +50,9 @@ report data and differences are highlighted.
 **Acceptance Scenarios**:
 
 1. **Given** a boss row with a kill, **When** the user opens it, **Then** a panel shows both
-   players' summary stats and, per ability, uses per minute, a share-of-damage chart and a
-   diverging bar showing which side gets more from that ability.
+   players' summary stats, two pie charts of where each player's damage comes from (same colour
+   per ability, top five plus "everything else") with a legend of both shares and the difference,
+   and a full ability list with uses per minute and share bars.
 2. **Given** an ability used only by one side, **When** shown, **Then** the other side reads "—"
    rather than 0 %.
 

@@ -59,3 +59,7 @@ description: "Task list for TBC Parse Checker"
 - [x] T026 Realms limited to Dreamscythe and Nightslayer (US); region picker and `/api/realms` removed
 - [x] T027 Difference column becomes a diverging bar (left/orange = top 1% more, right/grey = you more) with the value at the bar end
 - [x] T028 Ability icons enlarged to 36px
+
+## Phase 9: Feedback round 3
+
+- [x] T029 Replace the diverging difference bars with two donut charts (You / Top 1%) sharing one colour per ability: top five abilities plus "Everything else", validated categorical palette, hover links slices and legend, legend lists you / top 1% / difference

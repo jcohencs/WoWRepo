@@ -110,3 +110,8 @@ description: "Task list for TBC Parse Checker"
 - [x] T053 `npm run doctor` checks every request type with the configured key
 - [x] T054 After an HTTP 429 with no known reset, back off 5 minutes (not an hour); never report a 0-point limit
 - [x] T055 Realm discovery/sweep stop at 40% allowance left (`SWEEP_RESERVE`) so visitors and checks always have room
+
+## Phase 17: Raid ids and unreleased raids
+
+- [x] T056 Raid ids are the raid's name (`black-temple`) so the visitor side and the puller always agree; old numbered ids still accepted
+- [x] T057 Only list raids whose first boss has ranked kills (checked daily, saved as `raids-v1`), so unreleased raids like Sunwell stay hidden and the default is the newest released raid

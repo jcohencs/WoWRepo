@@ -13,7 +13,7 @@ import {
 import { CLASSES, classById, metricFor, metricForSpec, specLabel, type ClassInfo } from '../core/classes.js';
 import { compareAbilities, type TableEntry } from '../core/compare.js';
 import type { CharacterRef } from '../core/input.js';
-import { raidsFromZones } from '../core/raids.js';
+import { normaliseRaidId, raidsFromZones } from '../core/raids.js';
 import { buildRow, mainSpec, summarise, type CharacterBest } from '../core/report.js';
 import { TBC_ZONES, tbcZonesFromExpansions } from '../core/zones.js';
 import { ApiFailure } from '../errors.js';
@@ -161,8 +161,36 @@ export class WclProvider implements Provider {
   }
 
 
+  /**
+   * TBC raids on this site that have ranked kills, newest last. Raids not out yet (no rankings)
+   * are left out. Saved for a day under `raids-v1`, which the visitor side also reads.
+   */
   async raids(): Promise<Raid[]> {
-    return raidsFromZones(await this.zones());
+    const saved = this.cache.peek<Raid[]>('raids-v1');
+    if (saved) return saved;
+    const zones = await this.zones();
+    const all = raidsFromZones(zones);
+    if (zones === TBC_ZONES) return all; // fallback list: don't save it
+    const released = await this.releasedRaids(all);
+    const list = released ? all.filter((r) => released.has(r.id)) : all;
+    const raids = list.length ? list : all;
+    this.cache.set('raids-v1', raids, DAY);
+    return raids;
+  }
+
+  /** Raids whose first boss has any ranked kill, from one batched query; null if it can't be checked. */
+  private async releasedRaids(raids: Raid[]): Promise<Set<string> | null> {
+    try {
+      const data = await this.client.query<{ worldData: Record<string, { characterRankings: RawRankingPage } | null> }>(
+        `{ worldData { ${raids
+          .map((r, i) => `q${i}: encounter(id: ${r.encounters[0].id}) { characterRankings(metric: dps, page: 1) }`)
+          .join('\n')} } }`,
+      );
+      return new Set(raids.filter((_, i) => (data.worldData[`q${i}`]?.characterRankings?.rankings?.length ?? 0) > 0).map((r) => r.id));
+    } catch (err) {
+      if (err instanceof ApiFailure && err.code === 'rate_limited') throw err;
+      return null;
+    }
   }
 
   /**
@@ -171,7 +199,7 @@ export class WclProvider implements Provider {
    */
   async zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
     const raids = await this.raids();
-    const raid = raidId ? raids.find((r) => r.id === raidId) : raids[raids.length - 1];
+    const raid = raidId ? raids.find((r) => r.id === normaliseRaidId(raidId)) : raids[raids.length - 1];
     if (!raid) throw new ApiFailure('not_found', `Unknown raid "${raidId}".`);
     if (spec && !SAFE_NAME.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
 

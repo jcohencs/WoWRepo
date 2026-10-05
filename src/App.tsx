@@ -16,7 +16,8 @@ function readUrl(): { query: Query | null; raid?: string; spec?: string } {
   const region = p.get('region')?.toUpperCase();
   const realm = p.get('realm');
   const name = p.get('name');
-  const raid = p.get('raid') || undefined;
+  // Older links used ids like "1011-black-temple"; raids are now identified by name alone.
+  const raid = p.get('raid')?.replace(/^\d+-/, '') || undefined;
   const spec = p.get('spec') || undefined;
   return { query: region && realm && name ? { region: region as Region, realm, name } : null, raid, spec };
 }

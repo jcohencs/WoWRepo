@@ -44,7 +44,7 @@ describe('API (demo provider)', () => {
   });
 
   it('returns a zone report with p99 benchmarks', async () => {
-    const { status, body } = await get('/api/character?region=us&realm=dreamscythe&name=brannoc&raid=1011-black-temple');
+    const { status, body } = await get('/api/character?region=us&realm=dreamscythe&name=brannoc&raid=black-temple');
     expect(status).toBe(200);
     const report = body as ZoneReport;
     expect(report.character.name).toBe('Brannoc');

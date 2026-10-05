@@ -2,7 +2,7 @@ import { REALM_REGION, REALMS, type ApiStatus, type Comparison, type Metric, typ
 import { DAY, HOUR, MINUTE, type TtlCache } from './cache.js';
 import { classByName } from './core/classes.js';
 import type { CharacterRef } from './core/input.js';
-import { raidsFromZones } from './core/raids.js';
+import { normaliseRaidId, raidsFromZones } from './core/raids.js';
 import { TBC_ZONES } from './core/zones.js';
 import { ApiFailure, PendingPull } from './errors.js';
 import type { Provider } from './provider.js';
@@ -133,7 +133,7 @@ export class Puller {
   }
 
   private cachedRaids(): Raid[] {
-    return raidsFromZones(this.cache.peekAny<typeof TBC_ZONES>('zones-v2')?.value ?? TBC_ZONES);
+    return this.cache.peekAny<Raid[]>('raids-v1')?.value ?? raidsFromZones(TBC_ZONES);
   }
 
   /** One scheduled pass. Overlapping calls share the same pass. */
@@ -313,8 +313,7 @@ export class SnapshotProvider implements Provider {
   }
 
   async raids(): Promise<Raid[]> {
-    const zones = this.cache.peekAny<typeof TBC_ZONES>('zones-v2')?.value;
-    return raidsFromZones(zones ?? TBC_ZONES);
+    return this.cache.peekAny<Raid[]>('raids-v1')?.value ?? raidsFromZones(TBC_ZONES);
   }
 
   status(): ApiStatus {
@@ -333,8 +332,8 @@ export class SnapshotProvider implements Provider {
 
   async zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
     const raids = await this.raids();
-    const id = raidId ?? raids[raids.length - 1]?.id;
-    if (!raids.some((r) => r.id === id)) throw new ApiFailure('not_found', `Unknown raid "${raidId}".`);
+    const id = raidId ? normaliseRaidId(raidId) : raids[raids.length - 1]?.id;
+    if (!raids.some((r) => r.id === id)) throw new ApiFailure('not_found', `That raid isn't on Warcraft Logs yet.`);
     if (spec && !/^[A-Za-z]+$/.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
     return this.read<ZoneReport>({ kind: 'zone', ref, raidId: id!, ...(spec ? { spec } : {}) });
   }

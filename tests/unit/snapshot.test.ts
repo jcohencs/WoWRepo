@@ -7,7 +7,7 @@ import { fakeWcl, handler } from './fake-wcl';
 const brannoc = { region: 'US' as const, realm: 'nightslayer', name: 'Brannoc' };
 /** Not found by roster discovery, so only a visitor's search brings them in. */
 const newcomer = { region: 'US' as const, realm: 'nightslayer', name: 'Newcomer' };
-const raid = '2011-black-temple';
+const raid = 'black-temple';
 
 function setup() {
   const cache = new TtlCache({ serveStale: false });
@@ -112,7 +112,7 @@ describe('saved pages + scheduled puller', () => {
   it('upgrades pages saved by older versions instead of breaking', async () => {
     const { site, puller, cache } = setup();
     await puller.run();
-    const key = 'view|zone|US|nightslayer|Brannoc|2011-black-temple';
+    const key = 'view|zone|US|nightslayer|Brannoc|black-temple';
     const page = await site.zoneReport(brannoc, raid);
     const { specs: _s, mainSpec: _m, spec: _p, updatedAt: _u, ...old } = page;
     cache.set(key, old, 365 * 24 * HOUR);

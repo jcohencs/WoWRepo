@@ -15,6 +15,14 @@ const RAIDS: { name: string; bosses: string[] }[] = [
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+/**
+ * Raid ids are the raid's name ("black-temple"), so they stay the same whichever Warcraft Logs
+ * zone the raid comes from. Older links used "1011-black-temple"; the number is dropped.
+ */
+export function normaliseRaidId(id: string): string {
+  return id.replace(/^\d+-/, '');
+}
+
 export function isTbcBoss(encounterName: string): boolean {
   return raidOf(encounterName) >= 0;
 }
@@ -43,7 +51,7 @@ export function raidsFromZones(zones: Zone[]): Raid[] {
     for (const [i, encounters] of groups) {
       const name = i >= 0 ? RAIDS[i].name : zone.name;
       const candidate = {
-        id: `${zone.id}-${slug(name)}`,
+        id: slug(name),
         name,
         zoneId: zone.id,
         encounters,

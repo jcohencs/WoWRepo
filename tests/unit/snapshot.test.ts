@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HOUR, TtlCache } from '../../server/cache';
 import { ApiFailure } from '../../server/errors';
@@ -96,6 +99,24 @@ describe('saved pages + scheduled puller', () => {
     // Nothing is re-pulled until the day is up.
     await puller.run();
     expect(queries.length).toBe(before);
+  });
+
+  it('does not re-pull anyone after a restart', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'parsecheck-'));
+    try {
+      const file = join(dir, 'wcl.json');
+      const opts = { file, serveStale: false, persist: persisted, pack: packSaved };
+      const a = new TtlCache(opts);
+      await new Puller(fakeWcl(handler, a).provider, a).run();
+      a.flush();
+
+      const b = new TtlCache(opts); // the server restarts
+      const { provider, queries } = fakeWcl(handler, b);
+      await new Puller(provider, b).run();
+      expect(queries.filter((q) => q.includes('character('))).toEqual([]);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('keeps each spec as its own saved page', async () => {

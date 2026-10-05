@@ -30,8 +30,8 @@ interface SavedPage {
 
 /** Re-pull saved pages people open once they are this old. */
 const REFRESH_AFTER = { zone: 2 * HOUR, compare: 12 * HOUR };
-/** Pages built by the realm-wide sweep are re-pulled daily. */
-const SWEEP_REFRESH = DAY;
+/** Pages built by the realm-wide sweep are re-pulled once this old (default daily; RAIDER_REFRESH_HOURS). */
+const SWEEP_REFRESH = (Number(process.env.RAIDER_REFRESH_HOURS) || 24) * HOUR;
 /** Who raids on each realm is re-discovered daily. */
 const ROSTER_REFRESH = DAY;
 /** Characters per request during the sweep. */
@@ -221,6 +221,7 @@ export class Puller {
     due.sort((a, b) => a.at - b.at);
     for (const { page } of due) {
       if (this.live.headroom() <= REFRESH_RESERVE) return;
+      if (this.log) console.log(`[parsecheck] Refreshing a page someone opened: ${page.job.ref.name} (${page.job.kind === 'zone' ? page.job.raidId : `boss ${page.job.encounterId}`})`);
       if ((await this.pull(page.job)) === 'limited') return;
     }
 
@@ -317,6 +318,11 @@ export class Puller {
         for (let i = 0; i < due.length; i += SWEEP_BATCH) {
           if (this.live.headroom() <= SWEEP_RESERVE) return;
           const chunk = due.slice(i, i + SWEEP_BATCH);
+          if (this.log) {
+            const fresh = chunk.filter((ref) => zoneRaids.some((raid) => this.cache.fetchedAt(`view|${jobKey({ kind: 'zone', ref, raidId: raid.id })}`) == null)).length;
+            const why = [fresh && `${fresh} new`, chunk.length - fresh && `${chunk.length - fresh} refreshing (pulled over ${Math.round(SWEEP_REFRESH / HOUR)}h ago)`].filter(Boolean).join(', ');
+            console.log(`[parsecheck] ${realm.name} · ${zoneRaids.map((r) => r.name).join(' / ')} · ${chunk.map((r) => r.name).join(', ')} — ${why}`);
+          }
           try {
             await this.live.prefetchCharacters(chunk, zoneId);
           } catch (err) {

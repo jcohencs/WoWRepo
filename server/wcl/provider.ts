@@ -12,6 +12,7 @@ import {
 } from '../core/benchmark.js';
 import { CLASSES, classById, metricFor, metricForSpec, specLabel, type ClassInfo } from '../core/classes.js';
 import { compareAbilities, type TableEntry } from '../core/compare.js';
+import { bestPerWeek, preparation, takenBySchool, timelineFromGraph, type Kill } from '../core/fight.js';
 import type { CharacterRef } from '../core/input.js';
 import { normaliseRaidId, raidsFromZones } from '../core/raids.js';
 import { buildRow, mainSpec, summarise, type CharacterBest } from '../core/report.js';
@@ -45,7 +46,18 @@ interface CharacterResponse {
 }
 
 interface EncounterRanks {
-  ranks?: { amount: number; duration: number; spec?: string; report: { code: string; fightID: number } }[];
+  ranks?: {
+    amount: number;
+    duration: number;
+    startTime?: number;
+    rankPercent?: number;
+    spec?: string;
+    report: { code: string; fightID: number; startTime?: number };
+  }[];
+}
+
+interface BuffTable {
+  data?: { totalTime?: number; auras?: { name: string; totalUptime?: number }[]; entries?: { name: string; totalUptime?: number }[] };
 }
 
 interface ReportTable {
@@ -53,12 +65,12 @@ interface ReportTable {
 }
 
 /** The character's best kill on one encounter, as needed by the comparison. */
-interface BestKill {
+/** Every ranked kill a character has on one boss with one spec. */
+interface KillHistory {
   name: string;
   server: string;
   cls: ClassInfo;
-  code: string;
-  fight: number;
+  kills: Kill[];
 }
 
 /** One side of a comparison resolved to a player inside a report fight. */
@@ -78,8 +90,14 @@ const SAFE_NAME = /^[A-Za-z]+$/;
 
 
 
-const bestKillFrom = (ranks: EncounterRanks | null | undefined) =>
-  [...(ranks?.ranks ?? [])].sort((a, b) => b.amount - a.amount)[0];
+const killsFrom = (ranks: EncounterRanks | null | undefined): Kill[] =>
+  (ranks?.ranks ?? []).map((r) => ({
+    startTime: r.startTime ?? r.report.startTime ?? 0,
+    amount: r.amount,
+    rankPercent: r.rankPercent ?? null,
+    code: r.report.code,
+    fight: r.report.fightID,
+  }));
 
 /** Where cached Warcraft Logs responses live between restarts. */
 /** Snapshot made by `npm run prefill`, committed to the repo so a new server starts with everyone pulled. */
@@ -327,10 +345,11 @@ export class WclProvider implements Provider {
   }
 
   private bestKillKey(ref: CharacterRef, encounterId: number, spec: string, metric: Metric) {
-    return `best|${ref.region}|${ref.realm}|${ref.name}|${encounterId}|${spec}|${metric}`;
+    return `kills|${ref.region}|${ref.realm}|${ref.name}|${encounterId}|${spec}|${metric}`;
   }
 
-  private bestKill(ref: CharacterRef, encounterId: number, spec: string, metric: Metric): Promise<BestKill | null> {
+  /** All of the character's ranked kills of a boss as this spec (for the best kill and the weekly view). */
+  private killHistory(ref: CharacterRef, encounterId: number, spec: string, metric: Metric): Promise<KillHistory> {
     return this.cache.get(this.bestKillKey(ref, encounterId, spec, metric), TTL.bestKill, async () => {
       const data = await this.client.query<{
         characterData: { character: null | { name: string; classID: number; server: { name: string }; ranks: EncounterRanks | null } };
@@ -347,8 +366,7 @@ export class WclProvider implements Provider {
       if (!c) throw new ApiFailure('not_found', `Couldn't find "${ref.name}" on ${ref.realm} (${ref.region}).`);
       const cls = classById(c.classID);
       if (!cls) throw new ApiFailure('bad_request', `${c.name} is not a TBC class.`);
-      const kill = bestKillFrom(c.ranks);
-      return kill ? { name: c.name, server: c.server.name, cls, code: kill.report.code, fight: kill.report.fightID } : null;
+      return { name: c.name, server: c.server.name, cls, kills: killsFrom(c.ranks) };
     });
   }
 
@@ -448,35 +466,60 @@ export class WclProvider implements Provider {
     });
   }
 
+  /** Per-ability amounts and casts, plus the fight timeline, damage taken and buffs, in one request. */
   private sideTables(s: ResolvedSide, dataType: string) {
-    return this.cache.get(`tables|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`, TTL.report, async () => {
-      const data = await this.client.query<{ reportData: { report: { amounts: ReportTable; casts: ReportTable } } }>(
+    return this.cache.get(`tables2|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`, TTL.report, async () => {
+      const data = await this.client.query<{
+        reportData: { report: { amounts: ReportTable; casts: ReportTable; graph: unknown; taken: ReportTable; buffs: BuffTable } };
+      }>(
         `query($code: String!, $fight: Int!, $source: Int!, $start: Float!, $end: Float!) {
           reportData { report(code: $code) {
             amounts: table(dataType: ${dataType}, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
             casts: table(dataType: Casts, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+            graph: graph(dataType: ${dataType}, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+            taken: table(dataType: DamageTaken, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+            buffs: table(dataType: Buffs, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
           } }
         }`,
         { code: s.code, fight: s.fightId, source: s.sourceId, start: s.startTime, end: s.endTime },
       );
+      const r = data.reportData.report;
+      const durationMs = s.endTime - s.startTime;
+      const amounts = r.amounts.data?.entries ?? [];
+      const casts = r.casts.data?.entries ?? [];
+      const total = amounts.reduce((sum, e) => sum + e.total, 0);
       return {
-        durationMs: s.endTime - s.startTime,
-        amounts: data.reportData.report.amounts.data?.entries ?? [],
-        casts: data.reportData.report.casts.data?.entries ?? [],
+        durationMs,
+        amounts,
+        casts,
+        timeline: timelineFromGraph(r.graph, total, durationMs),
+        taken: takenBySchool(r.taken?.data?.entries ?? [], durationMs),
+        prep: preparation(r.buffs?.data?.auras ?? r.buffs?.data?.entries ?? [], casts, r.buffs?.data?.totalTime || durationMs),
       };
     });
   }
 
-  async compare(ref: CharacterRef, encounterId: number, spec: string): Promise<Comparison> {
+
+  /**
+   * Your kill of a boss next to the top 1% player's. With `week` (the week's reset, epoch ms) it
+   * uses your best kill from that raid week; otherwise your best kill overall.
+   */
+  async compare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison> {
     if (!SAFE_NAME.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
     const raids = await this.raids();
     const encounter = raids.flatMap((r) => r.encounters).find((e) => e.id === encounterId);
     if (!encounter) throw new ApiFailure('not_found', `Unknown encounter ${encounterId}.`);
 
-    return this.cache.get(`compare|${ref.region}|${ref.realm}|${ref.name}|${encounterId}|${spec}`, TTL.compare, async () => {
+    const cacheKey = `compare2|${ref.region}|${ref.realm}|${ref.name}|${encounterId}|${spec}${week ? `|${week}` : ''}`;
+    return this.cache.get(cacheKey, TTL.compare, async () => {
       const metric = metricForSpec(spec);
-      const kill = await this.bestKill(ref, encounterId, spec, metric);
-      if (!kill) throw new ApiFailure('not_found', `${ref.name} has no ranked ${spec} kill on ${encounter.name}.`);
+      const history = await this.killHistory(ref, encounterId, spec, metric);
+      const weeks = bestPerWeek(history.kills);
+      const chosen = week ? weeks.find((w) => w.week === week)?.kill : [...history.kills].sort((a, b) => b.amount - a.amount)[0];
+      if (!chosen) {
+        throw new ApiFailure('not_found', week ? `${ref.name} has no ranked ${spec} kill on ${encounter.name} that week.` : `${ref.name} has no ranked ${spec} kill on ${encounter.name}.`);
+      }
+      const kill = { name: history.name, server: history.server, cls: history.cls, code: chosen.code, fight: chosen.fight };
 
       const key = { encounterId, className: kill.cls.name, spec, metric };
       const benchmark = (await this.getBenchmarks([key])).get(keyString(key)) ?? null;
@@ -498,7 +541,10 @@ export class WclProvider implements Provider {
           : Promise.resolve(null),
       ]);
 
-      const toSide = ({ side }: { side: ResolvedSide }): FightSide => ({
+      const toSide = ({ side, tables }: { side: ResolvedSide; tables: Awaited<ReturnType<WclProvider['sideTables']>> }): FightSide => ({
+        timeline: tables.timeline,
+        taken: tables.taken,
+        prep: tables.prep,
         name: side.name,
         server: side.server,
         amount: side.total,
@@ -518,6 +564,9 @@ export class WclProvider implements Provider {
         ref: top ? toSide(top) : null,
         abilities: compareAbilities(you.tables, top?.tables ?? { durationMs: 1, amounts: [], casts: [] }),
         updatedAt: Date.now(),
+        weeks: weeks.map(({ week: w, perSecond, rankPercent }) => ({ week: w, perSecond, rankPercent })),
+        week: week ?? null,
+        benchmark,
       };
     });
   }

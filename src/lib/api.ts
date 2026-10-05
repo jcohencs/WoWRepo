@@ -27,11 +27,11 @@ async function get<T>(path: string, params: Record<string, string | number | und
 /** Comparisons are cached for the session so reopening a boss is instant and free. */
 const comparisons = new Map<string, Promise<Comparison>>();
 
-function compare(q: Query, encounter: number, spec: string): Promise<Comparison> {
-  const key = `${q.region}|${q.realm}|${q.name}|${encounter}|${spec}`.toLowerCase();
+function compare(q: Query, encounter: number, spec: string, week?: number): Promise<Comparison> {
+  const key = `${q.region}|${q.realm}|${q.name}|${encounter}|${spec}|${week ?? ''}`.toLowerCase();
   let hit = comparisons.get(key);
   if (!hit) {
-    hit = get<Comparison>('/api/compare', { ...q, encounter, spec });
+    hit = get<Comparison>('/api/compare', { ...q, encounter, spec, week });
     hit.catch(() => comparisons.delete(key));
     comparisons.set(key, hit);
   }

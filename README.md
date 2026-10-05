@@ -5,6 +5,8 @@ See how your **TBC** Warcraft Logs parses compare to the **99th percentile of yo
 - Per boss: your best DPS/HPS, parse, median (p50), 99th percentile, gap to p99, and how many parses the benchmark came from.
 - Percentiles are read from the exact ranking position (`rank = ceil(N × (1 − p))`) on Warcraft Logs, not estimated.
 - **Spec bar** to view any of your class's specs (or each boss's best spec).
+- **By week:** your best kill per raid week as a line chart; pick any week to compare that kill instead of your best.
+- **More charts per boss:** output over the fight, damage taken by school, preparation and uptime (flask, food, potions, time active), and where you rank on the real percentile ladder (10th–99th).
 - A slim sidebar lists every boss with your parse as a coloured bar (parse by boss); the selected boss's numbers and breakdown fill the rest of the page.
 - Comparison view: head-to-head meters (DPS, kill time, time active, total), pie charts of where the damage comes from, a buttons-pressed-per-minute chart, and the full ability list.
 - Paste a Warcraft Logs character link into the search to fill everything in.
@@ -55,6 +57,19 @@ git add data/seed-fresh.json.gz && git commit -m "Update data snapshot" && git p
 A server with no saved data yet (like a new Render disk) starts from that snapshot, and the background job keeps it fresh from there. You can stop `prefill` with Ctrl+C at any time and run it again later; nothing is lost.
 
 To pre-pull only benchmarks for one spec: `npm run sync -- --class Warrior --spec Fury`.
+
+## Request log
+
+Every Warcraft Logs request is logged in the terminal (and in Render's **Logs** tab):
+
+```
+[wcl] ok      character Alphac · 412ms +3 pts · 1240/18000 used this hour
+[wcl] ok      rankings ×9 · 690ms +18 pts · 1258/18000 used this hour
+[wcl] limited log aB3x (breakdown) · 0ms
+[parsecheck] Pull finished. Up to date (latest raid): Nightslayer 412/1530. Waiting: 0.
+```
+
+Set `WCL_LOG=off` to silence the per-request lines. The hourly allowance is read from Warcraft Logs on every request, so a higher tier is used automatically.
 
 ## Something not working?
 

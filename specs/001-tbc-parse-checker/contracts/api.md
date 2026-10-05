@@ -9,8 +9,8 @@ All responses are JSON. Errors: `{ "error": { "code": string, "message": string 
 ## GET /api/character?region=US&realm=nightslayer&name=Foo&raid=1011-black-temple&spec=Fury
 → `ZoneReport`. `raid` optional (defaults to the latest TBC raid). `spec` optional (default: each boss's best spec).
 
-## GET /api/compare?region=US&realm=dreamscythe&name=Foo&encounter=601&spec=Fury
-→ `Comparison`. 404 `not_found` if the character has no kill on the encounter.
+## GET /api/compare?region=US&realm=nightslayer&name=Foo&encounter=601&spec=Fury&week=1759762800000
+→ `Comparison` (incl. `weeks`, `benchmark.ladder`, and per side `timeline`, `taken`, `prep`). `week` optional: your best kill in that raid week (epoch ms of the US reset). 404 `not_found` if there is no kill.
 
 ## GET /api/status
 → `ApiStatus | null` — `{ limitPerHour, pointsSpent, resetsInSec, savedResults }` (null in demo mode).

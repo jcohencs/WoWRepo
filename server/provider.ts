@@ -9,5 +9,5 @@ export interface Provider {
   characterNames(realm: string): Promise<string[]>;
   raids(): Promise<Raid[]>;
   zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;
-  compare(ref: CharacterRef, encounterId: number, spec: string): Promise<Comparison>;
+  compare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison>;
 }

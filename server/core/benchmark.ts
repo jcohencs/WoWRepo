@@ -26,6 +26,9 @@ export interface BenchmarkKey {
 
 export const PERCENTILES = { p50: 50, p99: 99 } as const;
 
+/** Percentiles shown on the "where you rank" ladder; each is read from its exact ranking position. */
+export const LADDER = [10, 25, 50, 75, 90, 95, 99] as const;
+
 export function keyString(k: BenchmarkKey): string {
   return `${k.encounterId}|${k.className}|${k.spec}|${k.metric}`;
 }
@@ -37,10 +40,10 @@ export function rankingCount(first: RawRankingPage): number | null {
   return null;
 }
 
-/** Ranking pages needed (besides page 1) to read every tracked percentile. */
+/** Ranking pages needed (besides page 1) to read every ladder percentile, including p50 and p99. */
 export function pagesNeeded(count: number): number[] {
   const pages = new Set<number>();
-  for (const p of Object.values(PERCENTILES)) pages.add(locateRank(percentileRank(count, p)).page);
+  for (const p of LADDER) pages.add(locateRank(percentileRank(count, p)).page);
   pages.delete(1);
   return [...pages];
 }
@@ -68,11 +71,16 @@ export function buildBenchmark(key: BenchmarkKey, count: number | null, pages: M
   const p99 = at(PERCENTILES.p99);
   const p50 = at(PERCENTILES.p50);
   if (!p99 || !p50) return null;
+  const ladder = LADDER.flatMap((p) => {
+    const entry = at(p);
+    return entry ? [{ percentile: p, amount: entry.amount }] : [];
+  });
   return {
     ...key,
     sampleSize: count,
     p50: p50.amount,
     p99: p99.amount,
     reference: toEntry(p99),
+    ladder,
   };
 }

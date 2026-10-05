@@ -82,7 +82,7 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
         case '/api/compare': {
           const spec = p.get('spec') ?? '';
           if (!spec) throw new ApiFailure('bad_request', 'Missing "spec".');
-          return send(res, 200, await provider.compare(ref(p), intParam(p, 'encounter', true)!, spec));
+          return send(res, 200, await provider.compare(ref(p), intParam(p, 'encounter', true)!, spec, intParam(p, 'week', false)));
         }
         default:
           return send(res, 404, { error: { code: 'not_found', message: 'Not found' } });

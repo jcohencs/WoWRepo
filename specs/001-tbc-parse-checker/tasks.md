@@ -140,3 +140,10 @@ description: "Task list for TBC Parse Checker"
 - [x] T068 Tabs to swap "Buttons pressed" and "Every ability"; compact search in the top bar; character header on one line; spec bar and raid picker on one row; tighter spacing so the breakdown starts higher
 - [x] T069 Remove the "Where your damage comes from" heading; "Every ability" uses the same compact rows as "Buttons pressed" so the whole list fits without scrolling
 - [x] T070 Remove the footnotes under the tabs; the tab box runs down to the bottom of the pie chart with rows spread evenly; non-damage abilities show uses-per-minute bars instead of "No direct damage"
+
+## Phase 22: Weekly view, more charts, request log
+
+- [x] T071 `[wcl]` log line for every request: outcome, label, duration, points spent and hourly usage (`WCL_LOG=off` to silence)
+- [x] T072 Kill history per boss/spec (all ranked kills), best per raid week; `week` on `/api/compare`; weekly line chart with week picker
+- [x] T073 Benchmark ladder at the 10/25/50/75/90/95/99th percentiles from exact ranking positions
+- [x] T074 One breakdown request now also fetches the damage graph, damage taken and buffs: output-over-the-fight, damage taken by school, preparation & uptime charts; rank ladder

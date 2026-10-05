@@ -55,10 +55,12 @@ describe('benchmarks', () => {
     expect(rankingCount({ hasMorePages: true, rankings: page(1) })).toBeNull();
   });
 
-  it('asks only for the pages that hold p50/p99', () => {
-    expect(pagesNeeded(1000)).toEqual([5]); // p99 rank 10 is on page 1, p50 rank 500 on page 5
-    expect(pagesNeeded(20000).sort()).toEqual([100, 2]); // rank 200 → page 2, rank 10000 → page 100
+  it('asks only for the pages that hold the ladder percentiles', () => {
+    // 1000 parses: p10=rank 900 (page 9), p25=750 (8), p50=500 (5), p75=250 (3); p90/p95/p99 are on page 1.
+    expect(pagesNeeded(1000).sort((a, b) => a - b)).toEqual([3, 5, 8, 9]);
+    expect(pagesNeeded(20000).sort((a, b) => a - b)).toEqual([2, 10, 20, 50, 100, 150, 180]);
   });
+
 
   it('reads the exact entries at p50 and p99', () => {
     const b = buildBenchmark(key, 1000, new Map([[1, page(1)], [5, page(5)]]))!;
@@ -66,6 +68,13 @@ describe('benchmarks', () => {
     expect(b.p99).toBe(3000 - 10);
     expect(b.p50).toBe(3000 - 500);
     expect(b.reference).toMatchObject({ name: 'P10', reportCode: 'r10', fightId: 10 });
+    // Only pages 1 and 5 were loaded, so the ladder has the percentiles that live on them.
+    expect(b.ladder).toEqual([
+      { percentile: 50, amount: 3000 - 500 },
+      { percentile: 90, amount: 3000 - 100 },
+      { percentile: 95, amount: 3000 - 50 },
+      { percentile: 99, amount: 3000 - 10 },
+    ]);
   });
 
   it('returns null when nothing is ranked', () => {

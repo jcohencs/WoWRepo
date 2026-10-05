@@ -19,7 +19,7 @@ import type { WclProvider } from './wcl/provider.js';
 
 type Job =
   | { kind: 'zone'; ref: CharacterRef; raidId: string; spec?: string }
-  | { kind: 'compare'; ref: CharacterRef; encounterId: number; spec: string };
+  | { kind: 'compare'; ref: CharacterRef; encounterId: number; spec: string; week?: number };
 
 interface SavedPage {
   job: Job;
@@ -71,7 +71,7 @@ const refKey = (r: CharacterRef) => `${r.region}|${r.realm}|${r.name}`;
 export const jobKey = (j: Job) =>
   j.kind === 'zone'
     ? `zone|${refKey(j.ref)}|${j.raidId}${j.spec ? `|${j.spec}` : ''}`
-    : `compare|${refKey(j.ref)}|${j.encounterId}|${j.spec}`;
+    : `compare|${refKey(j.ref)}|${j.encounterId}|${j.spec}${j.week ? `|${j.week}` : ''}`;
 
 export class Puller {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -314,7 +314,7 @@ export class Puller {
     const key = jobKey(job);
     try {
       const page =
-        job.kind === 'zone' ? await this.live.zoneReport(job.ref, job.raidId, job.spec) : await this.live.compare(job.ref, job.encounterId, job.spec);
+        job.kind === 'zone' ? await this.live.zoneReport(job.ref, job.raidId, job.spec) : await this.live.compare(job.ref, job.encounterId, job.spec, job.week);
       this.cache.set(`view|${key}`, page, KEEP);
       this.cache.set(`notfound|${key}`, null, -1);
       return 'ok';
@@ -389,9 +389,9 @@ export class SnapshotProvider implements Provider {
     return this.read<ZoneReport>({ kind: 'zone', ref, raidId: id!, ...(spec ? { spec } : {}) });
   }
 
-  async compare(ref: CharacterRef, encounterId: number, spec: string): Promise<Comparison> {
+  async compare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison> {
     if (!/^[A-Za-z]+$/.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
-    return this.read<Comparison>({ kind: 'compare', ref, encounterId, spec });
+    return this.read<Comparison>({ kind: 'compare', ref, encounterId, spec, ...(week ? { week } : {}) });
   }
 
   private async read<T>(job: Job): Promise<T> {

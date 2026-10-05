@@ -1831,3 +1831,285 @@ td {
 .compare-cols .cc-col:last-child .cb {
   height: 11px;
 }
+
+/* ---------- Chart cards (weekly, fight timeline, damage taken, prep, rank ladder) ---------- */
+
+.chart-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px 12px;
+  min-width: 0;
+}
+.chart-card > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.chart-card h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+.chart-card header p {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+.chart-card.weekly {
+  margin-bottom: 14px;
+}
+.chart-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px 20px;
+  margin-top: 16px;
+}
+.chart-card.span-2 {
+  grid-column: 1 / -1;
+}
+.chart-empty {
+  padding: 18px 0;
+  margin: 0;
+}
+.chart-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chart-legend span::before {
+  content: none;
+}
+.chart-legend i {
+  display: inline-block;
+  width: 14px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.week-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.week-pick select {
+  width: 260px;
+  height: 36px;
+  font-size: 14px;
+}
+
+/* Line chart */
+.line-chart {
+  position: relative;
+  width: 100%;
+}
+.line-chart svg {
+  display: block;
+  overflow: visible;
+}
+.lc-grid {
+  stroke: var(--line);
+  stroke-dasharray: 3 4;
+}
+.lc-tick {
+  fill: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.lc-line {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.lc-line.dashed {
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+}
+.lc-area {
+  opacity: 0.12;
+}
+.lc-dot {
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+.lc-hover {
+  stroke: var(--soft);
+  stroke-width: 1;
+}
+.lc-selected {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+}
+.lc-tip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+}
+.lc-tip span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.lc-tip i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.lc-tip em {
+  color: var(--soft);
+  font-style: normal;
+}
+
+/* Vertical grouped bars (damage taken) */
+.vbars {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  height: 200px;
+  padding: 18px 4px 0;
+  border-bottom: 1px solid var(--line-strong);
+}
+.vbar-group {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+}
+.vbar-pair {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 100%;
+  width: 100%;
+  justify-content: center;
+}
+.vbar {
+  position: relative;
+  width: min(26px, 40%);
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+}
+.vbar.you { background: var(--you); }
+.vbar.ref { background: var(--ref); }
+.vbar em {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.vbar-label {
+  position: absolute;
+  top: calc(100% + 6px);
+  font-size: 12px;
+  color: var(--text-2);
+}
+.chart-card:has(.vbars) {
+  padding-bottom: 32px;
+}
+.prep-row {
+  grid-template-columns: 120px minmax(0, 1fr) !important;
+  padding: 7px 0;
+}
+
+/* Percentile ladder */
+.ladder {
+  position: relative;
+  height: 96px;
+  margin: 8px 24px 4px;
+}
+.ladder-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 46px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--parse-grey), var(--parse-green), var(--parse-blue), var(--parse-purple), var(--parse-orange), var(--parse-pink));
+  opacity: 0.55;
+}
+.ladder-step {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+}
+.ladder-pct {
+  color: var(--soft);
+  height: 18px;
+}
+.ladder-tick {
+  width: 2px;
+  height: 36px;
+  margin-top: 6px;
+  background: var(--line-strong);
+}
+.ladder-step.passed .ladder-tick {
+  background: var(--text-2);
+}
+.ladder-val {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.ladder-you {
+  position: absolute;
+  top: 30px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.ladder-you::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  margin-top: 9px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 3px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--text);
+}
+.ladder-you span {
+  position: absolute;
+  top: -26px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--text);
+  color: var(--bg);
+}
+
+@media (max-width: 1100px) {
+  .chart-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

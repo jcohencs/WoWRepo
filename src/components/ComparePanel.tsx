@@ -5,6 +5,7 @@ import { percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 import { CastsChart } from './CastsChart';
+import { FightTimeline, PrepChart, RankLadder, TakenChart, WeeklyChart } from './charts/FightCharts';
 import { HeadToHead } from './HeadToHead';
 
 interface Props {
@@ -19,20 +20,27 @@ export function ComparePanel({ query, row, site, demo }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [tab, setTab] = useState<'casts' | 'abilities'>('casts');
+  const [week, setWeek] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let live = true;
     setError(null);
-    api.compare(query, row.encounter.id, row.spec).then(
-      (c) => live && setData(c),
-      (e: Error) => {
-        if (live) setError(e.message);
-      },
-    );
+    setLoading(true);
+    // Keep showing the previous kill (dimmed) while another week loads.
+    api
+      .compare(query, row.encounter.id, row.spec, week ?? undefined)
+      .then(
+        (c) => live && setData(c),
+        (e: Error) => {
+          if (live) setError(e.message);
+        },
+      )
+      .finally(() => live && setLoading(false));
     return () => {
       live = false;
     };
-  }, [query, row.encounter.id, row.spec, attempt]);
+  }, [query, row.encounter.id, row.spec, week, attempt]);
 
   if (error)
     return (
@@ -55,7 +63,9 @@ export function ComparePanel({ query, row, site, demo }: Props) {
   const hasRef = data.ref != null;
 
   return (
-    <div className="compare">
+    <div className={`compare${loading ? ' is-stale' : ''}`}>
+      <WeeklyChart data={data} week={week} onWeek={setWeek} />
+
       <div className="sides">
         <Side label="You" side={data.you} site={site} demo={demo} />
         {data.ref ? (
@@ -109,6 +119,13 @@ export function ComparePanel({ query, row, site, demo }: Props) {
             </div>
           )}
         </div>
+      </div>
+
+      <div className="chart-grid">
+        <FightTimeline data={data} />
+        <TakenChart data={data} />
+        <PrepChart data={data} />
+        <RankLadder data={data} />
       </div>
     </div>
   );

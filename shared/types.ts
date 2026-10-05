@@ -58,6 +58,14 @@ export interface RankingEntry {
   fightId: number;
 }
 
+/** Your best kill of a boss in one raid week (weeks start on the US reset, Tuesday). */
+export interface WeekPoint {
+  /** Epoch ms of the week's reset. */
+  week: number;
+  perSecond: number;
+  rankPercent: number | null;
+}
+
 export interface Benchmark {
   encounterId: number;
   className: string;
@@ -69,6 +77,8 @@ export interface Benchmark {
   p99: number;
   /** The ranking entry sitting at the 99th percentile. */
   reference: RankingEntry;
+  /** Amounts at fixed percentiles (10th … 99th), each read from its exact ranking position. */
+  ladder?: { percentile: number; amount: number }[];
 }
 
 export interface BossRow {
@@ -124,6 +134,19 @@ export interface AbilityLine {
   shareDelta: number;
 }
 
+/** Damage (or healing) taken, grouped by magic school. */
+export interface SchoolTotal {
+  school: string;
+  perSecond: number;
+}
+
+/** Consumables and buffs during the kill. Uptimes are fractions of the fight (0–1). */
+export interface Preparation {
+  flask: number | null;
+  food: number | null;
+  potions: number;
+}
+
 export interface FightSide {
   name: string;
   server: string;
@@ -134,6 +157,10 @@ export interface FightSide {
   activeTime: number | null;
   reportCode: string;
   fightId: number;
+  /** Running total of damage/healing, one point per `stepMs` from the pull. */
+  timeline?: { stepMs: number; cumulative: number[] };
+  taken?: SchoolTotal[];
+  prep?: Preparation;
 }
 
 export interface Comparison {
@@ -147,6 +174,12 @@ export interface Comparison {
   abilities: AbilityLine[];
   /** When these logs were pulled from Warcraft Logs (epoch ms). */
   updatedAt: number;
+  /** Your best kill in each week you killed this boss, oldest first. */
+  weeks?: WeekPoint[];
+  /** The week being compared (epoch ms), or null for your best kill overall. */
+  week?: number | null;
+  /** p50/p99 and the percentile ladder for this boss and spec. */
+  benchmark?: Benchmark | null;
 }
 
 export interface ApiError {

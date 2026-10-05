@@ -14,6 +14,27 @@ export interface RateLimit {
 /** How long to wait after a refusal when Warcraft Logs hasn't told us when the hour resets. */
 const RETRY_AFTER_429_MS = 5 * 60_000;
 
+/**
+ * A short human label for a query, for the request log ("character Alphac", "top 1% rankings ×9").
+ */
+export function describeQuery(query: string, variables: Record<string, unknown> = {}): string {
+  const count = (re: RegExp) => (query.match(re) ?? []).length;
+  const who = typeof variables.name === 'string' ? ` ${variables.name}` : '';
+  if (/expansions/.test(query)) return 'raid list';
+  if (/serverSlug: \$realm/.test(query)) return `realm raiders (${count(/characterRankings\(/g)} pages)`;
+  if (/c0: character\(/.test(query)) return `characters ×${count(/: character\(/g)}`;
+  if (/zoneRankings/.test(query)) return `character${who}`;
+  if (/encounterRankings/.test(query)) return `best kills${who}`;
+  if (/characterRankings/.test(query)) return `rankings ×${count(/characterRankings\(/g)}`;
+  if (/players: table/.test(query)) return `log ${variables.code ?? ''} (players)`;
+  if (/table\(|graph\(/.test(query)) return `log ${variables.code ?? ''} (breakdown)`;
+  if (/reportData/.test(query)) return `log ${variables.code ?? ''}`;
+  return 'request';
+}
+
+/** Request log on by default; WCL_LOG=off silences it (tests are quiet unless WCL_LOG=on). */
+const logEnabled = () => (process.env.WCL_LOG ? process.env.WCL_LOG !== 'off' : !process.env.VITEST);
+
 const RATE_FIELD = 'rateLimitData { limitPerHour pointsSpentThisHour pointsResetIn }';
 
 /** Adds the rate-limit field to the root selection so every response reports the budget. */
@@ -89,6 +110,29 @@ export class WclClient {
   }
 
   async query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+    const label = describeQuery(query, variables);
+    const started = Date.now();
+    const before = this.rate?.pointsSpentThisHour;
+    const log = (status: string) => {
+      if (!logEnabled()) return;
+      const r = this.rate;
+      const cost = r && before != null && r.pointsSpentThisHour >= before ? ` +${Math.round(r.pointsSpentThisHour - before)} pts` : '';
+      const budget = r && r.limitPerHour ? ` · ${Math.round(r.pointsSpentThisHour)}/${r.limitPerHour} used this hour` : '';
+      console.log(`[wcl] ${status.padEnd(7)} ${label} · ${Date.now() - started}ms${cost}${budget}`);
+    };
+    try {
+      const data = await this.send<T>(query, variables);
+      log('ok');
+      return data;
+    } catch (err) {
+      const why = err instanceof ApiFailure ? err.code : 'error';
+      log(why === 'rate_limited' ? 'limited' : 'failed');
+      if (why !== 'rate_limited' && logEnabled()) console.log(`[wcl]         ↳ ${err instanceof Error ? err.message : err}`);
+      throw err;
+    }
+  }
+
+  private async send<T>(query: string, variables: Record<string, unknown>): Promise<T> {
     if (Date.now() < this.blockedUntil) throw this.limitedError();
     const rate = this.rateLimit();
     if (rate && rate.limitPerHour > 0 && rate.pointsSpentThisHour >= rate.limitPerHour - this.reserve()) throw this.limitedError();

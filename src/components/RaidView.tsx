@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { BossRow, Site, ZoneReport } from '../../shared/types';
+import type { BossRow, Comparison, Site, ZoneReport } from '../../shared/types';
 import type { Query } from '../lib/api';
 import { amount, gapText, integer, metricLabel, parse, parseTier, specLabel } from '../lib/format';
+import { MiniLadder, PerformanceRadar } from './charts/Radar';
 import { ComparePanel } from './ComparePanel';
 import { ErrorBoundary } from './ErrorBoundary';
 
@@ -26,6 +27,9 @@ export function RaidView({ report, query, site, demo }: Props) {
   }, [report, firstKill]);
 
   const row = report.rows.find((r) => r.encounter.id === selected) ?? null;
+  // The comparison the main area loaded, for the profile under the boss list.
+  const [shown, setShown] = useState<Comparison | null>(null);
+  useEffect(() => setShown(null), [row?.encounter.id, row?.spec]);
   const s = report.summary;
 
   return (
@@ -83,6 +87,10 @@ export function RaidView({ report, query, site, demo }: Props) {
             );
           })}
         </ol>
+
+        <ErrorBoundary what="the performance profile" resetKey={shown}>
+          <PerformanceRadar data={shown} />
+        </ErrorBoundary>
       </aside>
 
       <section className="boss-main">
@@ -90,7 +98,7 @@ export function RaidView({ report, query, site, demo }: Props) {
           <>
             <BossStats row={row} />
             <ErrorBoundary what="this breakdown" resetKey={`${row.encounter.id}|${row.spec}`}>
-              <ComparePanel key={`${row.encounter.id}|${row.spec}`} query={query} row={row} site={site} demo={demo} />
+              <ComparePanel key={`${row.encounter.id}|${row.spec}`} query={query} row={row} site={site} demo={demo} onData={setShown} />
             </ErrorBoundary>
           </>
         ) : (
@@ -139,9 +147,7 @@ function BossStats({ row }: { row: BossRow }) {
         </div>
         <div className="bs-range">
           <dt>Where you sit</dt>
-          <dd>
-            <RangeBar row={row} />
-          </dd>
+          <dd>{row.benchmark?.ladder && row.benchmark.ladder.length > 1 && row.best != null ? <MiniLadder row={row} /> : <RangeBar row={row} />}</dd>
         </div>
       </dl>
     </header>

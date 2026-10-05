@@ -11,6 +11,8 @@ export interface LineSeries {
   area?: boolean;
   /** Draw a dot on each point. */
   dots?: boolean;
+  /** Dot size (default 4). */
+  dotRadius?: number;
 }
 
 interface Props {
@@ -140,7 +142,7 @@ export function LineChart({ series, xLabels, yFormat, height = 200, zeroBased, s
           s.dots
             ? s.values.map((v, i) =>
                 v == null ? null : (
-                  <circle key={`${s.name}-${i}`} cx={x(i)} cy={y(v)} r={i === selected ? 6 : 4} style={{ fill: s.color }} className="lc-dot" />
+                  <circle key={`${s.name}-${i}`} cx={x(i)} cy={y(v)} r={i === selected ? (s.dotRadius ?? 4) + 2 : (s.dotRadius ?? 4)} style={{ fill: s.color }} className="lc-dot" />
                 ),
               )
             : null,

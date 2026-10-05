@@ -153,3 +153,6 @@ description: "Task list for TBC Parse Checker"
 - [x] T075 If Warcraft Logs rejects the extra chart data, re-fetch the breakdown alone so it always shows; skip ranked kills from hidden/deleted logs; each chart has its own error boundary; a week that fails to load keeps the current kill on screen
 - [x] T076 Background pull (and save) every 15 minutes by default (`PULL_INTERVAL_MINUTES`), with "next pull in" in the log line
 - [x] T077 Fix out-of-memory crash on start: saved data is written and read one entry per line (never as one big string); old one-object files are converted in place on first start; raw Warcraft Logs replies stay in memory only (bounded); saved raid pages share benchmarks instead of each keeping a copy; `NODE_OPTIONS=--max-old-space-size=400` on Render
+- [x] T078 Performance profile radar under the boss list: you vs the top 1% player on DPS/HPS, time active, damage taken (inverted), flask/elixir and food uptime, potions; axes without data are left out (no deaths/health data available)
+- [x] T079 "Where you sit" in the boss header is now the percentile ladder (10th…99th) with your best kill marked; the full-width rank chart is removed
+- [x] T080 Output-over-the-fight chart shows a dot at every 15-second mark

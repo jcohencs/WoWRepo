@@ -1,4 +1,4 @@
-import type { Benchmark, Comparison, SchoolTotal } from '../../../shared/types';
+import type { Comparison, SchoolTotal } from '../../../shared/types';
 import { amount, compact, integer, metricLabel, percent } from '../../lib/format';
 import { LineChart } from './LineChart';
 
@@ -78,7 +78,7 @@ export function FightTimeline({ data }: { data: Comparison }) {
       <header>
         <div>
           <h3>Output over the fight</h3>
-          <p className="soft">Running total of {noun} from the pull. A steeper line means more {noun} in that part of the fight.</p>
+          <p className="soft">Running total of {noun} from the pull, with a dot every 15 seconds. A steeper line means more {noun} in that part of the fight.</p>
         </div>
         <Legend items={sides.map((s) => ({ name: s.name, color: s.color }))} />
       </header>
@@ -89,7 +89,7 @@ export function FightTimeline({ data }: { data: Comparison }) {
         height={220}
         zeroBased
         labelEvery={Math.max(1, Math.round(steps / 8))}
-        series={sides.map((s) => ({ name: s.name, color: s.color, values: labels.map((_, i) => s.side.timeline!.cumulative[i] ?? null), area: s.name === 'You' }))}
+        series={sides.map((s) => ({ name: s.name, color: s.color, values: labels.map((_, i) => s.side.timeline!.cumulative[i] ?? null), area: s.name === 'You', dots: true, dotRadius: 3.5 }))}
       />
     </section>
   );
@@ -173,49 +173,6 @@ export function PrepChart({ data }: { data: Comparison }) {
       ))}
     </section>
   );
-}
-
-/** Your DPS placed on the real percentile ladder (10th…99th) for your spec on this boss. */
-export function RankLadder({ data }: { data: Comparison }) {
-  const b: Benchmark | null | undefined = data.benchmark;
-  const ladder = b?.ladder ?? [];
-  if (ladder.length < 2) return null;
-  const you = data.you.perSecond;
-  const lo = Math.min(ladder[0].amount, you) * 0.95;
-  const hi = Math.max(ladder[ladder.length - 1].amount, you) * 1.03;
-  const pos = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
-  const above = ladder.filter((l) => you >= l.amount).pop();
-  return (
-    <section className="chart-card span-2">
-      <header>
-        <div>
-          <h3>Where you rank</h3>
-          <p className="soft">
-            {b!.sampleSize ? `${integer(b!.sampleSize)} ranked ${metricLabel(data.metric)} logs for your spec on this boss. ` : ''}
-            {above ? `This kill beats the ${ordinal(above.percentile)} percentile.` : 'This kill is below the 10th percentile.'}
-          </p>
-        </div>
-      </header>
-      <div className="ladder" role="img" aria-label={`Your ${amount(you)} against the percentile ladder`}>
-        <div className="ladder-track" />
-        {ladder.map((l) => (
-          <div key={l.percentile} className={`ladder-step${you >= l.amount ? ' passed' : ''}`} style={{ left: pos(l.amount) }} title={`${ordinal(l.percentile)} percentile: ${amount(l.amount)}`}>
-            <span className="ladder-pct">{ordinal(l.percentile)}</span>
-            <span className="ladder-tick" />
-            <span className="ladder-val">{integer(l.amount)}</span>
-          </div>
-        ))}
-        <div className="ladder-you" style={{ left: pos(you) }} title={`You: ${amount(you)}`}>
-          <span>You · {integer(you)}</span>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function ordinal(n: number) {
-  const s = n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th';
-  return `${n}${s}`;
 }
 
 function Legend({ items }: { items: { name: string; color: string }[] }) {

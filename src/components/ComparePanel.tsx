@@ -5,7 +5,7 @@ import { percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 import { CastsChart } from './CastsChart';
-import { FightTimeline, PrepChart, RankLadder, TakenChart, WeeklyChart } from './charts/FightCharts';
+import { FightTimeline, PrepChart, TakenChart, WeeklyChart } from './charts/FightCharts';
 import { ErrorBoundary } from './ErrorBoundary';
 import { HeadToHead } from './HeadToHead';
 
@@ -14,9 +14,11 @@ interface Props {
   row: BossRow;
   site: Site;
   demo: boolean;
+  /** Told about each comparison shown, so the sidebar can draw the performance profile. */
+  onData?: (c: Comparison) => void;
 }
 
-export function ComparePanel({ query, row, site, demo }: Props) {
+export function ComparePanel({ query, row, site, demo, onData }: Props) {
   const [data, setData] = useState<Comparison | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -32,7 +34,11 @@ export function ComparePanel({ query, row, site, demo }: Props) {
     api
       .compare(query, row.encounter.id, row.spec, week ?? undefined)
       .then(
-        (c) => live && setData(c),
+        (c) => {
+          if (!live) return;
+          setData(c);
+          onData?.(c);
+        },
         (e: Error) => {
           if (live) setError(e.message);
         },
@@ -144,9 +150,6 @@ export function ComparePanel({ query, row, site, demo }: Props) {
         </ErrorBoundary>
         <ErrorBoundary what="preparation" resetKey={data}>
           <PrepChart data={data} />
-        </ErrorBoundary>
-        <ErrorBoundary what="the rank chart" resetKey={data}>
-          <RankLadder data={data} />
         </ErrorBoundary>
       </div>
     </div>

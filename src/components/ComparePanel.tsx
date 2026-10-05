@@ -6,7 +6,6 @@ import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 import { CastsChart } from './CastsChart';
 import { HeadToHead } from './HeadToHead';
-import { SpecIcon } from './SpecIcon';
 
 interface Props {
   query: Query;
@@ -71,12 +70,6 @@ export function ComparePanel({ query, row, site, demo }: Props) {
         <div className="cc-col">
           <HeadToHead data={data} />
 
-          <div className="breakdown-head">
-            <h3>
-              <SpecIcon className={data.className} spec={data.spec} size={22} />
-              Where your {noun} comes from <span className="soft">· {specLabel(data.spec)} {data.className}</span>
-            </h3>
-          </div>
 
           <AbilityPies abilities={abilities} noun={noun} hasRef={hasRef} />
         </div>
@@ -101,14 +94,13 @@ export function ComparePanel({ query, row, site, demo }: Props) {
           {tab === 'casts' ? (
             <CastsChart abilities={abilities} hasRef={hasRef} bare />
           ) : (
-            <div className="breakdown" role="table" aria-label={`Ability comparison for ${data.encounter.name}`}>
-              <div className="bd-row bd-header" role="row">
+            <div className="casts abilities-list" role="table" aria-label={`Ability breakdown for ${data.encounter.name}`}>
+              <div className="casts-row ab-head" role="row">
                 <span role="columnheader">Ability</span>
-                <span role="columnheader" className="num">
-                  Uses per minute
-                  {hasRef && <small>you · top 1%</small>}
-                </span>
                 <span role="columnheader">Share of total {noun}</span>
+                <span role="columnheader" className="num" title={hasRef ? 'Uses per minute: you · top 1%' : 'Uses per minute'}>
+                  Per min
+                </span>
               </div>
               {abilities.map((a) => (
                 <AbilityRow key={a.id} a={a} maxShare={maxShare} color={colors.get(a.id)} noun={noun} hasRef={hasRef} />
@@ -167,36 +159,41 @@ function differenceTip(delta: number): string {
 function AbilityRow({ a, maxShare, color, noun, hasRef }: { a: AbilityLine; maxShare: number; color?: string; noun: string; hasRef: boolean }) {
   const icon = abilityIcon(a.icon);
   const hasShare = (a.you?.share ?? 0) > 0 || (a.ref?.share ?? 0) > 0;
-  const notable = hasRef && hasShare && Math.abs(a.shareDelta) >= 0.02;
   const tip = !hasRef
     ? `${a.name}: ${percent(a.you?.share ?? 0)} of your ${noun}, used ${cpm(a.you?.cpm)} times per minute`
     : hasShare
       ? `${a.name}: you ${percent(a.you?.share ?? 0)}, top 1% ${percent(a.ref?.share ?? 0)} (${differenceTip(a.shareDelta)})`
       : `${a.name}: used ${cpm(a.you?.cpm)} vs ${cpm(a.ref?.cpm)} times per minute`;
   return (
-    <div className={`bd-row${notable ? ' notable' : ''}`} role="row" title={tip}>
-      <span className="ability" role="cell">
+    <div className="casts-row" role="row" title={tip}>
+      <span className="casts-name" role="cell">
         {icon ? (
-          <img src={icon} alt="" width={36} height={36} loading="lazy" onError={(e) => e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { className: 'icon-blank' }))} />
+          <img src={icon} alt="" width={24} height={24} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
         ) : (
-          <span className="icon-blank" />
+          <span className="icon-blank sm" />
         )}
-        <span className="ability-name">{a.name}</span>
-        {color && <span className="swatch" style={{ background: color }} title="Slice colour in the charts above" />}
+        <span>{a.name}</span>
+        {color && <span className="swatch" style={{ background: color }} title="Slice colour in the pie charts" />}
       </span>
-      <span className={`num uses${!a.you?.cpm && !a.ref?.cpm ? ' no-uses' : ''}`} role="cell">
-        <strong>{cpm(a.you?.cpm)}</strong>
-        {hasRef && <span className="soft"> · {cpm(a.ref?.cpm)}</span>}
-      </span>
-      <span className="share-chart" role="cell">
+      <span className="casts-bars" role="cell">
         {hasShare ? (
           <>
-            <Bar value={a.you?.share} max={maxShare} kind="you" />
-            {hasRef && <Bar value={a.ref?.share} max={maxShare} kind="ref" />}
+            <span className="cb you" style={{ width: `${((a.you?.share ?? 0) / maxShare) * 100}%` }}>
+              <em>{a.you?.share ? percent(a.you.share) : '—'}</em>
+            </span>
+            {hasRef && (
+              <span className="cb ref" style={{ width: `${((a.ref?.share ?? 0) / maxShare) * 100}%` }}>
+                <em>{a.ref?.share ? percent(a.ref.share) : '—'}</em>
+              </span>
+            )}
           </>
         ) : (
-          <span className="soft">No direct {noun}</span>
+          <span className="soft ab-utility">No direct {noun}</span>
         )}
+      </span>
+      <span className="ab-uses num" role="cell">
+        <strong>{cpm(a.you?.cpm)}</strong>
+        {hasRef && <span className="soft"> · {cpm(a.ref?.cpm)}</span>}
       </span>
     </div>
   );
@@ -204,14 +201,5 @@ function AbilityRow({ a, maxShare, color, noun, hasRef }: { a: AbilityLine; maxS
 
 function cpm(v: number | undefined) {
   return v == null || v === 0 ? '—' : v.toFixed(1);
-}
-
-function Bar({ value, max, kind }: { value: number | undefined; max: number; kind: 'you' | 'ref' }) {
-  return (
-    <span className={`bar bar-${kind}`}>
-      <span className="bar-fill" style={{ width: `${((value ?? 0) / max) * 100}%` }} />
-      <span className="bar-value">{value ? percent(value) : '—'}</span>
-    </span>
-  );
 }
 

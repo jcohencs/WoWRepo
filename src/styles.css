@@ -1776,3 +1776,31 @@ td {
     grid-row: 2;
   }
 }
+
+/* Every ability: same compact rows as "Buttons pressed" so the whole list fits. */
+.abilities-list .casts-row {
+  grid-template-columns: minmax(150px, 190px) minmax(0, 1fr) 78px;
+  padding: 5px 0;
+}
+.abilities-list .ab-head {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--soft);
+  padding-top: 0;
+}
+.abilities-list .casts-name .swatch {
+  width: 9px;
+  height: 9px;
+  margin: 0 0 0 auto;
+}
+.abilities-list .cb {
+  height: 8px;
+}
+.ab-uses {
+  font-size: 13px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.ab-utility {
+  font-size: 13px;
+}

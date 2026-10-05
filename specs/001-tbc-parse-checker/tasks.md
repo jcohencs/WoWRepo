@@ -138,3 +138,4 @@ description: "Task list for TBC Parse Checker"
 
 - [x] T067 Replace the summary strip, parse chart and boss table with a slim sticky sidebar (mini summary + boss list with parse bars, doubling as parse-by-boss) and a main area that always shows the selected boss (first kill by default): stat strip plus the full breakdown in two columns
 - [x] T068 Tabs to swap "Buttons pressed" and "Every ability"; compact search in the top bar; character header on one line; spec bar and raid picker on one row; tighter spacing so the breakdown starts higher
+- [x] T069 Remove the "Where your damage comes from" heading; "Every ability" uses the same compact rows as "Buttons pressed" so the whole list fits without scrolling

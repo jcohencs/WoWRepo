@@ -147,3 +147,8 @@ description: "Task list for TBC Parse Checker"
 - [x] T072 Kill history per boss/spec (all ranked kills), best per raid week; `week` on `/api/compare`; weekly line chart with week picker
 - [x] T073 Benchmark ladder at the 10/25/50/75/90/95/99th percentiles from exact ranking positions
 - [x] T074 One breakdown request now also fetches the damage graph, damage taken and buffs: output-over-the-fight, damage taken by school, preparation & uptime charts; rank ladder
+
+## Phase 23: Resilience and pull interval
+
+- [x] T075 If Warcraft Logs rejects the extra chart data, re-fetch the breakdown alone so it always shows; skip ranked kills from hidden/deleted logs; each chart has its own error boundary; a week that fails to load keeps the current kill on screen
+- [x] T076 Background pull (and save) every 15 minutes by default (`PULL_INTERVAL_MINUTES`), with "next pull in" in the log line

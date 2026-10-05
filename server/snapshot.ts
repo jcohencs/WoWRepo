@@ -81,7 +81,7 @@ export class Puller {
   constructor(
     private readonly live: WclProvider,
     private readonly cache: TtlCache,
-    readonly intervalMs = 10 * MINUTE,
+    readonly intervalMs = 15 * MINUTE,
     private readonly log = false,
   ) {}
 
@@ -166,7 +166,8 @@ export class Puller {
         this.cache.flush();
         if (this.log) {
           const p = this.progress().map((r) => `${r.realm} ${r.current}/${r.characters}`).join(', ');
-          console.log(`[parsecheck] Pull finished. Up to date (latest raid): ${p}. Waiting: ${this.queue().length}.`);
+          const mins = Math.round(this.intervalMs / MINUTE);
+          console.log(`[parsecheck] Pull finished and saved. Up to date (latest raid): ${p}. Waiting: ${this.queue().length}. Next pull in ${mins} min.`);
         }
       });
     }

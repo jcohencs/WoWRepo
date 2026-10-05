@@ -20,7 +20,7 @@ services:
         value: /var/data
       # How often the site pulls from Warcraft Logs. Visitors only ever see saved data.
       - key: PULL_INTERVAL_MINUTES
-        value: "10"
+        value: "15"
       - key: WCL_CLIENT_ID
         sync: false
       - key: WCL_CLIENT_SECRET

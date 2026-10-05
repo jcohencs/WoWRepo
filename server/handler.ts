@@ -21,12 +21,12 @@ export function liveProviderFromEnv(env: Record<string, string | undefined> = pr
 
 /**
  * What visitors talk to. With a key configured, pages come only from saved pulls and a timer
- * pulls from Warcraft Logs every PULL_INTERVAL_MINUTES (default 10). Without a key: demo data.
+ * pulls from Warcraft Logs every PULL_INTERVAL_MINUTES (default 15). Without a key: demo data.
  */
 export function providerFromEnv(env: Record<string, string | undefined> = process.env, opts: { schedule?: boolean } = {}): Provider {
   const setup = liveProviderFromEnv(env);
   if (!setup) return new DemoProvider();
-  const minutes = Number(env.PULL_INTERVAL_MINUTES) || 10;
+  const minutes = Number(env.PULL_INTERVAL_MINUTES) || 15;
   const puller = new Puller(setup.live, setup.cache, minutes * MINUTE, Boolean(opts.schedule));
   if (opts.schedule) puller.start();
   return new SnapshotProvider(setup.live, setup.cache, puller);

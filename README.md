@@ -34,7 +34,7 @@ Production: `npm run build && npm start` serves the built app and API on `PORT` 
 
 There is no waiting line. The site keeps everyone on the realm pulled ahead of time, and anything else is fetched the moment someone opens it.
 
-- **Every raider, ahead of time.** Every 10 minutes (`PULL_INTERVAL_MINUTES`) a background job finds everyone with a ranked kill on Nightslayer (re-checked daily) and pulls each character's page for every released raid, ten characters per request, newest raid first. Pages are refreshed daily, and ones people open every 2 hours.
+- **Every raider, ahead of time.** Every 15 minutes (`PULL_INTERVAL_MINUTES`) a background job finds everyone with a ranked kill on Nightslayer (re-checked daily) and pulls each character's page for every released raid, ten characters per request, newest raid first. Pages are refreshed daily, and ones people open every 2 hours.
 - **Anything else, on first click.** A boss's ability comparison, or a spec nobody has opened yet, is fetched right away (a few seconds), saved, and instant for everyone after that.
 - **Allowance.** The background job stops while 20% of the hourly allowance is left (`SWEEP_RESERVE`), so first clicks always have room. If Warcraft Logs is ever out of allowance at that moment, the visitor is told roughly when it'll be ready and it is pulled automatically after the reset.
 - Every page shows when it was pulled ("Updated 25 min ago").

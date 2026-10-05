@@ -2113,3 +2113,21 @@ td {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Notice when one week couldn't load; the previous kill stays on screen. */
+.compare-note {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.link-button {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--you);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

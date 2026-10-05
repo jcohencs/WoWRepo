@@ -91,7 +91,8 @@ const SAFE_NAME = /^[A-Za-z]+$/;
 
 
 const killsFrom = (ranks: EncounterRanks | null | undefined): Kill[] =>
-  (ranks?.ranks ?? []).map((r) => ({
+  // Hidden or deleted logs come back without a report; skip them rather than fail.
+  (ranks?.ranks ?? []).filter((r) => r?.report?.code && r.report.fightID != null && Number.isFinite(r.amount)).map((r) => ({
     startTime: r.startTime ?? r.report.startTime ?? 0,
     amount: r.amount,
     rankPercent: r.rankPercent ?? null,
@@ -466,39 +467,61 @@ export class WclProvider implements Provider {
     });
   }
 
-  /** Per-ability amounts and casts, plus the fight timeline, damage taken and buffs, in one request. */
+  /**
+   * Per-ability amounts and casts, plus the fight timeline, damage taken and buffs, in one request.
+   * If Warcraft Logs rejects the extra charts, the breakdown is fetched on its own so it always shows.
+   */
   private sideTables(s: ResolvedSide, dataType: string) {
     return this.cache.get(`tables2|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`, TTL.report, async () => {
-      const data = await this.client.query<{
-        reportData: { report: { amounts: ReportTable; casts: ReportTable; graph: unknown; taken: ReportTable; buffs: BuffTable } };
-      }>(
-        `query($code: String!, $fight: Int!, $source: Int!, $start: Float!, $end: Float!) {
-          reportData { report(code: $code) {
+      type Report = { amounts: ReportTable; casts: ReportTable; graph?: unknown; taken?: ReportTable; buffs?: BuffTable };
+      const fields = (extras: boolean) => `
             amounts: table(dataType: ${dataType}, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
-            casts: table(dataType: Casts, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+            casts: table(dataType: Casts, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)${
+              extras
+                ? `
             graph: graph(dataType: ${dataType}, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
             taken: table(dataType: DamageTaken, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
-            buffs: table(dataType: Buffs, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+            buffs: table(dataType: Buffs, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)`
+                : ''
+            }`;
+      const run = (extras: boolean) =>
+        this.client.query<{ reportData: { report: Report | null } }>(
+          `query($code: String!, $fight: Int!, $source: Int!, $start: Float!, $end: Float!) {
+          reportData { report(code: $code) {${fields(extras)}
           } }
         }`,
-        { code: s.code, fight: s.fightId, source: s.sourceId, start: s.startTime, end: s.endTime },
-      );
-      const r = data.reportData.report;
+          { code: s.code, fight: s.fightId, source: s.sourceId, start: s.startTime, end: s.endTime },
+        );
+      let r: Report | null;
+      try {
+        r = (await run(true)).reportData.report;
+      } catch (err) {
+        if (err instanceof ApiFailure && err.code === 'rate_limited') throw err;
+        console.warn(`[wcl] extra charts unavailable for log ${s.code}, loading the breakdown only: ${(err as Error).message}`);
+        r = (await run(false)).reportData.report;
+      }
+      if (!r) throw new ApiFailure('upstream', `Report ${s.code} is not available.`);
       const durationMs = s.endTime - s.startTime;
-      const amounts = r.amounts.data?.entries ?? [];
-      const casts = r.casts.data?.entries ?? [];
-      const total = amounts.reduce((sum, e) => sum + e.total, 0);
+      const amounts = r.amounts?.data?.entries ?? [];
+      const casts = r.casts?.data?.entries ?? [];
+      const total = amounts.reduce((sum, e) => sum + (e.total || 0), 0);
+      const safe = <T,>(f: () => T): T | undefined => {
+        try {
+          return f();
+        } catch {
+          return undefined;
+        }
+      };
       return {
         durationMs,
         amounts,
         casts,
-        timeline: timelineFromGraph(r.graph, total, durationMs),
-        taken: takenBySchool(r.taken?.data?.entries ?? [], durationMs),
-        prep: preparation(r.buffs?.data?.auras ?? r.buffs?.data?.entries ?? [], casts, r.buffs?.data?.totalTime || durationMs),
+        timeline: safe(() => timelineFromGraph(r!.graph, total, durationMs)),
+        taken: r.taken ? safe(() => takenBySchool(r!.taken?.data?.entries ?? [], durationMs)) : undefined,
+        prep: r.buffs ? safe(() => preparation(r!.buffs?.data?.auras ?? r!.buffs?.data?.entries ?? [], casts, r!.buffs?.data?.totalTime || durationMs)) : undefined,
       };
     });
   }
-
 
   /**
    * Your kill of a boss next to the top 1% player's. With `week` (the week's reset, epoch ms) it

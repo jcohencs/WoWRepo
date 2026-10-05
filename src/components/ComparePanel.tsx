@@ -6,6 +6,7 @@ import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 import { CastsChart } from './CastsChart';
 import { FightTimeline, PrepChart, RankLadder, TakenChart, WeeklyChart } from './charts/FightCharts';
+import { ErrorBoundary } from './ErrorBoundary';
 import { HeadToHead } from './HeadToHead';
 
 interface Props {
@@ -42,7 +43,8 @@ export function ComparePanel({ query, row, site, demo }: Props) {
     };
   }, [query, row.encounter.id, row.spec, week, attempt]);
 
-  if (error)
+  // A failed week keeps the kill already on screen; only a first load with nothing to show is an error page.
+  if (error && !data)
     return (
       <div className="compare state">
         <p>{error}</p>
@@ -64,7 +66,17 @@ export function ComparePanel({ query, row, site, demo }: Props) {
 
   return (
     <div className={`compare${loading ? ' is-stale' : ''}`}>
-      <WeeklyChart data={data} week={week} onWeek={setWeek} />
+      {error && (
+        <p className="compare-note soft" role="status">
+          {error}{' '}
+          <button className="link-button" onClick={() => setWeek(null)}>
+            Back to best kill
+          </button>
+        </p>
+      )}
+      <ErrorBoundary what="the weekly chart" resetKey={data}>
+        <WeeklyChart data={data} week={week} onWeek={setWeek} />
+      </ErrorBoundary>
 
       <div className="sides">
         <Side label="You" side={data.you} site={site} demo={demo} />
@@ -79,10 +91,12 @@ export function ComparePanel({ query, row, site, demo }: Props) {
 
       <div className="compare-cols">
         <div className="cc-col">
-          <HeadToHead data={data} />
-
-
-          <AbilityPies abilities={abilities} noun={noun} hasRef={hasRef} />
+          <ErrorBoundary what="the summary" resetKey={data}>
+            <HeadToHead data={data} />
+          </ErrorBoundary>
+          <ErrorBoundary what="the pie charts" resetKey={data}>
+            <AbilityPies abilities={abilities} noun={noun} hasRef={hasRef} />
+          </ErrorBoundary>
         </div>
         <div className="cc-col">
           <div className="tab-head">
@@ -122,10 +136,18 @@ export function ComparePanel({ query, row, site, demo }: Props) {
       </div>
 
       <div className="chart-grid">
-        <FightTimeline data={data} />
-        <TakenChart data={data} />
-        <PrepChart data={data} />
-        <RankLadder data={data} />
+        <ErrorBoundary what="the fight timeline" resetKey={data}>
+          <FightTimeline data={data} />
+        </ErrorBoundary>
+        <ErrorBoundary what="damage taken" resetKey={data}>
+          <TakenChart data={data} />
+        </ErrorBoundary>
+        <ErrorBoundary what="preparation" resetKey={data}>
+          <PrepChart data={data} />
+        </ErrorBoundary>
+        <ErrorBoundary what="the rank chart" resetKey={data}>
+          <RankLadder data={data} />
+        </ErrorBoundary>
       </div>
     </div>
   );

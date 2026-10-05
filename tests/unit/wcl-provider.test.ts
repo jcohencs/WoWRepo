@@ -97,4 +97,21 @@ describe('WclProvider', () => {
     expect(queries.length).toBe(before + 5);
   });
 
+  it('still shows the breakdown when the extra charts are rejected, and skips hidden logs', async () => {
+    const { provider } = fakeWcl((query, variables) => {
+      if (query.includes('graph:')) throw new Error('Unknown argument');
+      if (query.includes('ranks: encounterRankings')) {
+        const r = handler(query, variables) as { characterData: { character: { ranks: { ranks: object[] } } } };
+        r.characterData.character.ranks.ranks.push({ amount: 9999, duration: 1, report: null });
+        return r;
+      }
+      return handler(query, variables);
+    });
+    await provider.zoneReport(brannoc, 'black-temple');
+    const c = await provider.compare(brannoc, 601, 'Fury');
+    expect(c.you.reportCode).toBe('MINE');
+    expect(c.abilities.map((a) => a.name)).toEqual(['Melee', 'Bloodthirst']);
+    expect(c.you.timeline).toBeUndefined();
+  });
+
 });

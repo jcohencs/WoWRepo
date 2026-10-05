@@ -7,11 +7,11 @@
  *
  * Safe to run repeatedly: anything already saved is skipped, and it stops by itself when this
  * hour's allowance is nearly used up. Run it again after the reset to continue.
+ * Run it while the site is stopped: both write the same saved-data file.
  */
 import { loadWclEnv } from '../server/env.js';
-import { providerFromEnv } from '../server/handler.js';
+import { liveProviderFromEnv } from '../server/handler.js';
 import { CLASSES } from '../server/core/classes.js';
-import { WclProvider } from '../server/wcl/provider.js';
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(`--${name}`);
@@ -25,11 +25,12 @@ const usage = () => {
 };
 
 loadWclEnv();
-const provider = providerFromEnv();
-if (!(provider instanceof WclProvider)) {
+const setup = liveProviderFromEnv();
+if (!setup) {
   console.log('No Warcraft Logs key found in .env, so there is nothing to download.');
   process.exit(1);
 }
+const provider = setup.live;
 
 const className = arg('class');
 const spec = arg('spec');

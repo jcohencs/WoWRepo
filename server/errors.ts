@@ -17,3 +17,13 @@ export class ApiFailure extends Error {
     this.status = STATUS[code];
   }
 }
+
+/** The page isn't saved yet; it has been queued for the next scheduled pull. */
+export class PendingPull extends Error {
+  constructor(
+    readonly position: number,
+    readonly nextUpdateInSec: number,
+  ) {
+    super('Not pulled yet. It is queued for the next update.');
+  }
+}

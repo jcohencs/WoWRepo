@@ -76,11 +76,7 @@ interface ResolvedSide {
 
 const SAFE_NAME = /^[A-Za-z]+$/;
 
-interface Tracked {
-  ref: CharacterRef;
-  raidId: string;
-  lastViewed: number;
-}
+
 
 const bestKillFrom = (ranks: EncounterRanks | null | undefined) =>
   [...(ranks?.ranks ?? [])].sort((a, b) => b.amount - a.amount)[0];
@@ -99,7 +95,6 @@ const TTL = {
   benchmark: DAY,
   report: 30 * DAY,
   compare: 6 * HOUR,
-  tracked: 14 * DAY,
 };
 
 /** Keep this share of the hourly allowance free for first-time lookups. */
@@ -117,7 +112,11 @@ export class WclProvider implements Provider {
 
   /** Background refreshes only use the allowance while plenty is left for new lookups. */
   private canRefresh(): boolean {
-    return this.client.headroom() > REFRESH_HEADROOM;
+    return this.cache.serveStale && this.client.headroom() > REFRESH_HEADROOM;
+  }
+
+  headroom(): number {
+    return this.client.headroom();
   }
 
   status() {
@@ -158,7 +157,6 @@ export class WclProvider implements Provider {
     const character = await this.cache.get(charKey, TTL.character, () => this.fetchCharacter(ref, raid.zoneId));
     const c = character.characterData.character;
     if (!c) throw new ApiFailure('not_found', `Couldn't find "${ref.name}" on ${ref.realm} (${ref.region}). Check the spelling and realm.`);
-    this.track(ref, raid.id);
     const cls = classById(c.classID);
     if (!cls) throw new ApiFailure('bad_request', `${c.name} is not a TBC class.`);
 
@@ -187,11 +185,6 @@ export class WclProvider implements Provider {
     const benchmarks = await this.getBenchmarks(plan.map(keyOf));
     const rows = plan.map((p) => buildRow(p.encounter, p.spec, p.metric, p.best, benchmarks.get(keyString(keyOf(p))) ?? null));
 
-    // Warm the best-kill lookups in the background so opening a comparison skips that round trip.
-    const killed = plan.filter(
-      (p) => p.best && p.best.kills > 0 && SAFE_NAME.test(p.spec) && !this.cache.peekAny(this.bestKillKey(ref, p.encounter.id, p.spec, p.metric)),
-    );
-    if (killed.length && this.canRefresh()) void this.warmBestKills(ref, cls, c.name, c.server.name, killed).catch(() => undefined);
 
     return {
       character: { name: c.name, realm: c.server.slug, realmName: c.server.name, region: ref.region, className: cls.name },
@@ -219,76 +212,8 @@ export class WclProvider implements Provider {
     );
   }
 
-  /** Remembers which characters people look at so the refresher keeps them current. */
-  private track(ref: CharacterRef, raidId: string) {
-    const list = this.cache.peekAny<Record<string, Tracked>>('tracked')?.value ?? {};
-    list[`${ref.region}|${ref.realm}|${ref.name}|${raidId}`] = { ref, raidId, lastViewed: Date.now() };
-    this.cache.set('tracked', list, TTL.tracked);
-  }
-
-  /**
-   * Refreshes characters people have looked at in the last two weeks, stalest first, while the
-   * hourly allowance has room. Visitors keep seeing the previous pull until this lands.
-   */
-  async refreshTracked(max = 5): Promise<number> {
-    const list = this.cache.peekAny<Record<string, Tracked>>('tracked')?.value ?? {};
-    const raids = await this.raids();
-    const cutoff = Date.now() - TTL.tracked;
-    const due: { t: Tracked; key: string; zoneId: number; at: number }[] = [];
-    for (const [id, t] of Object.entries(list)) {
-      const raid = raids.find((r) => r.id === t.raidId);
-      if (t.lastViewed < cutoff || !raid) {
-        delete list[id];
-        continue;
-      }
-      const key = this.charKey(t.ref, raid.zoneId);
-      const saved = this.cache.peekAny(key);
-      if (!saved?.fresh) due.push({ t, key, zoneId: raid.zoneId, at: saved?.fetchedAt ?? 0 });
-    }
-    due.sort((a, b) => a.at - b.at);
-    let refreshed = 0;
-    for (const d of due.slice(0, max)) {
-      if (!this.canRefresh()) break;
-      try {
-        await this.cache.load(d.key, TTL.character, () => this.fetchCharacter(d.t.ref, d.zoneId));
-        await this.zoneReport(d.t.ref, d.t.raidId); // also refreshes stale benchmarks for this raid
-        refreshed++;
-      } catch {
-        // A renamed or deleted character shouldn't stop the rest.
-      }
-    }
-    return refreshed;
-  }
-
   private bestKillKey(ref: CharacterRef, encounterId: number, spec: string, metric: Metric) {
     return `best|${ref.region}|${ref.realm}|${ref.name}|${encounterId}|${spec}|${metric}`;
-  }
-
-  /** One aliased query fetching the best-kill report for every killed boss. */
-  private async warmBestKills(
-    ref: CharacterRef,
-    cls: ClassInfo,
-    name: string,
-    server: string,
-    items: { encounter: { id: number }; spec: string; metric: Metric }[],
-  ) {
-    const load = this.client.query<{ characterData: { character: Record<string, EncounterRanks | null> | null } }>(
-      `query($name: String!, $server: String!, $region: String!) {
-        characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
-          ${items.map((it, i) => `e${i}: encounterRankings(encounterID: ${it.encounter.id}, metric: ${it.metric}, specName: "${it.spec}")`).join('\n')}
-        } }
-      }`,
-      { name: ref.name, server: ref.realm, region: ref.region },
-    );
-    items.forEach((it, i) => {
-      void this.cache
-        .get(this.bestKillKey(ref, it.encounter.id, it.spec, it.metric), TTL.bestKill, async () => {
-          const kill = bestKillFrom((await load).characterData.character?.[`e${i}`]);
-          return kill ? ({ name, server, cls, code: kill.report.code, fight: kill.report.fightID } satisfies BestKill) : null;
-        })
-        .catch(() => undefined);
-    });
-    await load;
   }
 
   private bestKill(ref: CharacterRef, encounterId: number, spec: string, metric: Metric): Promise<BestKill | null> {
@@ -325,9 +250,12 @@ export class WclProvider implements Provider {
       const id = keyString(k);
       if (!SAFE_NAME.test(k.className) || !SAFE_NAME.test(k.spec)) continue;
       const saved = this.cache.peekAny<Benchmark | null>(`bench|${id}`);
-      if (saved) result.set(id, saved.value);
-      if (!saved) missing.set(id, k);
-      else if (!saved.fresh && !this.refreshing.has(id)) stale.set(id, k);
+      // The scheduled puller (serveStale off) always re-pulls stale benchmarks before saving a page.
+      if (!saved || (!saved.fresh && !this.cache.serveStale)) missing.set(id, k);
+      else {
+        result.set(id, saved.value);
+        if (!saved.fresh && !this.refreshing.has(id)) stale.set(id, k);
+      }
     }
     if (stale.size && this.canRefresh()) {
       for (const id of stale.keys()) this.refreshing.add(id);

@@ -18,6 +18,11 @@ export interface CacheOptions {
   file?: string | null;
   /** Asked before refreshing a stale entry in the background; return false to save the allowance. */
   canRefresh?: () => boolean;
+  /**
+   * When false, a stale entry is reloaded before returning instead of being served while it
+   * refreshes. The scheduled puller uses this so what it saves is always current.
+   */
+  serveStale?: boolean;
   maxEntries?: number;
 }
 
@@ -38,11 +43,13 @@ export class TtlCache {
   private readonly file: string | null;
   private readonly canRefresh: () => boolean;
   private readonly maxEntries: number;
+  readonly serveStale: boolean;
 
   constructor(opts: CacheOptions | string | null = {}) {
     const o = typeof opts === 'string' || opts === null ? { file: opts } : opts;
     this.file = o.file ?? null;
     this.canRefresh = o.canRefresh ?? (() => true);
+    this.serveStale = o.serveStale ?? true;
     this.maxEntries = o.maxEntries ?? 50_000;
     if (this.file && existsSync(this.file)) {
       try {
@@ -91,7 +98,7 @@ export class TtlCache {
   async get<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
     const saved = this.peekAny<T>(key);
     if (saved?.fresh) return saved.value;
-    if (saved) {
+    if (saved && this.serveStale) {
       if (this.canRefresh()) void this.load(key, ttlMs, load).catch(() => undefined);
       return saved.value;
     }

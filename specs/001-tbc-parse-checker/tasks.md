@@ -77,3 +77,9 @@ description: "Task list for TBC Parse Checker"
 - [x] T035 Stale-while-revalidate cache: visitors always get the most recent saved pull; stale data refreshes in the background only while ≥35% of the hourly allowance is left
 - [x] T036 Track searched characters and refresh them every 10 minutes, stalest first; show "Updated … ago"
 - [x] T037 Deployment: `render.yaml` (Starter + disk), `Dockerfile`, `CACHE_DIR`, security headers (CSP, nosniff, referrer policy)
+
+## Phase 12: Scheduled pulls only
+
+- [x] T038 `SnapshotProvider`: visitors read finished saved pages only; unknown lookups are queued (HTTP 202 with place in line and time to next update)
+- [x] T039 `Puller`: every `PULL_INTERVAL_MINUTES` pull the queue in order, then re-pull stale saved pages (zone 2h, compare 12h) while 15% of the allowance remains; remember "not found"
+- [x] T040 UI "not pulled yet" state with countdown and automatic re-check; drop the background warm-up and per-request refreshes

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { AbilityLine, BossRow, Comparison, FightSide, Site } from '../../shared/types';
-import { api, type Query } from '../lib/api';
+import { api, PendingError, type Query } from '../lib/api';
 import { ago, amount, compact, duration, metricLabel, percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
+import { Pending } from './Pending';
 
 interface Props {
   query: Query;
@@ -15,19 +16,28 @@ interface Props {
 export function ComparePanel({ query, row, site, demo }: Props) {
   const [data, setData] = useState<Comparison | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingError | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   useEffect(() => {
     let live = true;
+    setPending(null);
     api.compare(query, row.encounter.id, row.spec).then(
       (c) => live && setData(c),
-      (e: Error) => live && setError(e.message),
+      (e: Error) => {
+        if (!live) return;
+        if (e instanceof PendingError) setPending(e);
+        else setError(e.message);
+      },
     );
     return () => {
       live = false;
     };
-  }, [query, row.encounter.id, row.spec]);
+  }, [query, row.encounter.id, row.spec, attempt]);
 
   if (error) return <div className="compare state">{error}</div>;
+  if (pending) return <Pending pending={pending} what={`This ${row.encounter.name} comparison`} onRetry={retry} />;
   if (!data) return <CompareSkeleton />;
 
   const unit = metricLabel(data.metric);

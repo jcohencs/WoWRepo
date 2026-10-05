@@ -101,8 +101,10 @@ are at or above p99, and the median gap to p99.
   hourly allowance: show usage, stop before the limit, and fall back to saved data.
 - **FR-011**: Users MUST be able to pre-download benchmarks for their class and spec in the
   background, resuming across hourly windows.
-- **FR-012**: Visitors MUST be shown the most recent saved pull (with its age) rather than
-  triggering a new pull; stale data is refreshed in the background within the allowance.
+- **FR-012**: Visitors MUST only be shown saved data (with its age) and MUST NOT trigger calls to
+  Warcraft Logs. All pulls happen on a schedule: queued first-time lookups first, then the
+  stalest saved pages, within the hourly allowance. Not-yet-pulled lookups show their place in
+  line and the time to the next update, and fill in automatically.
 - **FR-013**: The app MUST be deployable as a public website with the API key held only in the
   host's environment.
 

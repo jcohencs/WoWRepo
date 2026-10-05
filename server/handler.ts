@@ -3,19 +3,33 @@ import type { Meta, Site } from '../shared/types.js';
 import { MINUTE, TtlCache } from './cache.js';
 import { validateRef } from './core/input.js';
 import { DemoProvider } from './demo/provider.js';
-import { ApiFailure } from './errors.js';
+import { ApiFailure, PendingPull } from './errors.js';
 import type { Provider } from './provider.js';
 import { WclClient } from './wcl/client.js';
-import { cacheFile, REFRESH_HEADROOM, WclProvider } from './wcl/provider.js';
+import { cacheFile, WclProvider } from './wcl/provider.js';
+import { Puller, SnapshotProvider } from './snapshot.js';
 
-export function providerFromEnv(env: Record<string, string | undefined> = process.env, opts: { refresh?: boolean } = {}): Provider {
+/** The live Warcraft Logs provider: it calls the API. Used by the scheduled puller and `npm run sync`. */
+export function liveProviderFromEnv(env: Record<string, string | undefined> = process.env): { live: WclProvider; cache: TtlCache } | null {
+  if (!env.WCL_CLIENT_ID || !env.WCL_CLIENT_SECRET) return null;
   const site: Site = env.WCL_SITE === 'classic' ? 'classic' : 'fresh';
-  if (!env.WCL_CLIENT_ID || !env.WCL_CLIENT_SECRET) return new DemoProvider();
   const client = new WclClient({ clientId: env.WCL_CLIENT_ID, clientSecret: env.WCL_CLIENT_SECRET, site });
-  const cache = new TtlCache({ file: cacheFile(site, env.CACHE_DIR), canRefresh: () => client.headroom() > REFRESH_HEADROOM });
-  const provider = new WclProvider(client, site, cache);
-  if (opts.refresh) setInterval(() => void provider.refreshTracked().catch(() => undefined), 10 * MINUTE).unref();
-  return provider;
+  // serveStale off: the puller always saves current data.
+  const cache = new TtlCache({ file: cacheFile(site, env.CACHE_DIR), serveStale: false });
+  return { live: new WclProvider(client, site, cache), cache };
+}
+
+/**
+ * What visitors talk to. With a key configured, pages come only from saved pulls and a timer
+ * pulls from Warcraft Logs every PULL_INTERVAL_MINUTES (default 10). Without a key: demo data.
+ */
+export function providerFromEnv(env: Record<string, string | undefined> = process.env, opts: { schedule?: boolean } = {}): Provider {
+  const setup = liveProviderFromEnv(env);
+  if (!setup) return new DemoProvider();
+  const minutes = Number(env.PULL_INTERVAL_MINUTES) || 10;
+  const puller = new Puller(setup.live, setup.cache, minutes * MINUTE);
+  if (opts.schedule) puller.start();
+  return new SnapshotProvider(setup.live, setup.cache, puller);
 }
 
 function send(res: ServerResponse, status: number, body: unknown) {
@@ -44,7 +58,7 @@ function intParam(params: URLSearchParams, key: string, required: boolean): numb
 
 export type ApiHandler = (req: IncomingMessage, res: ServerResponse, next?: () => void) => Promise<void>;
 
-export function createApiHandler(provider: Provider = providerFromEnv(process.env, { refresh: true })): ApiHandler {
+export function createApiHandler(provider: Provider = providerFromEnv(process.env, { schedule: true })): ApiHandler {
   return async (req, res, next) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (!url.pathname.startsWith('/api/')) return next ? next() : send(res, 404, { error: { code: 'not_found', message: 'Not found' } });
@@ -69,6 +83,9 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
           return send(res, 404, { error: { code: 'not_found', message: 'Not found' } });
       }
     } catch (err) {
+      if (err instanceof PendingPull) {
+        return send(res, 202, { pending: { position: err.position, nextUpdateInSec: err.nextUpdateInSec } });
+      }
       if (err instanceof ApiFailure) return send(res, err.status, { error: { code: err.code, message: err.message } });
       console.error(err);
       return send(res, 502, { error: { code: 'upstream', message: 'Could not reach Warcraft Logs.' } });

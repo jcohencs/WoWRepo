@@ -28,6 +28,9 @@ export interface ApiStatus {
   pointsSpent: number | null;
   resetsInSec: number | null;
   savedResults: number;
+  /** Lookups waiting for the next scheduled pull. */
+  queued?: number;
+  nextUpdateInSec?: number;
 }
 
 export interface Meta {

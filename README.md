@@ -28,20 +28,20 @@ Production: `npm run build && npm start` serves the built app and API on `PORT` 
 
 ## How data is pulled
 
-Every visitor sees the **most recent saved pull**, so the site doesn't call Warcraft Logs on every page view:
+Visitors only ever see **saved data**. The site never calls Warcraft Logs because someone opened a page; a scheduled job does all the pulling.
 
-- Anything pulled before (characters, benchmarks, logs) is served instantly from `.cache/` with an "Updated … ago" note. If it is old, it is refreshed in the background.
-- Only a character nobody has searched yet waits on Warcraft Logs; after that everyone gets the saved copy.
-- Every 10 minutes a refresher re-pulls characters people have viewed in the last two weeks, stalest first. It only runs while at least 35% of the hourly allowance is left, so new searches always have room.
-- Old logs never change, so they are kept for 30 days. Benchmarks refresh daily and characters every 2 hours.
+- **Every 10 minutes** (`PULL_INTERVAL_MINUTES`) the puller runs:
+  1. It pulls anything visitors asked for that isn't saved yet (a new character, or a boss comparison), in the order they were asked.
+  2. It re-pulls saved pages that people still open: characters older than 2 hours, comparisons older than 12 hours, stalest first. It stops while 15% of the hourly allowance is left so the next round of new lookups always fits.
+- A character nobody has looked up yet shows "not pulled yet, number 2 in line, about 8 minutes" and fills in by itself after the next run.
+- Every page shows when it was pulled ("Updated 25 min ago").
+- Pages nobody opens for two weeks stop being refreshed.
 
-To fill the cache ahead of time, pre-pull benchmarks for a spec:
+Everything lives in one file, `.cache/wcl-<site>.json` (or `$CACHE_DIR`). To fill in benchmarks ahead of time, stop the site and run:
 
 ```bash
 npm run sync -- --class Warrior --spec Fury
 ```
-
-It skips what's saved and stops before the hourly limit; run it again after the reset to continue.
 
 ## Put it online
 

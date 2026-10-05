@@ -2,10 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Meta, Region, ZoneReport } from '../shared/types';
 import { BossTable } from './components/BossTable';
 import { CharacterHeader } from './components/CharacterHeader';
+import { Pending } from './components/Pending';
 import { RaidSelect } from './components/RaidSelect';
 import { SearchBar } from './components/SearchBar';
 import { Summary } from './components/Summary';
-import { api, type Query } from './lib/api';
+import { api, PendingError, type Query } from './lib/api';
 
 function readUrl(): { query: Query | null; raid?: string } {
   const p = new URLSearchParams(location.search);
@@ -30,6 +31,7 @@ export function App() {
   const [report, setReport] = useState<ZoneReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingError | null>(null);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export function App() {
     const ctrl = new AbortController();
     setLoading(true);
     setError(null);
+    setPending(null);
     api
       .character(query, raidId, ctrl.signal)
       .then((r) => {
@@ -50,11 +53,14 @@ export function App() {
       .catch((e: Error) => {
         if (ctrl.signal.aborted) return;
         setReport(null);
-        setError(e.message);
+        if (e instanceof PendingError) setPending(e);
+        else setError(e.message);
       })
       .finally(() => !ctrl.signal.aborted && setLoading(false));
     return () => ctrl.abort();
   }, [query, raidId, attempt]);
+
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   const search = useCallback((q: Query) => {
     setQuery(q);
@@ -104,7 +110,9 @@ export function App() {
             <div className="character-placeholder">{raidPicker}</div>
           )}
 
-          {error ? (
+          {pending ? (
+            <Pending pending={pending} what={query.name} onRetry={retry} />
+          ) : error ? (
             <div className="state">
               <p>{error}</p>
               <button className="button ghost" onClick={() => setAttempt((n) => n + 1)}>

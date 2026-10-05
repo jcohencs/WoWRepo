@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { Site, ZoneReport } from '../../shared/types';
 import { ago, CLASS_COLORS, specLabel } from '../lib/format';
 import { characterUrl } from '../lib/links';
+import { SpecIcon } from './SpecIcon';
 
 export function CharacterHeader({ report, site, children }: { report: ZoneReport; site: Site; children?: ReactNode }) {
   const { character, rows } = report;
@@ -10,8 +11,9 @@ export function CharacterHeader({ report, site, children }: { report: ZoneReport
   return (
     <section className="character">
       <div>
-      <h1 style={{ color: CLASS_COLORS[character.className] }}>{character.name}</h1>
+      <h1 style={{ '--class': CLASS_COLORS[character.className] } as CSSProperties}>{character.name}</h1>
       <p>
+        {specs.length === 1 && <SpecIcon className={character.className} spec={specs[0]} size={20} />}
         {spec} {character.className}
         <span className="dot" aria-hidden>
           ·

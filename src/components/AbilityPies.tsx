@@ -2,9 +2,12 @@ import { useState } from 'react';
 import type { AbilityLine } from '../../shared/types';
 import { percent } from '../lib/format';
 
-/** Categorical slots (validated for the dark surface: CVD ΔE ≥ 8.4, normal-vision ΔE ≥ 19.3, ≥ 3:1 contrast). */
-export const SLICE_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181'];
-const OTHER_COLOR = '#5b616b';
+/**
+ * Categorical slots as theme tokens (defined in styles.css for dark and light; both validated:
+ * CVD ΔE ≥ 8, normal-vision ΔE ≥ 19, ≥ 3:1 contrast on their surface).
+ */
+export const SLICE_COLORS = ['var(--slice-1)', 'var(--slice-2)', 'var(--slice-3)', 'var(--slice-4)', 'var(--slice-5)'];
+const OTHER_COLOR = 'var(--slice-other)';
 const MAX_NAMED = SLICE_COLORS.length;
 
 export interface Slice {
@@ -31,7 +34,7 @@ export function buildSlices(abilities: AbilityLine[]): Slice[] {
   return slices;
 }
 
-export function AbilityPies({ abilities, noun }: { abilities: AbilityLine[]; noun: string }) {
+export function AbilityPies({ abilities, noun, hasRef = true }: { abilities: AbilityLine[]; noun: string; hasRef?: boolean }) {
   const slices = buildSlices(abilities);
   const [active, setActive] = useState<Slice['id'] | null>(null);
   if (!slices.length) return null;
@@ -40,15 +43,15 @@ export function AbilityPies({ abilities, noun }: { abilities: AbilityLine[]; nou
     <div className="pies">
       <div className="pie-pair">
         <Donut label="You" slices={slices} pick={(s) => s.you} active={active} onHover={setActive} kind="you" />
-        <Donut label="Top 1%" slices={slices} pick={(s) => s.ref} active={active} onHover={setActive} kind="ref" />
+        {hasRef && <Donut label="Top 1%" slices={slices} pick={(s) => s.ref} active={active} onHover={setActive} kind="ref" />}
       </div>
       <table className="pie-legend">
         <thead>
           <tr>
             <th>Share of total {noun}</th>
             <th className="num">You</th>
-            <th className="num">Top 1%</th>
-            <th className="num">Difference</th>
+            {hasRef && <th className="num">Top 1%</th>}
+            {hasRef && <th className="num">Difference</th>}
           </tr>
         </thead>
         <tbody>
@@ -67,10 +70,12 @@ export function AbilityPies({ abilities, noun }: { abilities: AbilityLine[]; nou
                   {s.name}
                 </td>
                 <td className="num">{percent(s.you)}</td>
-                <td className="num">{percent(s.ref)}</td>
-                <td className={`num pie-diff${pts >= 2 ? ' big' : ''}`}>
-                  {pts < 0.3 ? 'same' : `${delta > 0 ? '+' : '−'}${pts.toFixed(1)}%`}
-                </td>
+                {hasRef && <td className="num">{percent(s.ref)}</td>}
+                {hasRef && (
+                  <td className={`num pie-diff${pts >= 2 ? ' big' : ''}`}>
+                    {pts < 0.3 ? 'same' : `${delta > 0 ? '+' : '−'}${pts.toFixed(1)}%`}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -119,7 +124,7 @@ function Donut({
                 cy={SIZE / 2}
                 r={R}
                 fill="none"
-                stroke={s.color}
+                style={{ stroke: s.color }}
                 strokeWidth={active === s.id ? STROKE + 6 : STROKE}
                 strokeDasharray={`${seg} ${CIRC - seg}`}
                 strokeDashoffset={-offset}

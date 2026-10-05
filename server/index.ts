@@ -26,7 +26,7 @@ const SECURITY_HEADERS: Record<string, string> = {
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     'font-src https://fonts.gstatic.com',
-    "img-src 'self' data: https://assets.rpglogs.com",
+    "img-src 'self' data: https://assets.rpglogs.com https://wow.zamimg.com",
     "connect-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",

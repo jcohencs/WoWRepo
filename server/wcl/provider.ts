@@ -479,8 +479,7 @@ export class WclProvider implements Provider {
       if (!kill) throw new ApiFailure('not_found', `${ref.name} has no ranked ${spec} kill on ${encounter.name}.`);
 
       const key = { encounterId, className: kill.cls.name, spec, metric };
-      const benchmark = (await this.getBenchmarks([key])).get(keyString(key));
-      if (!benchmark) throw new ApiFailure('not_found', `No ranked ${spec} ${kill.cls.name} logs on ${encounter.name} yet.`);
+      const benchmark = (await this.getBenchmarks([key])).get(keyString(key)) ?? null;
       const dataType = metric === 'hps' ? 'Healing' : 'DamageDone';
 
       // Both sides load in parallel; each is two small queries, cached per report.
@@ -488,9 +487,15 @@ export class WclProvider implements Provider {
         const side = await this.resolveSide(code, fight, name, server, dataType);
         return { side, tables: await this.sideTables(side, dataType) };
       };
+      // Your own breakdown always shows; the top 1% side is added when it can be loaded.
       const [you, top] = await Promise.all([
         load(kill.code, kill.fight, kill.name, kill.server),
-        load(benchmark.reference.reportCode, benchmark.reference.fightId, benchmark.reference.name, benchmark.reference.server),
+        benchmark
+          ? load(benchmark.reference.reportCode, benchmark.reference.fightId, benchmark.reference.name, benchmark.reference.server).catch((err) => {
+              if (err instanceof ApiFailure && err.code === 'rate_limited') throw err;
+              return null;
+            })
+          : Promise.resolve(null),
       ]);
 
       const toSide = ({ side }: { side: ResolvedSide }): FightSide => ({
@@ -510,8 +515,8 @@ export class WclProvider implements Provider {
         className: kill.cls.name,
         spec,
         you: toSide(you),
-        ref: toSide(top),
-        abilities: compareAbilities(you.tables, top.tables),
+        ref: top ? toSide(top) : null,
+        abilities: compareAbilities(you.tables, top?.tables ?? { durationMs: 1, amounts: [], casts: [] }),
         updatedAt: Date.now(),
       };
     });

@@ -56,6 +56,19 @@ describe('WclProvider', () => {
     expect(report.raid.id).toBe('black-temple');
   });
 
+  it('still shows your own breakdown when the top 1% log cannot be loaded', async () => {
+    const { provider } = fakeWcl((query, variables) => {
+      if (query.includes('players: table') && variables.code !== 'MINE') return { reportData: { report: null } };
+      return handler(query, variables);
+    });
+    await provider.zoneReport(brannoc, 'black-temple');
+    const c = await provider.compare(brannoc, 601, 'Fury');
+    expect(c.ref).toBeNull();
+    expect(c.you.name).toBe('Brannoc');
+    expect(c.abilities.map((a) => a.name)).toEqual(['Melee', 'Bloodthirst']);
+    expect(c.abilities.every((a) => a.ref === null)).toBe(true);
+  });
+
   it('syncs benchmarks for a spec, skipping saved ones', async () => {
     const { provider, queries } = fakeWcl(handler);
     const first = await provider.syncBenchmarks('warrior', 'fury');
@@ -76,7 +89,7 @@ describe('WclProvider', () => {
     expect(used.filter((q) => q.includes('encounterRankings'))).toHaveLength(1);
     expect(used).toHaveLength(5); // best kill + 2 per side
     expect(c.you.name).toBe('Brannoc');
-    expect(c.ref.name).toBe('P10');
+    expect(c.ref?.name).toBe('P10');
     expect(c.you.activeTime).toBeCloseTo(0.95);
     expect(c.abilities.map((a) => a.name)).toEqual(['Melee', 'Bloodthirst']);
 

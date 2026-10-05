@@ -29,7 +29,53 @@
   --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
+  /* Pie slices (validated categorical palette, dark surface) */
+  --slice-1: #3987e5;
+  --slice-2: #d95926;
+  --slice-3: #199e70;
+  --slice-4: #c98500;
+  --slice-5: #d55181;
+  --slice-other: #5b616b;
+
   color-scheme: dark;
+}
+
+/* Light mode: same roles, values chosen for a white surface. */
+:root[data-theme='light'] {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #eeeeeb;
+  --line: #e2e2de;
+  --line-strong: #cbcbc6;
+  --text: #15171b;
+  --text-2: #3b4149;
+  --soft: #5b626c;
+  --muted: #7b828c;
+  --focus: #2a6fdb;
+
+  --pos: #1b8a3c;
+  --neg: #c4382f;
+
+  --you: #6b7480;
+  --ref: #e06c00;
+
+  /* Warcraft Logs parse colours, darkened to stay readable on white */
+  --parse-grey: #6e6e6e;
+  --parse-green: #1a9c00;
+  --parse-blue: #0062d6;
+  --parse-purple: #8a35d6;
+  --parse-orange: #d96d00;
+  --parse-pink: #c4418a;
+  --parse-gold: #a8892d;
+
+  --slice-1: #2a78d6;
+  --slice-2: #eb6834;
+  --slice-3: #1baf7a;
+  --slice-4: #eda100;
+  --slice-5: #e87ba4;
+  --slice-other: #b4b8be;
+
+  color-scheme: light;
 }
 
 * {
@@ -255,6 +301,42 @@ select option {
   opacity: 0.45;
   cursor: default;
 }
+.icon-button {
+  width: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.theme-toggle:hover {
+  color: var(--text);
+  border-color: var(--soft);
+}
+
 .button.ghost {
   background: transparent;
   color: var(--text);
@@ -369,6 +451,7 @@ select option {
   justify-content: flex-end;
 }
 .character h1 {
+  color: var(--class, var(--text));
   margin: 0;
   font-size: 30px;
   line-height: 1.2;
@@ -429,6 +512,37 @@ select option {
   color: var(--text);
   font-weight: 600;
   box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+/* Class colours like Priest white or Rogue yellow vanish on white; darken them in light mode. */
+:root[data-theme='light'] .character h1 {
+  color: color-mix(in srgb, var(--class, var(--text)) 62%, #000);
+}
+
+.spec-icon {
+  display: inline-block;
+  vertical-align: -4px;
+  border-radius: 4px;
+  border: 1px solid var(--line-strong);
+  margin-right: 6px;
+  flex: none;
+}
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+}
+.segmented .spec-icon {
+  margin-right: 7px;
+  vertical-align: 0;
+}
+.character p .spec-icon {
+  margin-right: 6px;
+}
+.breakdown-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-wrap: wrap;
 }
 
 /* ---------- Summary ---------- */
@@ -933,14 +1047,6 @@ td {
   max-width: 720px;
 }
 
-.footer {
-  margin-top: 56px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
-  font-size: 13px;
-  color: var(--soft);
-  max-width: 680px;
-}
 
 
 /* ---------- Parse by boss (column chart) ---------- */
@@ -1114,6 +1220,29 @@ td {
   white-space: nowrap;
 }
 
+.your-kill {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px 16px;
+  margin: 8px 0 8px;
+}
+.your-kill dt {
+  font-size: 13px;
+  color: var(--soft);
+}
+.your-kill dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.side.none {
+  border-top-color: var(--line-strong);
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
 /* ---------- Buttons pressed per minute ---------- */
 
 .casts {
@@ -1196,9 +1325,9 @@ td {
     display: none;
   }
   .search {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+    grid-template-columns: minmax(0, 1fr) auto;
   }
-  .search .button {
+  .field-realm {
     grid-column: 1 / -1;
   }
   .raid-select {
@@ -1355,9 +1484,7 @@ td {
   .site-tag > span:last-child {
     display: none;
   }
-  .search {
-    grid-template-columns: 1fr;
-  }
+
   .side-stats {
     grid-template-columns: repeat(2, 1fr);
   }

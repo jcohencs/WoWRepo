@@ -16,13 +16,15 @@ interface Stat {
  */
 export function HeadToHead({ data }: { data: Comparison }) {
   const noun = data.metric === 'hps' ? 'healing' : 'damage';
+  if (!data.ref) return <YourKill data={data} noun={noun} />;
+  const ref = data.ref;
   const stats: Stat[] = [
-    { label: metricLabel(data.metric), you: data.you.perSecond, top: data.ref.perSecond, format: amount },
-    { label: 'Kill time', you: data.you.durationMs, top: data.ref.durationMs, format: duration, lowerIsBetter: true },
-    ...(data.you.activeTime != null && data.ref.activeTime != null
-      ? [{ label: 'Time active', you: data.you.activeTime, top: data.ref.activeTime, format: (v: number) => percent(v) }]
+    { label: metricLabel(data.metric), you: data.you.perSecond, top: ref.perSecond, format: amount },
+    { label: 'Kill time', you: data.you.durationMs, top: ref.durationMs, format: duration, lowerIsBetter: true },
+    ...(data.you.activeTime != null && ref.activeTime != null
+      ? [{ label: 'Time active', you: data.you.activeTime, top: ref.activeTime, format: (v: number) => percent(v) }]
       : []),
-    { label: `Total ${noun}`, you: data.you.amount, top: data.ref.amount, format: compact },
+    { label: `Total ${noun}`, you: data.you.amount, top: ref.amount, format: compact },
   ];
 
   return (
@@ -59,6 +61,31 @@ export function HeadToHead({ data }: { data: Comparison }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+/** Headline numbers for your kill when there is no top 1% log to compare with. */
+function YourKill({ data, noun }: { data: Comparison; noun: string }) {
+  const tiles = [
+    { label: metricLabel(data.metric), value: amount(data.you.perSecond) },
+    { label: 'Kill time', value: duration(data.you.durationMs) },
+    { label: 'Time active', value: percent(data.you.activeTime) },
+    { label: `Total ${noun}`, value: compact(data.you.amount) },
+  ];
+  return (
+    <div className="h2h">
+      <div className="h2h-head">
+        <h3>Your kill</h3>
+      </div>
+      <dl className="your-kill">
+        {tiles.map((t) => (
+          <div key={t.label}>
+            <dt>{t.label}</dt>
+            <dd>{t.value}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

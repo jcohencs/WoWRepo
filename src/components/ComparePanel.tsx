@@ -6,6 +6,7 @@ import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 import { CastsChart } from './CastsChart';
 import { HeadToHead } from './HeadToHead';
+import { SpecIcon } from './SpecIcon';
 
 interface Props {
   query: Query;
@@ -50,32 +51,42 @@ export function ComparePanel({ query, row, site, demo }: Props) {
   );
   const maxShare = Math.max(...abilities.map((a) => Math.max(a.you?.share ?? 0, a.ref?.share ?? 0)), 0.01);
   const colors = new Map(buildSlices(abilities).flatMap((s) => (s.id === 'other' ? [] : [[s.id, s.color] as const])));
+  const hasRef = data.ref != null;
 
   return (
     <div className="compare">
       <div className="sides">
         <Side label="You" side={data.you} site={site} demo={demo} />
-        <Side label="Top 1% player" side={data.ref} site={site} demo={demo} top />
+        {data.ref ? (
+          <Side label="Top 1% player" side={data.ref} site={site} demo={demo} top />
+        ) : (
+          <div className="side none">
+            <span className="soft">No top 1% {specLabel(data.spec)} log for this boss yet — showing your own breakdown.</span>
+          </div>
+        )}
       </div>
 
       <HeadToHead data={data} />
 
       <div className="breakdown-head">
         <h3>
+          <SpecIcon className={data.className} spec={data.spec} size={22} />
           Where your {noun} comes from <span className="soft">· {specLabel(data.spec)} {data.className}</span>
         </h3>
       </div>
 
-      <AbilityPies abilities={abilities} noun={noun} />
+      <AbilityPies abilities={abilities} noun={noun} hasRef={hasRef} />
 
-      <CastsChart abilities={abilities} />
+      <CastsChart abilities={abilities} hasRef={hasRef} />
 
       <div className="breakdown-head sub">
         <h3>Every ability</h3>
-        <div className="legend" aria-hidden>
-          <span className="legend-you">You</span>
-          <span className="legend-ref">Top 1%</span>
-        </div>
+        {hasRef && (
+          <div className="legend" aria-hidden>
+            <span className="legend-you">You</span>
+            <span className="legend-ref">Top 1%</span>
+          </div>
+        )}
       </div>
 
       <div className="breakdown" role="table" aria-label={`Ability comparison for ${data.encounter.name}`}>
@@ -83,12 +94,12 @@ export function ComparePanel({ query, row, site, demo }: Props) {
           <span role="columnheader">Ability</span>
           <span role="columnheader" className="num">
             Uses per minute
-            <small>you · top 1%</small>
+            {hasRef && <small>you · top 1%</small>}
           </span>
           <span role="columnheader">Share of total {noun}</span>
         </div>
         {abilities.map((a) => (
-          <AbilityRow key={a.id} a={a} maxShare={maxShare} color={colors.get(a.id)} noun={noun} />
+          <AbilityRow key={a.id} a={a} maxShare={maxShare} color={colors.get(a.id)} noun={noun} hasRef={hasRef} />
         ))}
       </div>
       <p className="footnote">
@@ -136,13 +147,15 @@ function differenceTip(delta: number): string {
   return `${pts.toFixed(1)}% ${delta > 0 ? 'more for you' : 'more for the top 1% player'}`;
 }
 
-function AbilityRow({ a, maxShare, color, noun }: { a: AbilityLine; maxShare: number; color?: string; noun: string }) {
+function AbilityRow({ a, maxShare, color, noun, hasRef }: { a: AbilityLine; maxShare: number; color?: string; noun: string; hasRef: boolean }) {
   const icon = abilityIcon(a.icon);
   const hasShare = (a.you?.share ?? 0) > 0 || (a.ref?.share ?? 0) > 0;
-  const notable = hasShare && Math.abs(a.shareDelta) >= 0.02;
-  const tip = hasShare
-    ? `${a.name}: you ${percent(a.you?.share ?? 0)}, top 1% ${percent(a.ref?.share ?? 0)} (${differenceTip(a.shareDelta)})`
-    : `${a.name}: used ${cpm(a.you?.cpm)} vs ${cpm(a.ref?.cpm)} times per minute`;
+  const notable = hasRef && hasShare && Math.abs(a.shareDelta) >= 0.02;
+  const tip = !hasRef
+    ? `${a.name}: ${percent(a.you?.share ?? 0)} of your ${noun}, used ${cpm(a.you?.cpm)} times per minute`
+    : hasShare
+      ? `${a.name}: you ${percent(a.you?.share ?? 0)}, top 1% ${percent(a.ref?.share ?? 0)} (${differenceTip(a.shareDelta)})`
+      : `${a.name}: used ${cpm(a.you?.cpm)} vs ${cpm(a.ref?.cpm)} times per minute`;
   return (
     <div className={`bd-row${notable ? ' notable' : ''}`} role="row" title={tip}>
       <span className="ability" role="cell">
@@ -156,13 +169,13 @@ function AbilityRow({ a, maxShare, color, noun }: { a: AbilityLine; maxShare: nu
       </span>
       <span className={`num uses${!a.you?.cpm && !a.ref?.cpm ? ' no-uses' : ''}`} role="cell">
         <strong>{cpm(a.you?.cpm)}</strong>
-        <span className="soft"> · {cpm(a.ref?.cpm)}</span>
+        {hasRef && <span className="soft"> · {cpm(a.ref?.cpm)}</span>}
       </span>
       <span className="share-chart" role="cell">
         {hasShare ? (
           <>
             <Bar value={a.you?.share} max={maxShare} kind="you" />
-            <Bar value={a.ref?.share} max={maxShare} kind="ref" />
+            {hasRef && <Bar value={a.ref?.share} max={maxShare} kind="ref" />}
           </>
         ) : (
           <span className="soft">No direct {noun}</span>

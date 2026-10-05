@@ -61,7 +61,7 @@ describe('API (demo provider)', () => {
     expect(status).toBe(200);
     const c = body as Comparison;
     expect(c.abilities.length).toBeGreaterThan(3);
-    expect(c.ref.perSecond).toBeGreaterThan(0);
+    expect(c.ref?.perSecond).toBeGreaterThan(0);
   });
 
   it('validates input', async () => {

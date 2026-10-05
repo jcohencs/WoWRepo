@@ -142,7 +142,8 @@ export interface Comparison {
   className: string;
   spec: string;
   you: FightSide;
-  ref: FightSide;
+  /** The top 1% player's kill, or null when there is no ranked log to compare against. */
+  ref: FightSide | null;
   abilities: AbilityLine[];
   /** When these logs were pulled from Warcraft Logs (epoch ms). */
   updatedAt: number;

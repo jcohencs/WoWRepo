@@ -81,8 +81,15 @@ export function SearchBar({ initial, busy, onSearch }: Props) {
           ))}
         </datalist>
       </label>
-      <button className="button" type="submit" disabled={busy || !name.trim()}>
-        {busy ? 'Loading…' : 'Check my parses'}
+      <button className="button icon-button" type="submit" disabled={busy || !name.trim()} aria-label="Search" title="Search">
+        {busy ? (
+          <span className="spinner" aria-hidden />
+        ) : (
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+            <circle cx="10.5" cy="10.5" r="6.5" />
+            <path d="m15.5 15.5 5 5" />
+          </svg>
+        )}
       </button>
     </form>
   );

@@ -73,7 +73,7 @@ if (!nameArg) {
     const kill = report?.rows.find((row) => row.best != null && row.benchmark != null);
     if (kill) {
       await step(`Comparison — ${kill.encounter.name}`, () => live.compare(ref, kill.encounter.id, kill.spec), (c) =>
-        `${c.abilities.length} abilities, you ${Math.round(c.you.perSecond)} vs top 1% ${Math.round(c.ref.perSecond)} ${c.metric.toUpperCase()}`,
+        `${c.abilities.length} abilities, you ${Math.round(c.you.perSecond)} vs top 1% ${c.ref ? Math.round(c.ref.perSecond) : "n/a"} ${c.metric.toUpperCase()}`,
       );
       break;
     }

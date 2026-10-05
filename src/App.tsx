@@ -6,6 +6,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ParseChart } from './components/ParseChart';
 import { RaidSelect } from './components/RaidSelect';
 import { SpecBar } from './components/SpecBar';
+import { ThemeToggle } from './components/ThemeToggle';
 import { SearchBar } from './components/SearchBar';
 import { Summary } from './components/Summary';
 import { api, type Query } from './lib/api';
@@ -87,6 +88,7 @@ export function App() {
         </div>
         {meta && (
           <div className="site-tag">
+            <ThemeToggle />
             {meta.demo ? <span className="demo-tag">Demo data</span> : null}
             <span>{meta.site === 'fresh' ? 'TBC Anniversary' : 'TBC Classic'}</span>
           </div>
@@ -111,7 +113,7 @@ export function App() {
                 {raidPicker}
               </CharacterHeader>
               {shown.specs?.length > 0 && (
-                <SpecBar specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec ?? ''} onSelect={(s) => setSpec(s ?? undefined)} />
+                <SpecBar className={shown.character.className} specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec ?? ''} onSelect={(s) => setSpec(s ?? undefined)} />
               )}
             </>
           ) : (
@@ -141,10 +143,6 @@ export function App() {
 
       {!query && <EmptyIntro />}
 
-      <footer className="footer">
-        Numbers come from Warcraft Logs. You are only compared with players of the same class and spec, on the same boss, in the
-        current phase. "Top 1%" is the real log sitting at the 99th percentile, not an estimate.
-      </footer>
     </div>
   );
 }

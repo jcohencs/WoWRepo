@@ -113,7 +113,7 @@ describe('saved pages + scheduled puller', () => {
     const { site, puller } = setup();
     await puller.run();
     const c = await site.compare(brannoc, 601, 'Fury');
-    expect(c.ref.name).toBe('P10');
+    expect(c.ref?.name).toBe('P10');
   });
 
   it('reports how much of the realm is left to pull', async () => {

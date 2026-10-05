@@ -20,7 +20,7 @@ export function BossTable({ report, query, site, demo }: Props) {
   return (
     <>
       <div className="table-intro">
-        <p>Click a boss to compare your log with a top 1% player's.</p>
+        <p>Click a boss to see your damage breakdown next to a top 1% player's.</p>
         <div className="key" aria-hidden>
           <span className="key-you">Your best</span>
           <span className="key-mid">Typical player</span>
@@ -46,7 +46,8 @@ export function BossTable({ report, query, site, demo }: Props) {
         <tbody>
           {report.rows.map((row) => {
             const isOpen = open === row.encounter.id;
-            const canOpen = row.best != null && row.benchmark != null;
+            // Your own breakdown opens for any boss you've killed; the top 1% side is added when there is one.
+            const canOpen = row.best != null;
             const toggle = () => setOpen(isOpen ? null : row.encounter.id);
             return (
               <Fragment key={row.encounter.id}>

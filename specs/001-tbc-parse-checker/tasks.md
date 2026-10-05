@@ -121,3 +121,10 @@ description: "Task list for TBC Parse Checker"
 - [x] T058 Replace the queue with on-demand pulls for anything not saved (shared between simultaneous visitors); rate-limited requests are queued silently for after the reset
 - [x] T059 Sweep keeps only 20% back (`SWEEP_RESERVE`); skip characters Warcraft Logs recently couldn't find
 - [x] T060 `npm run prefill`: pull the whole realm across hourly resets with progress/ETA, then write `data/seed-<site>.json.gz`; servers with no saved data start from the seed
+
+## Phase 19: UI round
+
+- [x] T061 Breakdown opens for any killed boss; comparison `ref` is optional (no benchmark or unloadable log → your side only: "Your kill" tiles, single pie, your casts and abilities)
+- [x] T062 Spec icons (Wowhead icon set) in the spec bar, character line and breakdown heading; CSP allows wow.zamimg.com
+- [x] T063 Light mode: theme tokens incl. validated light slice palette and darkened parse/class colours; sun/moon toggle, follows system, remembered
+- [x] T064 Search icon button; remove the footer text

@@ -95,8 +95,10 @@ are at or above p99, and the median gap to p99.
   "best spec", where each boss uses the spec of the character's best kill there).
 - **FR-002a**: Each raid MUST appear once in the raid picker; alternate 25-man / "full raid"
   listings from Warcraft Logs are skipped when a regular listing exists.
-- **FR-006**: System MUST offer an ability‑level comparison against the 99th‑percentile player's
-  log for the same encounter and spec.
+- **FR-006**: System MUST show the character's own damage/healing and ability breakdown for any
+  killed boss, and add the 99th‑percentile player's log beside it when one is available.
+- **FR-006a**: The interface MUST offer light and dark modes (following the system setting by
+  default) and show spec icons alongside spec names.
 - **FR-007**: API credentials MUST stay server‑side.
 - **FR-008**: Without credentials the app MUST run on fixture data with a persistent "Demo data"
   label.

@@ -1,0 +1,13 @@
+# API Contract
+
+All responses are JSON. Errors: `{ "error": { "code": string, "message": string } }` with
+4xx/5xx status. Codes: `bad_request`, `not_found`, `upstream`, `rate_limited`.
+
+## GET /api/meta
+→ `{ site: "fresh"|"classic", demo: boolean, zones: Zone[] }`
+
+## GET /api/character?region=US&realm=dreamscythe&name=Foo&zone=1007
+→ `ZoneReport`. `zone` optional (defaults to the latest TBC raid).
+
+## GET /api/compare?region=US&realm=dreamscythe&name=Foo&encounter=601&spec=Fury
+→ `Comparison`. 404 `not_found` if the character has no kill on the encounter.

@@ -1,0 +1,31 @@
+{
+  "name": "parsecheck",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Compare your TBC Warcraft Logs parses with the 99th percentile of your class and spec.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "tsx --env-file-if-exists=.env server/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tsx": "^4.23.15"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}

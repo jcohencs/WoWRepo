@@ -84,6 +84,10 @@ export class DemoProvider implements Provider {
   readonly site = 'fresh' as const;
   readonly demo = true;
 
+  status() {
+    return null;
+  }
+
   private readonly allRaids = raidsFromZones(TBC_ZONES);
 
   async raids(): Promise<Raid[]> {

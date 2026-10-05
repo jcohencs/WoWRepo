@@ -1,16 +1,18 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Meta, Site } from '../shared/types.js';
+import { TtlCache } from './cache.js';
 import { validateRef } from './core/input.js';
 import { DemoProvider } from './demo/provider.js';
 import { ApiFailure } from './errors.js';
 import type { Provider } from './provider.js';
 import { WclClient } from './wcl/client.js';
-import { WclProvider } from './wcl/provider.js';
+import { cacheFile, WclProvider } from './wcl/provider.js';
 
 export function providerFromEnv(env: Record<string, string | undefined> = process.env): Provider {
   const site: Site = env.WCL_SITE === 'classic' ? 'classic' : 'fresh';
   if (!env.WCL_CLIENT_ID || !env.WCL_CLIENT_SECRET) return new DemoProvider();
-  return new WclProvider(new WclClient({ clientId: env.WCL_CLIENT_ID, clientSecret: env.WCL_CLIENT_SECRET, site }), site);
+  const client = new WclClient({ clientId: env.WCL_CLIENT_ID, clientSecret: env.WCL_CLIENT_SECRET, site });
+  return new WclProvider(client, site, new TtlCache(cacheFile(site)));
 }
 
 function send(res: ServerResponse, status: number, body: unknown) {
@@ -51,6 +53,8 @@ export function createApiHandler(provider: Provider = providerFromEnv()): ApiHan
           const meta: Meta = { site: provider.site, demo: provider.demo, raids: await provider.raids() };
           return send(res, 200, meta);
         }
+        case '/api/status':
+          return send(res, 200, provider.status());
         case '/api/character':
           return send(res, 200, await provider.zoneReport(ref(p), p.get('raid') || undefined));
         case '/api/compare': {

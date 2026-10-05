@@ -11,3 +11,6 @@ All responses are JSON. Errors: `{ "error": { "code": string, "message": string 
 
 ## GET /api/compare?region=US&realm=dreamscythe&name=Foo&encounter=601&spec=Fury
 → `Comparison`. 404 `not_found` if the character has no kill on the encounter.
+
+## GET /api/status
+→ `ApiStatus | null` — `{ limitPerHour, pointsSpent, resetsInSec, savedResults }` (null in demo mode).

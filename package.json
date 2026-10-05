@@ -9,7 +9,8 @@
     "build": "vite build",
     "start": "tsx server/index.ts",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "sync": "tsx scripts/sync.ts"
   },
   "engines": {
     "node": ">=20"

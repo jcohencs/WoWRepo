@@ -120,6 +120,17 @@ describe('WclProvider', () => {
     expect(queries.filter((q) => q.includes('characterRankings')).length).toBe(2);
   });
 
+  it('syncs benchmarks for a spec, skipping saved ones', async () => {
+    const { provider, queries } = fakeWcl(handler);
+    const first = await provider.syncBenchmarks('warrior', 'fury');
+    expect(first).toEqual({ fetched: 3, skipped: 0, remaining: 0 });
+    const before = queries.length;
+    const again = await provider.syncBenchmarks('Warrior', 'Fury');
+    expect(again).toEqual({ fetched: 0, skipped: 3, remaining: 0 });
+    expect(queries.length).toBe(before);
+    await expect(provider.syncBenchmarks('Warrior', 'Holy')).rejects.toThrow(/no spec/);
+  });
+
   it('opens a comparison without re-looking-up the best kill, loading both logs', async () => {
     const { provider, queries } = fakeWcl(handler);
     await provider.zoneReport(brannoc, '2011-black-temple');

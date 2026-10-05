@@ -63,3 +63,10 @@ description: "Task list for TBC Parse Checker"
 ## Phase 9: Feedback round 3
 
 - [x] T029 Replace the diverging difference bars with two donut charts (You / Top 1%) sharing one colour per ability: top five abilities plus "Everything else", validated categorical palette, hover links slices and legend, legend lists you / top 1% / difference
+
+## Phase 10: Rate limit
+
+- [x] T030 Persist the response cache to `.cache/wcl-<site>.json`; reports kept 30 days, benchmarks 1 day; serve stale data when the allowance is used up
+- [x] T031 Read `rateLimitData` with every query, refuse new requests near the limit with the reset time, show usage in the header (`/api/status`)
+- [x] T032 `npm run sync -- --class X --spec Y [--raid ...]` pre-downloads benchmarks within the hourly budget and resumes on the next run
+- [x] T033 Remove hover prefetch; skip warming best kills that are already saved

@@ -19,7 +19,10 @@ export function ComparePanel({ query, row, site, demo }: Props) {
   useEffect(() => {
     let live = true;
     api.compare(query, row.encounter.id, row.spec).then(
-      (c) => live && setData(c),
+      (c) => {
+        window.dispatchEvent(new Event('parsecheck:loaded'));
+        if (live) setData(c);
+      },
       (e: Error) => live && setError(e.message),
     );
     return () => {

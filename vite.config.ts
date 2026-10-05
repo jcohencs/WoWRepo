@@ -17,6 +17,7 @@ export default defineConfig(({ command }) => {
   if (command === 'serve' && !process.env.VITEST) loadWclEnv(import.meta.dirname);
   return {
     plugins: [react(), api()],
+    server: { watch: { ignored: ['**/.cache/**'] } },
     test: { include: ['tests/**/*.test.ts'] },
   };
 });

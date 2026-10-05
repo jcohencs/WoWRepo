@@ -1,5 +1,6 @@
 import type { Benchmark, Comparison, FightSide, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
-import { HOUR, MINUTE, TtlCache } from '../cache.js';
+import { join, resolve } from 'node:path';
+import { DAY, HOUR, MINUTE, TtlCache } from '../cache.js';
 import {
   buildBenchmark,
   keyString,
@@ -9,7 +10,7 @@ import {
   type RawRanking,
   type RawRankingPage,
 } from '../core/benchmark.js';
-import { classById, metricFor, metricForSpec, type ClassInfo } from '../core/classes.js';
+import { CLASSES, classById, metricFor, metricForSpec, type ClassInfo } from '../core/classes.js';
 import { compareAbilities, type TableEntry } from '../core/compare.js';
 import type { CharacterRef } from '../core/input.js';
 import { raidsFromZones } from '../core/raids.js';
@@ -78,15 +79,40 @@ const SAFE_NAME = /^[A-Za-z]+$/;
 const bestKillFrom = (ranks: EncounterRanks | null | undefined) =>
   [...(ranks?.ranks ?? [])].sort((a, b) => b.amount - a.amount)[0];
 
+/** Where cached Warcraft Logs responses live between restarts. */
+export const cacheFile = (site: Site) => join(resolve(import.meta.dirname, '../..'), '.cache', `wcl-${site}.json`);
+
+/** How long each kind of data is reused before asking Warcraft Logs again. Reports never change. */
+const TTL = {
+  zones: 7 * DAY,
+  character: 30 * MINUTE,
+  bestKill: HOUR,
+  benchmark: DAY,
+  report: 30 * DAY,
+  compare: HOUR,
+};
+
 export class WclProvider implements Provider {
   readonly demo = false;
-  private readonly cache = new TtlCache();
-  private readonly benchmarks = new Map<string, { expires: number; value: Benchmark | null }>();
 
-  constructor(private readonly client: WclClient, readonly site: Site) {}
+  constructor(
+    private readonly client: WclClient,
+    readonly site: Site,
+    private readonly cache: TtlCache = new TtlCache(),
+  ) {}
+
+  status() {
+    const r = this.client.rateLimit();
+    return {
+      limitPerHour: r?.limitPerHour ?? null,
+      pointsSpent: r?.pointsSpentThisHour ?? null,
+      resetsInSec: r ? Math.max(0, Math.round((r.resetsAt - Date.now()) / 1000)) : null,
+      savedResults: this.cache.size,
+    };
+  }
 
   private zones(): Promise<Zone[]> {
-    return this.cache.get('zones', 24 * HOUR, async () => {
+    return this.cache.get('zones', TTL.zones, async () => {
       try {
         const data = await this.client.query<{ worldData: { expansions: Parameters<typeof tbcZonesFromExpansions>[0] } }>(
           `{ worldData { expansions { id name zones { id name frozen encounters { id name } } } } }`,
@@ -109,7 +135,7 @@ export class WclProvider implements Provider {
     const raid = raidId ? raids.find((r) => r.id === raidId) : raids[raids.length - 1];
     if (!raid) throw new ApiFailure('not_found', `Unknown raid "${raidId}".`);
 
-    const character = await this.cache.get(`char|${ref.region}|${ref.realm}|${ref.name}|${raid.zoneId}`, 10 * MINUTE, () =>
+    const character = await this.cache.get(`char|${ref.region}|${ref.realm}|${ref.name}|${raid.zoneId}`, TTL.character, () =>
       this.client.query<CharacterResponse>(
         `query($name: String!, $server: String!, $region: String!, $zone: Int!) {
           characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
@@ -152,7 +178,9 @@ export class WclProvider implements Provider {
     const rows = plan.map((p) => buildRow(p.encounter, p.spec, p.metric, p.best, benchmarks.get(keyString(keyOf(p))) ?? null));
 
     // Warm the best-kill lookups in the background so opening a comparison skips that round trip.
-    const killed = plan.filter((p) => p.best && p.best.kills > 0 && SAFE_NAME.test(p.spec));
+    const killed = plan.filter(
+      (p) => p.best && p.best.kills > 0 && SAFE_NAME.test(p.spec) && this.cache.peek(this.bestKillKey(ref, p.encounter.id, p.spec, p.metric)) === undefined,
+    );
     if (killed.length) void this.warmBestKills(ref, cls, c.name, c.server.name, killed).catch(() => undefined);
 
     return {
@@ -185,7 +213,7 @@ export class WclProvider implements Provider {
     );
     items.forEach((it, i) => {
       void this.cache
-        .get(this.bestKillKey(ref, it.encounter.id, it.spec, it.metric), 10 * MINUTE, async () => {
+        .get(this.bestKillKey(ref, it.encounter.id, it.spec, it.metric), TTL.bestKill, async () => {
           const kill = bestKillFrom((await load).characterData.character?.[`e${i}`]);
           return kill ? ({ name, server, cls, code: kill.report.code, fight: kill.report.fightID } satisfies BestKill) : null;
         })
@@ -195,7 +223,7 @@ export class WclProvider implements Provider {
   }
 
   private bestKill(ref: CharacterRef, encounterId: number, spec: string, metric: Metric): Promise<BestKill | null> {
-    return this.cache.get(this.bestKillKey(ref, encounterId, spec, metric), 10 * MINUTE, async () => {
+    return this.cache.get(this.bestKillKey(ref, encounterId, spec, metric), TTL.bestKill, async () => {
       const data = await this.client.query<{
         characterData: { character: null | { name: string; classID: number; server: { name: string }; ranks: EncounterRanks | null } };
       }>(
@@ -218,13 +246,12 @@ export class WclProvider implements Provider {
 
   /** Two batched queries: page 1 for every key, then the pages holding p50/p99. */
   private async getBenchmarks(keys: BenchmarkKey[]): Promise<Map<string, Benchmark | null>> {
-    const now = Date.now();
     const result = new Map<string, Benchmark | null>();
     const missing = new Map<string, BenchmarkKey>();
     for (const k of keys) {
       const id = keyString(k);
-      const hit = this.benchmarks.get(id);
-      if (hit && hit.expires > now) result.set(id, hit.value);
+      const hit = this.cache.peek<Benchmark | null>(`bench|${id}`);
+      if (hit !== undefined) result.set(id, hit);
       else if (SAFE_NAME.test(k.className) && SAFE_NAME.test(k.spec)) missing.set(id, k);
     }
     if (!missing.size) return result;
@@ -257,7 +284,7 @@ export class WclProvider implements Provider {
 
     for (const [id, key] of firstKeys) {
       const value = buildBenchmark(key, counts.get(id) ?? null, pages.get(id)!);
-      this.benchmarks.set(id, { expires: now + 6 * HOUR, value });
+      this.cache.set(`bench|${id}`, value, TTL.benchmark);
       result.set(id, value);
     }
     return result;
@@ -265,7 +292,7 @@ export class WclProvider implements Provider {
 
   /** Finds the player in the fight and reads fight bounds, total and active time. Reports never change, so cache long. */
   private resolveSide(code: string, fightId: number, name: string, server: string, dataType: string): Promise<ResolvedSide> {
-    return this.cache.get(`side|${code}|${fightId}|${name}|${dataType}`, 24 * HOUR, async () => {
+    return this.cache.get(`side|${code}|${fightId}|${name}|${dataType}`, TTL.report, async () => {
       const data = await this.client.query<{
         reportData: { report: { fights: { id: number; startTime: number; endTime: number }[]; players: ReportTable } | null };
       }>(
@@ -294,7 +321,7 @@ export class WclProvider implements Provider {
   }
 
   private sideTables(s: ResolvedSide, dataType: string) {
-    return this.cache.get(`tables|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`, 24 * HOUR, async () => {
+    return this.cache.get(`tables|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`, TTL.report, async () => {
       const data = await this.client.query<{ reportData: { report: { amounts: ReportTable; casts: ReportTable } } }>(
         `query($code: String!, $fight: Int!, $source: Int!, $start: Float!, $end: Float!) {
           reportData { report(code: $code) {
@@ -318,7 +345,7 @@ export class WclProvider implements Provider {
     const encounter = raids.flatMap((r) => r.encounters).find((e) => e.id === encounterId);
     if (!encounter) throw new ApiFailure('not_found', `Unknown encounter ${encounterId}.`);
 
-    return this.cache.get(`compare|${ref.region}|${ref.realm}|${ref.name}|${encounterId}|${spec}`, 10 * MINUTE, async () => {
+    return this.cache.get(`compare|${ref.region}|${ref.realm}|${ref.name}|${encounterId}|${spec}`, TTL.compare, async () => {
       const metric = metricForSpec(spec);
       const kill = await this.bestKill(ref, encounterId, spec, metric);
       if (!kill) throw new ApiFailure('not_found', `${ref.name} has no ranked ${spec} kill on ${encounter.name}.`);
@@ -359,5 +386,39 @@ export class WclProvider implements Provider {
         abilities: compareAbilities(you.tables, top.tables),
       };
     });
+  }
+
+  /**
+   * Downloads p50/p99 benchmarks for one class + spec across the given raids, skipping what is
+   * already saved. Stops cleanly when the hourly allowance runs low; run again later to continue.
+   */
+  async syncBenchmarks(
+    className: string,
+    spec: string,
+    raidIds?: string[],
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<{ fetched: number; skipped: number; remaining: number }> {
+    const cls = Object.values(CLASSES).find((c) => c.name.toLowerCase() === className.toLowerCase());
+    if (!cls) throw new ApiFailure('bad_request', `Unknown class "${className}".`);
+    const specName = cls.specs.find((sp) => sp.toLowerCase() === spec.toLowerCase());
+    if (!specName) throw new ApiFailure('bad_request', `${cls.name} has no spec "${spec}". Try: ${cls.specs.join(', ')}.`);
+    const raids = (await this.raids()).filter((r) => !raidIds?.length || raidIds.includes(r.id));
+    const metric = metricFor(cls.name, specName);
+    const keys = raids.flatMap((r) => r.encounters.map((e) => ({ encounterId: e.id, className: cls.name, spec: specName, metric })));
+    const todo = keys.filter((k) => this.cache.peek(`bench|${keyString(k)}`) === undefined);
+    const BATCH = 6;
+    let fetched = 0;
+    for (let i = 0; i < todo.length; i += BATCH) {
+      try {
+        await this.getBenchmarks(todo.slice(i, i + BATCH));
+      } catch (err) {
+        if (err instanceof ApiFailure && err.code === 'rate_limited') break;
+        throw err;
+      }
+      fetched += Math.min(BATCH, todo.length - i);
+      onProgress?.(fetched, todo.length);
+    }
+    this.cache.flush();
+    return { fetched, skipped: keys.length - todo.length, remaining: todo.length - fetched };
   }
 }

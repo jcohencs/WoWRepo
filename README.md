@@ -26,6 +26,21 @@ Without credentials the app runs on generated **demo data**, labelled as such in
 
 Production: `npm run build && npm start` serves the built app and API on `PORT` (default 8787).
 
+## Staying under the Warcraft Logs hourly limit
+
+Your API key gets a fixed number of points per hour (the header shows how many are used). To make them go further:
+
+- **Everything is saved** in `.cache/` and reused after restarts. Old logs never change, so they are kept for a month; benchmarks for a day.
+- **Pre-download your spec** so the raid tables load from saved data:
+
+  ```bash
+  npm run sync -- --class Warrior --spec Fury
+  npm run sync -- --class Priest --spec Shadow --raid "Black Temple,Sunwell Plateau"
+  ```
+
+  It skips what's already saved and stops by itself before the limit; run it again after the reset to finish.
+- When the allowance runs out, the app keeps working from saved results and tells you when it resets.
+
 ## Checks
 
 ```bash

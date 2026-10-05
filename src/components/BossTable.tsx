@@ -1,6 +1,6 @@
 import { Fragment, useState } from 'react';
 import type { BossRow, Site, ZoneReport } from '../../shared/types';
-import { api, type Query } from '../lib/api';
+import type { Query } from '../lib/api';
 import { amount, gapText, integer, metricLabel, parse, parseTier, specLabel } from '../lib/format';
 import { ComparePanel } from './ComparePanel';
 
@@ -15,7 +15,6 @@ export function BossTable({ report, query, site, demo }: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const metrics = new Set(report.rows.map((r) => r.metric));
   const unit = metrics.size === 1 ? metricLabel(report.rows[0].metric) : 'DPS / HPS';
-  const prefetch = (row: BossRow) => api.prefetchCompare(query, row.encounter.id, row.spec);
 
   return (
     <>
@@ -53,8 +52,6 @@ export function BossTable({ report, query, site, demo }: Props) {
                 <tr
                   className={`boss${canOpen ? ' clickable' : ''}${isOpen ? ' open' : ''}${row.best == null ? ' unkilled' : ''}`}
                   onClick={canOpen ? toggle : undefined}
-                  onPointerEnter={canOpen ? () => prefetch(row) : undefined}
-                  onFocus={canOpen ? () => prefetch(row) : undefined}
                   onKeyDown={canOpen ? (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), toggle()) : undefined}
                   tabIndex={canOpen ? 0 : undefined}
                   aria-expanded={canOpen ? isOpen : undefined}

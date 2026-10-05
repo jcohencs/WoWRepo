@@ -3,6 +3,7 @@ import type { Meta, Region, ZoneReport } from '../shared/types';
 import { BossTable } from './components/BossTable';
 import { CharacterHeader } from './components/CharacterHeader';
 import { RaidSelect } from './components/RaidSelect';
+import { Allowance } from './components/Allowance';
 import { SearchBar } from './components/SearchBar';
 import { Summary } from './components/Summary';
 import { api, type Query } from './lib/api';
@@ -78,7 +79,7 @@ export function App() {
         </div>
         {meta && (
           <div className="site-tag">
-            {meta.demo ? <span className="demo-tag">Demo data</span> : null}
+            {meta.demo ? <span className="demo-tag">Demo data</span> : <Allowance refreshKey={`${loading}`} />}
             <span>{meta.site === 'fresh' ? 'TBC Anniversary' : 'TBC Classic'}</span>
           </div>
         )}

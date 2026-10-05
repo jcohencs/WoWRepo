@@ -22,6 +22,14 @@ export interface Raid {
   encounters: Encounter[];
 }
 
+/** Warcraft Logs hourly allowance as last reported; nulls until the first request this run. */
+export interface ApiStatus {
+  limitPerHour: number | null;
+  pointsSpent: number | null;
+  resetsInSec: number | null;
+  savedResults: number;
+}
+
 export interface Meta {
   site: Site;
   demo: boolean;

@@ -1,4 +1,4 @@
-import type { ApiError, Comparison, Meta, Region, ZoneReport } from '../../shared/types';
+import type { ApiError, ApiStatus, Comparison, Meta, Region, ZoneReport } from '../../shared/types';
 
 export interface Query {
   region: Region;
@@ -24,7 +24,7 @@ async function get<T>(path: string, params: Record<string, string | number | und
   return body as T;
 }
 
-/** Comparisons are cached for the session and can be started early (on hover) so a click feels instant. */
+/** Comparisons are cached for the session so reopening a boss is instant and free. */
 const comparisons = new Map<string, Promise<Comparison>>();
 
 function compare(q: Query, encounter: number, spec: string): Promise<Comparison> {
@@ -42,5 +42,5 @@ export const api = {
   meta: () => get<Meta>('/api/meta'),
   character: (q: Query, raid?: string, signal?: AbortSignal) => get<ZoneReport>('/api/character', { ...q, raid }, signal),
   compare,
-  prefetchCompare: (q: Query, encounter: number, spec: string) => void compare(q, encounter, spec).catch(() => undefined),
+  status: () => get<ApiStatus | null>('/api/status'),
 };

@@ -97,6 +97,10 @@ are at or above p99, and the median gap to p99.
 - **FR-008**: Without credentials the app MUST run on fixture data with a persistent "Demo data"
   label.
 - **FR-009**: Benchmark lookups MUST be cached so repeated searches do not re‑query rankings.
+- **FR-010**: The cache MUST survive restarts, and the app MUST stay within the Warcraft Logs
+  hourly allowance: show usage, stop before the limit, and fall back to saved data.
+- **FR-011**: Users MUST be able to pre-download benchmarks for their class and spec in the
+  background, resuming across hourly windows.
 
 ### Key Entities
 

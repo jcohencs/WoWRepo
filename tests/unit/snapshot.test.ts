@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HOUR, TtlCache } from '../../server/cache';
 import { ApiFailure } from '../../server/errors';
-import { Puller, SnapshotProvider } from '../../server/snapshot';
+import { packSaved, persisted, Puller, SnapshotProvider } from '../../server/snapshot';
 import { fakeWcl, handler } from './fake-wcl';
 
 const brannoc = { region: 'US' as const, realm: 'nightslayer', name: 'Brannoc' };
@@ -10,7 +10,7 @@ const newcomer = { region: 'US' as const, realm: 'nightslayer', name: 'Newcomer'
 const raid = 'black-temple';
 
 function setup() {
-  const cache = new TtlCache({ serveStale: false });
+  const cache = new TtlCache({ serveStale: false, persist: persisted, pack: packSaved });
   const { provider: live, queries } = fakeWcl(handler, cache);
   const puller = new Puller(live, cache);
   const site = new SnapshotProvider(live, cache, puller);
@@ -31,8 +31,20 @@ describe('saved pages + scheduled puller', () => {
     expect(queries.length).toBeGreaterThan(before);
 
     const after = queries.length;
-    await site.zoneReport(newcomer, raid);
+    const again = await site.zoneReport(newcomer, raid);
     expect(queries.length).toBe(after); // saved copy, no API call
+    expect(again.rows[0].benchmark?.p99).toBe(2990);
+    expect(again.rows).toEqual(report.rows);
+  });
+
+  it('saves raid pages without a copy of each benchmark, and puts them back on read', async () => {
+    const { site, cache } = setup();
+    const report = await site.zoneReport(newcomer, raid);
+    const saved = cache.peekAny<{ rows: { benchmark: unknown }[] }>(`view|zone|US|nightslayer|Newcomer|${raid}`)!.value;
+    expect(saved.rows.every((r) => r.benchmark === null)).toBe(true);
+    expect(report.rows.filter((r) => r.benchmark).length).toBeGreaterThan(0);
+    expect(cache.peekAny('char|US|nightslayer|Newcomer|2011')).toBeDefined(); // in memory…
+    expect(persisted('char|US|nightslayer|Newcomer|2011')).toBe(false); // …but not written to disk
   });
 
   it('shares one pull when several visitors open the same new page at once', async () => {

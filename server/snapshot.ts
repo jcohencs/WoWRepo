@@ -1,4 +1,6 @@
-import { REALM_REGION, REALMS, type ApiStatus, type Comparison, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
+import { REALM_REGION, REALMS, type ApiStatus, type Benchmark, type Comparison, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
+import { keyString } from './core/benchmark.js';
+import { buildRow, summarise } from './core/report.js';
 import { DAY, HOUR, MINUTE, type TtlCache } from './cache.js';
 import { classByName } from './core/classes.js';
 import type { CharacterRef } from './core/input.js';
@@ -66,6 +68,24 @@ const REFRESH_RESERVE = 0.15;
  */
 const SWEEP_RESERVE = Number(process.env.SWEEP_RESERVE) || 0.2;
 const KEEP = 365 * DAY;
+
+/**
+ * What is written to disk: finished pages, benchmarks, rosters and bookkeeping. Raw Warcraft Logs
+ * replies (character rankings, kill lists, report tables) are only needed while building a page,
+ * so they stay in memory and are re-fetched if needed after a restart.
+ */
+export const persisted = (key: string) => !/^(char\||kills\||side\||tables\d*\||compare\d*\||zones-v2-failed)/.test(key);
+
+/**
+ * Saved raid pages don't keep their own copy of each boss's benchmark (thousands of pages share a
+ * few hundred benchmarks); `withBenchmarks` puts them back when a page is read.
+ */
+export function packSaved(key: string, value: unknown): unknown {
+  if (!key.startsWith('view|zone|') || !value || !Array.isArray((value as ZoneReport).rows)) return value;
+  const page = value as ZoneReport;
+  if (page.rows.every((r) => r.benchmark === null)) return value;
+  return { ...page, rows: page.rows.map((r) => (r.benchmark === null ? r : { ...r, benchmark: null })) };
+}
 
 const refKey = (r: CharacterRef) => `${r.region}|${r.realm}|${r.name}`;
 export const jobKey = (j: Job) =>
@@ -317,7 +337,7 @@ export class Puller {
       const page =
         job.kind === 'zone' ? await this.live.zoneReport(job.ref, job.raidId, job.spec) : await this.live.compare(job.ref, job.encounterId, job.spec, job.week);
       this.cache.set(`view|${key}`, page, KEEP);
-      this.cache.set(`notfound|${key}`, null, -1);
+      this.cache.delete(`notfound|${key}`);
       return 'ok';
     } catch (err) {
       if (err instanceof ApiFailure && err.code === 'rate_limited') return 'limited';
@@ -399,13 +419,13 @@ export class SnapshotProvider implements Provider {
     const key = jobKey(job);
     this.touch(key, job);
     const saved = this.cache.peekAny<T>(`view|${key}`);
-    if (saved) return upgradePage(saved.value, saved.fetchedAt, job);
+    if (saved) return this.withBenchmarks(upgradePage(saved.value, saved.fetchedAt, job), job);
     const failed = this.cache.peek<{ message: string; code: ApiFailure['code'] } | null>(`notfound|${key}`);
     if (failed) throw new ApiFailure(failed.code, failed.message);
 
     const outcome = await this.puller.pullNow(job);
     const fresh = this.cache.peekAny<T>(`view|${key}`);
-    if (outcome === 'ok' && fresh) return upgradePage(fresh.value, fresh.fetchedAt, job);
+    if (outcome === 'ok' && fresh) return this.withBenchmarks(upgradePage(fresh.value, fresh.fetchedAt, job), job);
     if (outcome === 'limited') {
       const mins = Math.max(1, Math.ceil(this.live.status().resetsInSec ?? 600) / 60);
       throw new ApiFailure('rate_limited', `Warcraft Logs is busy right now. This will be ready in about ${Math.ceil(mins)} minutes — check back then.`);
@@ -414,6 +434,21 @@ export class SnapshotProvider implements Provider {
     throw new ApiFailure(why?.code ?? 'upstream', why?.message ?? 'Warcraft Logs returned an error. Please try again shortly.');
   }
 
+
+  /** Fills each boss row's benchmark back in from the shared saved benchmarks (see `packSaved`). */
+  private withBenchmarks<T>(page: T, job: Job): T {
+    if (job.kind !== 'zone') return page;
+    const report = page as unknown as ZoneReport;
+    const className = report.character?.className;
+    if (!className || !Array.isArray(report.rows)) return page;
+    const rows = report.rows.map((r) => {
+      const saved = this.cache.peekAny<Benchmark | null>(`bench|${keyString({ encounterId: r.encounter.id, className, spec: r.spec, metric: r.metric })}`);
+      if (!saved) return r;
+      const best = { encounterId: r.encounter.id, spec: r.spec, kills: r.kills, best: r.best, rankPercent: r.rankPercent };
+      return buildRow(r.encounter, r.spec, r.metric, best, saved.value);
+    });
+    return { ...report, rows, summary: summarise(rows) } as T;
+  }
 
   /** Records that a page was opened, so the puller keeps it fresh. */
   private touch(key: string, job: Job) {

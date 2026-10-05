@@ -7,7 +7,7 @@ import { ApiFailure } from './errors.js';
 import type { Provider } from './provider.js';
 import { WclClient } from './wcl/client.js';
 import { cacheFile, seedFile, WclProvider } from './wcl/provider.js';
-import { Puller, SnapshotProvider } from './snapshot.js';
+import { packSaved, persisted, Puller, SnapshotProvider } from './snapshot.js';
 
 /** The live Warcraft Logs provider: it calls the API. Used by the scheduled puller and `npm run sync`. */
 export function liveProviderFromEnv(env: Record<string, string | undefined> = process.env): { live: WclProvider; cache: TtlCache } | null {
@@ -15,7 +15,8 @@ export function liveProviderFromEnv(env: Record<string, string | undefined> = pr
   const site: Site = env.WCL_SITE === 'classic' ? 'classic' : 'fresh';
   const client = new WclClient({ clientId: env.WCL_CLIENT_ID, clientSecret: env.WCL_CLIENT_SECRET, site });
   // serveStale off: the puller always saves current data.
-  const cache = new TtlCache({ file: cacheFile(site, env.CACHE_DIR), seed: seedFile(site), serveStale: false });
+  // Only finished pages and what's needed to rebuild them go to disk; raw replies stay in memory.
+  const cache = new TtlCache({ file: cacheFile(site, env.CACHE_DIR), seed: seedFile(site), serveStale: false, persist: persisted, pack: packSaved });
   return { live: new WclProvider(client, site, cache), cache };
 }
 

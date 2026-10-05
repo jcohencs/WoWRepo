@@ -152,3 +152,4 @@ description: "Task list for TBC Parse Checker"
 
 - [x] T075 If Warcraft Logs rejects the extra chart data, re-fetch the breakdown alone so it always shows; skip ranked kills from hidden/deleted logs; each chart has its own error boundary; a week that fails to load keeps the current kill on screen
 - [x] T076 Background pull (and save) every 15 minutes by default (`PULL_INTERVAL_MINUTES`), with "next pull in" in the log line
+- [x] T077 Fix out-of-memory crash on start: saved data is written and read one entry per line (never as one big string); old one-object files are converted in place on first start; raw Warcraft Logs replies stay in memory only (bounded); saved raid pages share benchmarks instead of each keeping a copy; `NODE_OPTIONS=--max-old-space-size=400` on Render

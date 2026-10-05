@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TtlCache } from '../../server/cache';
 import { ApiFailure } from '../../server/errors';
 import { WclClient, withRateLimit } from '../../server/wcl/client';
@@ -90,10 +90,27 @@ describe('WclClient rate limit', () => {
     expect(sent).toBe(1);
   });
 
-  it('treats HTTP 429 as used up until the reset', async () => {
-    const fetch = (async (url: string) =>
-      url.endsWith('/oauth/token') ? Response.json({ access_token: 't', expires_in: 3600 }) : new Response('', { status: 429 })) as typeof globalThis.fetch;
+  it('after a refusal with no known reset, waits about 5 minutes then tries again', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    let calls = 0;
+    let refuse = true;
+    const fetch = (async (url: string) => {
+      if (url.endsWith('/oauth/token')) return Response.json({ access_token: 't', expires_in: 3600 });
+      calls++;
+      return refuse
+        ? new Response('', { status: 429 })
+        : Response.json({ data: { x: 1, rateLimitData: { limitPerHour: 720, pointsSpentThisHour: 10, pointsResetIn: 3000 } } });
+    }) as typeof globalThis.fetch;
     const client = new WclClient({ clientId: 'a', clientSecret: 'b', site: 'fresh', fetch });
     await expect(client.query('{ x }')).rejects.toMatchObject({ code: 'rate_limited' });
+    await expect(client.query('{ x }')).rejects.toThrow(/about 5 minutes/);
+    expect(calls).toBe(1); // second call never left the app
+
+    refuse = false;
+    vi.setSystemTime(Date.now() + 5 * 60_000 + 1000);
+    await expect(client.query('{ x }')).resolves.toBeDefined();
+    expect(client.rateLimit()).toMatchObject({ limitPerHour: 720, pointsSpentThisHour: 10 });
+    vi.useRealTimers();
   });
+
 });

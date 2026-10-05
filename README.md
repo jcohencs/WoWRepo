@@ -38,7 +38,7 @@ Visitors only ever see **saved data**. The site never calls Warcraft Logs becaus
   3. **Finding everyone on the realms** (daily): it reads the Nightslayer rankings for the first boss of every raid and keeps a list of everyone with a ranked kill.
   4. **Pulling everyone**: every listed character's raid pages, ten characters per request, newest raid first, refreshed daily.
 
-  Steps 2–4 stop while 15% of the hourly allowance is left, so a visitor's new lookup always fits in the next run. The first full pass over both realms takes a while on a 720-point allowance; each run logs how far it got, e.g. `Up to date (latest raid): Nightslayer 412/1530`.
+  Step 2 stops while 15% of the hourly allowance is left and steps 3–4 while 40% is left (`SWEEP_RESERVE`), so a visitor's new lookup always fits in the next run. The first full pass over both realms takes a while on a 720-point allowance; each run logs how far it got, e.g. `Up to date (latest raid): Nightslayer 412/1530`.
 - The search box suggests names from that list.
 - A character that isn't saved yet shows "not pulled yet, number 2 in line, about 8 minutes" and fills in by itself after the next run.
 - Every page shows when it was pulled ("Updated 25 min ago").

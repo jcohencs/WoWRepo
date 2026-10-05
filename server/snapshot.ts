@@ -60,6 +60,11 @@ const NOT_FOUND_TTL = 6 * HOUR;
 const RETRY_AFTER = 15 * MINUTE;
 /** Keep this much of the hourly allowance unspent by refreshes, so queued lookups can still run. */
 const REFRESH_RESERVE = 0.15;
+/**
+ * The realm-wide discovery and sweep only use the allowance while this much is left, so a share
+ * of every hour stays free for visitors' lookups, refreshes and `npm run doctor`.
+ */
+const SWEEP_RESERVE = Number(process.env.SWEEP_RESERVE) || 0.4;
 const KEEP = 365 * DAY;
 
 const refKey = (r: CharacterRef) => `${r.region}|${r.realm}|${r.name}`;
@@ -197,7 +202,7 @@ export class Puller {
     }
     const names = new Set(roster.names);
     while (roster.tasks.some((t) => !t.done)) {
-      if (this.live.headroom() <= REFRESH_RESERVE) return 'limited';
+      if (this.live.headroom() <= SWEEP_RESERVE) return 'limited';
       const batch = roster.tasks.filter((t) => !t.done).slice(0, DISCOVERY_BATCH);
       let pages;
       try {
@@ -238,7 +243,7 @@ export class Puller {
             }),
           );
         for (let i = 0; i < due.length; i += SWEEP_BATCH) {
-          if (this.live.headroom() <= REFRESH_RESERVE) return;
+          if (this.live.headroom() <= SWEEP_RESERVE) return;
           const chunk = due.slice(i, i + SWEEP_BATCH);
           try {
             await this.live.prefetchCharacters(chunk, zoneId);

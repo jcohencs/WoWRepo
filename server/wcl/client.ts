@@ -11,6 +11,9 @@ export interface RateLimit {
   resetsAt: number;
 }
 
+/** How long to wait after a refusal when Warcraft Logs hasn't told us when the hour resets. */
+const RETRY_AFTER_429_MS = 5 * 60_000;
+
 const RATE_FIELD = 'rateLimitData { limitPerHour pointsSpentThisHour pointsResetIn }';
 
 /** Adds the rate-limit field to the root selection so every response reports the budget. */
@@ -30,6 +33,8 @@ export interface WclClientOptions {
 export class WclClient {
   private token: { value: string; expires: number } | null = null;
   private rate: RateLimit | null = null;
+  /** Set when Warcraft Logs refuses a request (HTTP 429); no requests are sent before this time. */
+  private blockedUntil = 0;
   private readonly fetch: typeof fetch;
   readonly endpoint: string;
 
@@ -73,7 +78,8 @@ export class WclClient {
   }
 
   private limitedError(): ApiFailure {
-    const mins = Math.max(1, Math.ceil(((this.rate?.resetsAt ?? Date.now() + 60 * 60_000) - Date.now()) / 60_000));
+    const until = Math.max(this.blockedUntil, this.rate?.resetsAt ?? 0, Date.now() + 60_000);
+    const mins = Math.max(1, Math.ceil((until - Date.now()) / 60_000));
     return new ApiFailure(
       'rate_limited',
       `This hour's Warcraft Logs allowance is used up. It resets in about ${mins} minute${mins === 1 ? '' : 's'}; saved results still work until then.`,
@@ -81,8 +87,9 @@ export class WclClient {
   }
 
   async query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+    if (Date.now() < this.blockedUntil) throw this.limitedError();
     const rate = this.rateLimit();
-    if (rate && rate.pointsSpentThisHour >= rate.limitPerHour - this.reserve()) throw this.limitedError();
+    if (rate && rate.limitPerHour > 0 && rate.pointsSpentThisHour >= rate.limitPerHour - this.reserve()) throw this.limitedError();
 
     const res = await this.fetch(this.endpoint, {
       method: 'POST',
@@ -90,11 +97,10 @@ export class WclClient {
       body: JSON.stringify({ query: withRateLimit(query), variables }),
     });
     if (res.status === 429) {
-      this.rate = {
-        limitPerHour: this.rate?.limitPerHour ?? 0,
-        pointsSpentThisHour: this.rate?.limitPerHour ?? 0,
-        resetsAt: this.rate && this.rate.resetsAt > Date.now() ? this.rate.resetsAt : Date.now() + 60 * 60_000,
-      };
+      // Wait for the known reset; if we don't know it yet, try again in a few minutes.
+      const knownReset = this.rate && this.rate.resetsAt > Date.now() ? this.rate.resetsAt : 0;
+      this.blockedUntil = knownReset || Date.now() + RETRY_AFTER_429_MS;
+      if (this.rate) this.rate = { ...this.rate, pointsSpentThisHour: this.rate.limitPerHour };
       throw this.limitedError();
     }
     if (res.status === 401) this.token = null;

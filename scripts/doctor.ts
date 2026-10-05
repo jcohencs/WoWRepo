@@ -42,7 +42,8 @@ async function step<T>(label: string, run: () => Promise<T>, describe: (v: T) =>
   }
 }
 
-console.log(`Site: ${site}.warcraftlogs.com · realm: ${realm.name}\n`);
+console.log(`Site: ${site}.warcraftlogs.com · realm: ${realm.name}`);
+console.log('Tip: stop the site (Ctrl+C) while this runs; both use the same hourly allowance.\n');
 
 await step('Key and allowance', () => client.query<{ rateLimitData: unknown }>('{ worldData { expansions { id } } }').then(() => client.rateLimit()), (r) =>
   r ? `${Math.round(r.pointsSpentThisHour)} of ${r.limitPerHour} points used this hour` : 'ok',
@@ -80,5 +81,6 @@ if (!nameArg) {
 }
 
 const r = client.rateLimit();
-console.log(`\n${failures ? `${failures} check(s) failed.` : 'All checks passed.'}${r ? ` Allowance used: ${Math.round(r.pointsSpentThisHour)} of ${r.limitPerHour}.` : ''}`);
+const used = r && r.limitPerHour > 0 ? ` Allowance used: ${Math.round(r.pointsSpentThisHour)} of ${r.limitPerHour}.` : '';
+console.log(`\n${failures ? `${failures} check(s) failed.` : 'All checks passed.'}${used}`);
 process.exit(failures ? 1 : 0);

@@ -108,3 +108,5 @@ description: "Task list for TBC Parse Checker"
 - [x] T051 Log the real Warcraft Logs error for failed pulls and retry them after 15 minutes instead of hiding them for 6 hours
 - [x] T052 Upgrade pages saved by older versions on read (spec fields, updatedAt); error boundaries so a display error never blanks the page
 - [x] T053 `npm run doctor` checks every request type with the configured key
+- [x] T054 After an HTTP 429 with no known reset, back off 5 minutes (not an hour); never report a 0-point limit
+- [x] T055 Realm discovery/sweep stop at 40% allowance left (`SWEEP_RESERVE`) so visitors and checks always have room

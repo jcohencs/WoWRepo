@@ -34,8 +34,9 @@ export function loadWclEnv(root = resolve(import.meta.dirname, '..')): void {
   } else if (!file) {
     console.log(`${tag} DEMO MODE: no settings file found. Create a file named .env in ${root}`);
   } else {
-    const missing = [!id && 'WCL_CLIENT_ID', !secret && 'WCL_CLIENT_SECRET'].filter(Boolean).join(' and ');
-    const found = Object.keys(values).join(', ') || 'nothing readable';
-    console.log(`${tag} DEMO MODE: ${file} is missing ${missing} (found: ${found}).`);
+    const problems = (['WCL_CLIENT_ID', 'WCL_CLIENT_SECRET'] as const)
+      .filter((k) => !process.env[k])
+      .map((k) => (k in values ? `${k} is there but has nothing after the = sign` : `${k} is not in the file`));
+    console.log(`${tag} DEMO MODE: in ${file}, ${problems.join('; ')}. Each line should look like WCL_CLIENT_ID=abc123 on one line.`);
   }
 }

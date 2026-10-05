@@ -43,17 +43,6 @@ function handler(query: string, variables: Record<string, unknown>) {
   if (query.includes('expansions')) {
     return { worldData: { expansions: [{ id: 1001, name: 'The Burning Crusade', zones: [zone, { id: 9, name: 'Dungeons', encounters: [{ id: 1, name: 'a' }, { id: 2, name: 'b' }] }] }] } };
   }
-  if (query.includes('regions')) {
-    return {
-      worldData: {
-        regions: [
-          { id: 1, slug: 'us', servers: { last_page: 2, data: [{ name: 'Nightslayer', slug: 'nightslayer' }] } },
-          { id: 2, slug: 'eu', servers: { last_page: 1, data: [{ name: 'Thunderstrike', slug: 'thunderstrike' }] } },
-        ],
-      },
-    };
-  }
-  if (query.includes('p2: region')) return { worldData: { p2: { servers: { data: [{ name: 'Dreamscythe', slug: 'dreamscythe' }] } } } };
   if (query.includes('zoneRankings')) {
     return {
       characterData: {
@@ -112,11 +101,6 @@ describe('WclProvider', () => {
       ['2011-mount-hyjal', 'Mount Hyjal', 1],
       ['2011-black-temple', 'Black Temple', 2],
     ]);
-  });
-
-  it('lists realms across pages, sorted', async () => {
-    const { provider } = fakeWcl(handler);
-    expect((await provider.realms('US')).map((r) => r.name)).toEqual(['Dreamscythe', 'Nightslayer']);
   });
 
   it('builds the raid report with exact percentiles and caches benchmarks', async () => {

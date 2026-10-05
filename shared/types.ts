@@ -22,11 +22,6 @@ export interface Raid {
   encounters: Encounter[];
 }
 
-export interface Realm {
-  name: string;
-  slug: string;
-}
-
 export interface Meta {
   site: Site;
   demo: boolean;
@@ -133,3 +128,10 @@ export interface Comparison {
 export interface ApiError {
   error: { code: 'bad_request' | 'not_found' | 'upstream' | 'rate_limited' | 'config'; message: string };
 }
+
+/** The realms this app supports. All are US TBC Anniversary realms. */
+export const REALMS = [
+  { name: 'Dreamscythe', slug: 'dreamscythe' },
+  { name: 'Nightslayer', slug: 'nightslayer' },
+] as const;
+export const REALM_REGION: Region = 'US';

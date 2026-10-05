@@ -147,7 +147,7 @@ function EmptyIntro() {
     <section className="intro">
       <ol>
         <li>
-          <strong>Find your character</strong> Pick your region and realm, then type your name.
+          <strong>Find your character</strong> Pick Dreamscythe or Nightslayer, then type your name.
         </li>
         <li>
           <strong>See every boss</strong> Your best kill next to a typical player and the top 1% of your spec.

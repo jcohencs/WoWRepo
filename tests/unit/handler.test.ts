@@ -64,13 +64,6 @@ describe('API (demo provider)', () => {
     expect(c.ref.perSecond).toBeGreaterThan(0);
   });
 
-  it('lists realms for a region', async () => {
-    const { status, body } = await get('/api/realms?region=eu');
-    expect(status).toBe(200);
-    expect(body.map((r: { name: string }) => r.name)).toContain('Thunderstrike');
-    expect((await get('/api/realms?region=xx')).status).toBe(400);
-  });
-
   it('validates input', async () => {
     expect((await get('/api/character?region=zz&realm=a&name=Bob')).status).toBe(400);
     expect((await get('/api/compare?region=us&realm=a&name=Bob&spec=Fury')).status).toBe(400);

@@ -50,7 +50,8 @@ report data and differences are highlighted.
 **Acceptance Scenarios**:
 
 1. **Given** a boss row with a kill, **When** the user opens it, **Then** a panel shows both
-   players' summary stats and an ability table with share %, casts/min and deltas.
+   players' summary stats and, per ability, uses per minute, a share-of-damage chart and a
+   diverging bar showing which side gets more from that ability.
 2. **Given** an ability used only by one side, **When** shown, **Then** the other side reads "—"
    rather than 0 %.
 
@@ -80,8 +81,8 @@ are at or above p99, and the median gap to p99.
 
 ### Functional Requirements
 
-- **FR-001**: Users MUST be able to search by region, realm and character name, or by a
-  Warcraft Logs character URL.
+- **FR-001**: Users MUST be able to pick their realm (Dreamscythe or Nightslayer, US TBC
+  Anniversary) from a dropdown and type a character name, or paste a Warcraft Logs character URL.
 - **FR-002**: System MUST list the TBC raids available on the configured Warcraft Logs site
   and let the user switch between them.
 - **FR-003**: For each boss, system MUST show the character's best amount, rank percent,

@@ -1,4 +1,4 @@
-import type { Benchmark, Comparison, FightSide, Metric, Raid, Realm, Region, Site, Zone, ZoneReport } from '../../shared/types.js';
+import type { Benchmark, Comparison, FightSide, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
 import { HOUR, MINUTE, TtlCache } from '../cache.js';
 import {
   buildBenchmark,
@@ -13,7 +13,6 @@ import { classById, metricFor, metricForSpec, type ClassInfo } from '../core/cla
 import { compareAbilities, type TableEntry } from '../core/compare.js';
 import type { CharacterRef } from '../core/input.js';
 import { raidsFromZones } from '../core/raids.js';
-import { FALLBACK_REALMS, realmList, sortRealms } from '../core/realms.js';
 import { buildRow, mainSpec, summarise, type CharacterBest } from '../core/report.js';
 import { TBC_ZONES, tbcZonesFromExpansions } from '../core/zones.js';
 import { ApiFailure } from '../errors.js';
@@ -103,33 +102,6 @@ export class WclProvider implements Provider {
 
   async raids(): Promise<Raid[]> {
     return raidsFromZones(await this.zones());
-  }
-
-  realms(region: Region): Promise<Realm[]> {
-    return this.cache.get(`realms|${region}`, 24 * HOUR, async () => {
-      const fallback = realmList(FALLBACK_REALMS[this.site][region] ?? []);
-      try {
-        type Page = { last_page?: number; data: Realm[] };
-        const first = await this.client.query<{ worldData: { regions: { id: number; slug: string; servers: Page }[] } }>(
-          `{ worldData { regions { id slug servers(limit: 100, page: 1) { last_page data { name slug } } } } }`,
-        );
-        const match = first.worldData.regions.find((r) => r.slug.toUpperCase() === region);
-        if (!match) return fallback;
-        const realms = [...match.servers.data];
-        const last = Math.min(match.servers.last_page ?? 1, 15);
-        if (last > 1) {
-          const pages = Array.from({ length: last - 1 }, (_, i) => i + 2);
-          const more = await this.client.query<{ worldData: Record<string, { servers: Page }> }>(
-            `{ worldData { ${pages.map((p) => `p${p}: region(id: ${match.id}) { servers(limit: 100, page: ${p}) { data { name slug } } }`).join('\n')} } }`,
-          );
-          for (const p of pages) realms.push(...(more.worldData[`p${p}`]?.servers.data ?? []));
-        }
-        return realms.length ? sortRealms(realms) : fallback;
-      } catch (err) {
-        if (err instanceof ApiFailure && err.code === 'config') throw err;
-        return fallback;
-      }
-    });
   }
 
   async zoneReport(ref: CharacterRef, raidId?: string): Promise<ZoneReport> {

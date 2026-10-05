@@ -1,9 +1,8 @@
-import type { Benchmark, Comparison, Raid, Realm, Region, ZoneReport } from '../../shared/types.js';
+import { REALMS, type Benchmark, type Comparison, type Raid, type ZoneReport } from '../../shared/types.js';
 import { compareAbilities, type SideTables } from '../core/compare.js';
 import type { CharacterRef } from '../core/input.js';
 import { buildRow, summarise } from '../core/report.js';
 import { raidsFromZones } from '../core/raids.js';
-import { FALLBACK_REALMS, realmList } from '../core/realms.js';
 import { TBC_ZONES } from '../core/zones.js';
 import { ApiFailure } from '../errors.js';
 import type { Provider } from '../provider.js';
@@ -25,6 +24,7 @@ const TIER_P99: Record<number, number> = { 1007: 1450, 1008: 1620, 1010: 1930, 1
 const UNKILLED = new Set([728, 729]);
 
 const SPEC = 'Fury';
+const realmName = (slug: string) => REALMS.find((r) => r.slug === slug)?.name ?? slug;
 const CLASS = 'Warrior';
 
 function benchmarkFor(zoneId: number, encounterId: number): Benchmark {
@@ -90,9 +90,6 @@ export class DemoProvider implements Provider {
     return this.allRaids;
   }
 
-  async realms(region: Region): Promise<Realm[]> {
-    return realmList(FALLBACK_REALMS.fresh[region] ?? []);
-  }
 
   private bestFor(name: string, encounterId: number, b: Benchmark): number | null {
     if (UNKILLED.has(encounterId)) return null;
@@ -117,7 +114,7 @@ export class DemoProvider implements Provider {
       );
     });
     return {
-      character: { name: ref.name, realm: ref.realm, realmName: 'Dreamscythe', region: ref.region, className: CLASS },
+      character: { name: ref.name, realm: ref.realm, realmName: realmName(ref.realm), region: ref.region, className: CLASS },
       raid,
       rows,
       summary: summarise(rows),
@@ -142,7 +139,7 @@ export class DemoProvider implements Provider {
       metric: 'dps',
       className: CLASS,
       spec,
-      you: { name: ref.name, server: 'Dreamscythe', amount: sum(youTables), perSecond: best, durationMs: youDuration, activeTime: 0.952, reportCode: 'demo', fightId: 1 },
+      you: { name: ref.name, server: realmName(ref.realm), amount: sum(youTables), perSecond: best, durationMs: youDuration, activeTime: 0.952, reportCode: 'demo', fightId: 1 },
       ref: { name: b.reference.name, server: b.reference.server, amount: sum(refTables), perSecond: b.p99, durationMs: refDuration, activeTime: 0.991, reportCode: 'demo', fightId: 1 },
       abilities: compareAbilities(youTables, refTables),
     };

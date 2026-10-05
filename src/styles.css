@@ -162,7 +162,7 @@ code {
 
 .search {
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1.3fr) auto;
+  grid-template-columns: 220px minmax(0, 1fr) auto;
   gap: 12px;
   align-items: end;
   padding: 22px 0;
@@ -685,7 +685,7 @@ td {
 /* Ability rows: name | uses per minute | share chart | difference */
 .bd-row {
   display: grid;
-  grid-template-columns: minmax(150px, 1.1fr) 132px minmax(200px, 2fr) 128px;
+  grid-template-columns: minmax(170px, 1.1fr) 120px minmax(180px, 1.6fr) minmax(170px, 1.1fr);
   align-items: center;
   gap: 16px;
   padding: 9px 4px;
@@ -724,9 +724,10 @@ td {
 }
 .ability img,
 .icon-blank {
-  width: 22px;
-  height: 22px;
-  border-radius: 4px;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
   flex: none;
   background: var(--surface-2);
 }
@@ -764,19 +765,81 @@ td {
 }
 
 .diff {
-  font-size: 14px;
+  display: block;
+  min-width: 0;
+}
+.diff-head small {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--soft);
+}
+.diff-bar {
+  position: relative;
+  display: block;
+  height: 26px;
+}
+.diff-axis {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--line-strong);
+}
+.diff-axis.only {
+  position: relative;
+  left: auto;
+  display: block;
+  height: 26px;
+  margin-left: 50%;
+}
+.diff-fill {
+  position: absolute;
+  top: 8px;
+  height: 10px;
+  width: var(--w);
+}
+.diff-bar.you .diff-fill {
+  left: 50%;
+  background: var(--you);
+  border-radius: 0 4px 4px 0;
+}
+.diff-bar.ref .diff-fill {
+  right: 50%;
+  background: var(--ref);
+  border-radius: 4px 0 0 4px;
+}
+.diff-value {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
   white-space: nowrap;
 }
-.diff-big {
-  font-weight: 600;
-  color: var(--text);
+.diff-bar.you .diff-value,
+.diff-bar.same .diff-value {
+  left: calc(50% + var(--w) + 6px);
 }
-.diff-small {
+.diff-bar.ref .diff-value {
+  right: calc(50% + var(--w) + 6px);
+}
+.bd-row.notable .diff-value {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.diff-explain {
+  display: none;
+  margin: 0 0 8px;
+  font-size: 13px;
   color: var(--text-2);
 }
-.diff-none {
-  color: var(--muted);
-}
+.legend-ref-text { color: var(--ref); font-weight: 600; }
+.legend-you-text { color: var(--you); font-weight: 600; }
 
 .footnote {
   margin: 16px 0 0;
@@ -801,9 +864,8 @@ td {
     display: none;
   }
   .search {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
   }
-  .field-name,
   .search .button {
     grid-column: 1 / -1;
   }
@@ -886,11 +948,15 @@ td {
   .bd-header {
     display: none;
   }
+  .diff-explain {
+    display: block;
+  }
   .bd-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
-      'name diff'
+      'name name'
       'chart chart'
+      'diff diff'
       'uses uses';
     gap: 6px 12px;
     padding: 12px 2px;
@@ -903,6 +969,7 @@ td {
     text-align: left;
     font-size: 13px;
   }
+  .bd-row .diff.no-diff,
   .bd-row .uses.no-uses {
     display: none;
   }

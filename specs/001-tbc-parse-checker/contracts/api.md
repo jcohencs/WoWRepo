@@ -6,9 +6,6 @@ All responses are JSON. Errors: `{ "error": { "code": string, "message": string 
 ## GET /api/meta
 → `{ site: "fresh"|"classic", demo: boolean, raids: Raid[] }` (one entry per raid instance, progression order)
 
-## GET /api/realms?region=US
-→ `Realm[]` sorted by name.
-
 ## GET /api/character?region=US&realm=dreamscythe&name=Foo&raid=1011-black-temple
 → `ZoneReport`. `raid` optional (defaults to the latest TBC raid).
 

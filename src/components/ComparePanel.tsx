@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { AbilityLine, BossRow, Comparison, FightSide, Site } from '../../shared/types';
 import { api, type Query } from '../lib/api';
 import { amount, compact, duration, metricLabel, percent, specLabel } from '../lib/format';
@@ -35,6 +35,8 @@ export function ComparePanel({ query, row, site, demo }: Props) {
     (a, b) => (b.ref?.share ?? 0) - (a.ref?.share ?? 0) || (b.you?.share ?? 0) - (a.you?.share ?? 0),
   );
   const maxShare = Math.max(...abilities.map((a) => Math.max(a.you?.share ?? 0, a.ref?.share ?? 0)), 0.01);
+  // Shared scale for the difference bars; at least ±3 points so tiny gaps don't look dramatic.
+  const maxDelta = Math.max(...abilities.map((a) => Math.abs(a.shareDelta)), 0.03);
 
   return (
     <div className="compare">
@@ -53,6 +55,11 @@ export function ComparePanel({ query, row, site, demo }: Props) {
         </div>
       </div>
 
+      <p className="diff-explain">
+        Difference bars point <span className="legend-ref-text">left</span> when the top 1% player gets more out of an ability, and{' '}
+        <span className="legend-you-text">right</span> when you do.
+      </p>
+
       <div className="breakdown" role="table" aria-label={`Ability comparison for ${data.encounter.name}`}>
         <div className="bd-row bd-header" role="row">
           <span role="columnheader">Ability</span>
@@ -61,12 +68,16 @@ export function ComparePanel({ query, row, site, demo }: Props) {
             <small>you · top 1%</small>
           </span>
           <span role="columnheader">Share of total {noun}</span>
-          <span role="columnheader" className="num">
+          <span role="columnheader" className="diff-head">
             Difference
+            <small>
+              <span>◂ top 1% more</span>
+              <span>you more ▸</span>
+            </small>
           </span>
         </div>
         {abilities.map((a) => (
-          <AbilityRow key={a.id} a={a} maxShare={maxShare} noun={noun} />
+          <AbilityRow key={a.id} a={a} maxShare={maxShare} maxDelta={maxDelta} noun={noun} />
         ))}
       </div>
       <p className="footnote">
@@ -126,23 +137,27 @@ function Side({ label, side, site, demo, unit, noun, top }: { label: string; sid
   );
 }
 
-function differenceText(delta: number): { text: string; size: 'big' | 'small' | 'none' } {
+function differenceTip(delta: number): string {
   const pts = Math.abs(delta * 100);
-  if (pts < 0.3) return { text: 'About the same', size: 'none' };
-  return { text: `${pts.toFixed(1)}% ${delta > 0 ? 'more' : 'less'}`, size: pts >= 2 ? 'big' : 'small' };
+  if (pts < 0.3) return 'about the same';
+  return `${pts.toFixed(1)}% ${delta > 0 ? 'more for you' : 'more for the top 1% player'}`;
 }
 
-function AbilityRow({ a, maxShare, noun }: { a: AbilityLine; maxShare: number; noun: string }) {
+function AbilityRow({ a, maxShare, maxDelta, noun }: { a: AbilityLine; maxShare: number; maxDelta: number; noun: string }) {
   const icon = abilityIcon(a.icon);
   const hasShare = (a.you?.share ?? 0) > 0 || (a.ref?.share ?? 0) > 0;
-  const diff = differenceText(a.shareDelta);
+  const notable = hasShare && Math.abs(a.shareDelta) >= 0.02;
   const tip = hasShare
-    ? `${a.name}: you ${percent(a.you?.share ?? 0)}, top 1% ${percent(a.ref?.share ?? 0)}`
+    ? `${a.name}: you ${percent(a.you?.share ?? 0)}, top 1% ${percent(a.ref?.share ?? 0)} (${differenceTip(a.shareDelta)})`
     : `${a.name}: used ${cpm(a.you?.cpm)} vs ${cpm(a.ref?.cpm)} times per minute`;
   return (
-    <div className={`bd-row${diff.size === 'big' ? ' notable' : ''}`} role="row" title={tip}>
+    <div className={`bd-row${notable ? ' notable' : ''}`} role="row" title={tip}>
       <span className="ability" role="cell">
-        {icon ? <img src={icon} alt="" width={22} height={22} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> : <span className="icon-blank" />}
+        {icon ? (
+          <img src={icon} alt="" width={36} height={36} loading="lazy" onError={(e) => e.currentTarget.replaceWith(Object.assign(document.createElement('span'), { className: 'icon-blank' }))} />
+        ) : (
+          <span className="icon-blank" />
+        )}
         <span className="ability-name">{a.name}</span>
       </span>
       <span className={`num uses${!a.you?.cpm && !a.ref?.cpm ? ' no-uses' : ''}`} role="cell">
@@ -159,8 +174,8 @@ function AbilityRow({ a, maxShare, noun }: { a: AbilityLine; maxShare: number; n
           <span className="soft">No direct {noun}</span>
         )}
       </span>
-      <span className={`num diff diff-${diff.size}`} role="cell">
-        {hasShare ? diff.text : '—'}
+      <span className={`diff${hasShare ? '' : ' no-diff'}`} role="cell">
+        {hasShare ? <DiffBar delta={a.shareDelta} max={maxDelta} /> : <span className="diff-axis only" />}
       </span>
     </div>
   );
@@ -175,6 +190,22 @@ function Bar({ value, max, kind }: { value: number | undefined; max: number; kin
     <span className={`bar bar-${kind}`}>
       <span className="bar-fill" style={{ width: `${((value ?? 0) / max) * 100}%` }} />
       <span className="bar-value">{value ? percent(value) : '—'}</span>
+    </span>
+  );
+}
+
+/** Diverging bar from a centre line: right (grey) when you get more from the ability, left (orange) when the top 1% player does. */
+function DiffBar({ delta, max }: { delta: number; max: number }) {
+  const pts = delta * 100;
+  const same = Math.abs(pts) < 0.3;
+  // Bars use at most 38% of the cell on each side, leaving room for the number at the bar's end.
+  const width = `${Math.min(Math.abs(delta) / max, 1) * 38}%`;
+  const side = delta > 0 ? 'you' : 'ref';
+  return (
+    <span className={`diff-bar ${same ? 'same' : side}`} style={{ '--w': same ? '0%' : width } as CSSProperties} aria-label={differenceTip(delta)}>
+      <span className="diff-axis" />
+      {!same && <span className="diff-fill" />}
+      <span className="diff-value">{same ? '≈' : `${pts > 0 ? '+' : '−'}${Math.abs(pts).toFixed(1)}`}</span>
     </span>
   );
 }

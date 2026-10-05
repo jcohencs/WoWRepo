@@ -20,7 +20,7 @@ Create an API client at <https://www.warcraftlogs.com/api/clients> (any redirect
 
 When `npm run dev` starts, a `[parsecheck]` line in the terminal tells you whether the key was loaded or what is missing. `.env.txt` also works.
 
-`WCL_SITE=fresh` (default) reads TBC Anniversary logs, while `WCL_SITE=classic` reads original TBC Classic logs.
+Realms are limited to Dreamscythe and Nightslayer (US TBC Anniversary); edit `REALMS` in `shared/types.ts` to add more.
 
 Without credentials the app runs on generated **demo data**, labelled as such in the header.
 

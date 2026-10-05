@@ -128,3 +128,7 @@ description: "Task list for TBC Parse Checker"
 - [x] T062 Spec icons (Wowhead icon set) in the spec bar, character line and breakdown heading; CSP allows wow.zamimg.com
 - [x] T063 Light mode: theme tokens incl. validated light slice palette and darkened parse/class colours; sun/moon toggle, follows system, remembered
 - [x] T064 Search icon button; remove the footer text
+
+## Phase 20: Side panel
+
+- [x] T065 Boss breakdown opens in a sticky panel to the right of the boss list (list keeps its key columns, page widens, × closes, clicking another boss switches); stacks below 1100px

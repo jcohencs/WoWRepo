@@ -746,6 +746,113 @@ td {
   background: var(--text);
 }
 
+/* ---------- Boss list + detail panel (opens to the right) ---------- */
+
+.boss-layout.split {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+/* Give the page more room while the panel is open. */
+.shell:has(.boss-layout.split) {
+  max-width: 1500px;
+}
+.boss-layout.split .col-typical,
+.boss-layout.split .col-range {
+  display: none;
+}
+.boss-layout.split .col-boss {
+  width: auto;
+  max-width: 220px;
+}
+.boss-layout.split .boss-name,
+.boss-layout.split .boss-meta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.boss-layout.split .sample {
+  display: none;
+}
+.boss-layout.split .bosses td,
+.boss-layout.split .bosses th {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+.boss-layout.split .boss.open td {
+  background: var(--surface);
+}
+.boss-layout.split .boss.open td:first-child {
+  box-shadow: inset 3px 0 0 var(--text);
+}
+
+.detail {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.detail-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.detail-head h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+.detail-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.detail-close:hover {
+  color: var(--text);
+  border-color: var(--soft);
+}
+.detail .compare {
+  padding: 6px 18px 20px;
+}
+/* In the side panel, stack the pies above their legend so nothing is squeezed. */
+.detail .pies {
+  grid-template-columns: minmax(0, 1fr);
+}
+.detail .pie-pair {
+  justify-content: center;
+  gap: 48px;
+}
+.detail .pie-legend {
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .boss-layout.split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .detail {
+    position: static;
+    max-height: none;
+  }
+}
+
 /* ---------- Compare panel ---------- */
 
 .compare-row > td {

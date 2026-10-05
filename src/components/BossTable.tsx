@@ -16,6 +16,7 @@ export function BossTable({ report, query, site, demo }: Props) {
   const [open, setOpen] = useState<number | null>(null);
   const metrics = new Set(report.rows.map((r) => r.metric));
   const unit = metrics.size === 1 ? metricLabel(report.rows[0].metric) : 'DPS / HPS';
+  const openRow = report.rows.find((r) => r.encounter.id === open && r.best != null) ?? null;
 
   return (
     <>
@@ -27,13 +28,14 @@ export function BossTable({ report, query, site, demo }: Props) {
           <span className="key-top">Top 1%</span>
         </div>
       </div>
+      <div className={`boss-layout${openRow ? ' split' : ''}`}>
       <table className="bosses">
         <thead>
           <tr>
             <th className="col-boss">Boss</th>
             <th className="num col-parse">Parse</th>
             <th className="num">Your best {unit}</th>
-            <th className="num" title="The median: half of players do more, half do less">
+            <th className="num col-typical" title="The median: half of players do more, half do less">
               Typical player
             </th>
             <th className="num" title="99th percentile: better than 99% of logged kills">
@@ -72,7 +74,7 @@ export function BossTable({ report, query, site, demo }: Props) {
                   <td className="num strong" data-label={`Your best ${unit}`}>
                     {amount(row.best)}
                   </td>
-                  <td className="num soft" data-label="Typical player">
+                  <td className="num soft col-typical" data-label="Typical player">
                     {amount(row.benchmark?.p50)}
                   </td>
                   <td className="num" data-label="Top 1%">
@@ -87,20 +89,25 @@ export function BossTable({ report, query, site, demo }: Props) {
                     {canOpen && <span className="chevron" aria-hidden />}
                   </td>
                 </tr>
-                {isOpen && (
-                  <tr className="compare-row">
-                    <td colSpan={7}>
-                      <ErrorBoundary what="this comparison">
-                        <ComparePanel query={query} row={row} site={site} demo={demo} />
-                      </ErrorBoundary>
-                    </td>
-                  </tr>
-                )}
               </Fragment>
             );
           })}
         </tbody>
       </table>
+      {openRow && (
+        <aside className="detail" aria-label={`${openRow.encounter.name} breakdown`}>
+          <div className="detail-head">
+            <h2>{openRow.encounter.name}</h2>
+            <button className="detail-close" onClick={() => setOpen(null)} aria-label="Close" title="Close">
+              ×
+            </button>
+          </div>
+          <ErrorBoundary what="this comparison" resetKey={openRow.encounter.id}>
+            <ComparePanel key={`${openRow.encounter.id}|${openRow.spec}`} query={query} row={openRow} site={site} demo={demo} />
+          </ErrorBoundary>
+        </aside>
+      )}
+      </div>
     </>
   );
 }

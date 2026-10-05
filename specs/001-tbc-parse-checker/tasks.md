@@ -132,3 +132,4 @@ description: "Task list for TBC Parse Checker"
 ## Phase 20: Side panel
 
 - [x] T065 Boss breakdown opens in a sticky panel to the right of the boss list (list keeps its key columns, page widens, × closes, clicking another boss switches); stacks below 1100px
+- [x] T066 Full-width page; right-pointing arrow column; every list column (typical player, sample size, range bar) stays visible beside the panel; panel shows everything at full height (no inner scroll), scrolls into view when opened

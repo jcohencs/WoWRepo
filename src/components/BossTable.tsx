@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import type { BossRow, Site, ZoneReport } from '../../shared/types';
 import type { Query } from '../lib/api';
 import { amount, gapText, integer, metricLabel, parse, parseTier, specLabel } from '../lib/format';
@@ -17,6 +17,13 @@ export function BossTable({ report, query, site, demo }: Props) {
   const metrics = new Set(report.rows.map((r) => r.metric));
   const unit = metrics.size === 1 ? metricLabel(report.rows[0].metric) : 'DPS / HPS';
   const openRow = report.rows.find((r) => r.encounter.id === open && r.best != null) ?? null;
+  const detail = useRef<HTMLElement>(null);
+
+  // If the panel's top is scrolled out of view when a boss is opened, bring it back into view.
+  useEffect(() => {
+    const top = detail.current?.getBoundingClientRect().top;
+    if (top != null && top < 0) detail.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [open]);
 
   return (
     <>
@@ -43,6 +50,7 @@ export function BossTable({ report, query, site, demo }: Props) {
             </th>
             <th className="num">You vs top 1%</th>
             <th className="col-range" aria-label="Where you sit" />
+            <th className="col-arrow" aria-label="Open" />
           </tr>
         </thead>
         <tbody>
@@ -86,8 +94,8 @@ export function BossTable({ report, query, site, demo }: Props) {
                   </td>
                   <td className="col-range">
                     <RangeBar row={row} />
-                    {canOpen && <span className="chevron" aria-hidden />}
                   </td>
+                  <td className="col-arrow">{canOpen && <span className="chevron" aria-hidden />}</td>
                 </tr>
               </Fragment>
             );
@@ -95,7 +103,7 @@ export function BossTable({ report, query, site, demo }: Props) {
         </tbody>
       </table>
       {openRow && (
-        <aside className="detail" aria-label={`${openRow.encounter.name} breakdown`}>
+        <aside className="detail" ref={detail} aria-label={`${openRow.encounter.name} breakdown`}>
           <div className="detail-head">
             <h2>{openRow.encounter.name}</h2>
             <button className="detail-close" onClick={() => setOpen(null)} aria-label="Close" title="Close">

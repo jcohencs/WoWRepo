@@ -114,9 +114,10 @@ code {
 }
 
 .shell {
-  max-width: 1160px;
+  /* Use the whole window; only very wide screens get a cap so lines stay readable. */
+  max-width: 2200px;
   margin: 0 auto;
-  padding: 0 16px 56px;
+  padding: 0 32px 56px;
 }
 
 /* ---------- Colour helpers ---------- */
@@ -674,6 +675,7 @@ td {
 
 .sample {
   display: block;
+  white-space: nowrap;
   font-size: 12px;
   color: var(--muted);
 }
@@ -688,25 +690,32 @@ td {
   min-width: 140px;
   position: relative;
 }
-.col-range .chevron {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  width: 7px;
-  height: 7px;
-  border-right: 1.5px solid var(--soft);
-  border-bottom: 1.5px solid var(--soft);
-  transform: translateY(-70%) rotate(45deg);
-  transition: transform 150ms;
+.col-arrow {
+  width: 36px;
+  text-align: center;
+}
+/* Arrow pointing right, towards the breakdown panel. */
+.chevron {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--soft);
+  border-bottom: 2px solid var(--soft);
+  transform: rotate(-45deg);
+  transition: transform 150ms, border-color 150ms;
+}
+.boss.clickable:hover .chevron {
+  border-color: var(--text-2);
+  transform: translateX(2px) rotate(-45deg);
 }
 .boss.open .chevron {
-  transform: translateY(-30%) rotate(-135deg);
+  border-color: var(--text);
+  transform: translateX(3px) rotate(-45deg);
 }
 
 .range {
   position: relative;
   height: 16px;
-  margin-right: 24px;
 }
 .range-track {
   position: absolute;
@@ -748,37 +757,24 @@ td {
 
 /* ---------- Boss list + detail panel (opens to the right) ---------- */
 
+/* Both halves share the full width; every column of the list stays visible. */
 .boss-layout.split {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(500px, 1fr);
+  gap: 24px;
   align-items: start;
-}
-/* Give the page more room while the panel is open. */
-.shell:has(.boss-layout.split) {
-  max-width: 1500px;
-}
-.boss-layout.split .col-typical,
-.boss-layout.split .col-range {
-  display: none;
-}
-.boss-layout.split .col-boss {
-  width: auto;
-  max-width: 220px;
-}
-.boss-layout.split .boss-name,
-.boss-layout.split .boss-meta {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.boss-layout.split .sample {
-  display: none;
 }
 .boss-layout.split .bosses td,
 .boss-layout.split .bosses th {
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+.boss-layout.split .col-boss {
+  width: auto;
+}
+.boss-layout.split .col-range {
+  width: auto;
+  min-width: 110px;
 }
 .boss-layout.split .boss.open td {
   background: var(--surface);
@@ -787,25 +783,19 @@ td {
   box-shadow: inset 3px 0 0 var(--text);
 }
 
+/* The panel shows everything at full height and scrolls with the page. */
 .detail {
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 32px);
-  overflow: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
+  min-width: 0;
 }
 .detail-head {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 14px 18px 10px;
-  background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 .detail-head h2 {
@@ -843,13 +833,27 @@ td {
   width: 100%;
 }
 
-@media (max-width: 1100px) {
+/* Tighter grids inside the panel so nothing is cut off; names wrap instead of truncating. */
+.detail .ability-name,
+.detail .casts-name span:last-child {
+  white-space: normal;
+  overflow: visible;
+}
+.detail .h2h-row {
+  grid-template-columns: 96px minmax(80px, 1fr) auto auto;
+  gap: 12px;
+}
+.detail .bd-row {
+  grid-template-columns: minmax(150px, 1.1fr) 110px minmax(160px, 1.6fr);
+  gap: 12px;
+}
+.detail .casts-row {
+  grid-template-columns: minmax(120px, 170px) minmax(0, 1fr) 48px;
+}
+
+@media (max-width: 1300px) {
   .boss-layout.split {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .detail {
-    position: static;
-    max-height: none;
   }
 }
 
@@ -1486,6 +1490,7 @@ td {
   .bosses .boss td:nth-child(5) { grid-area: p99; }
   .bosses .boss td:nth-child(6) { grid-area: gap; }
   .bosses .boss .col-range { grid-area: range; width: auto; min-width: 0; margin-top: 6px; }
+  .bosses .boss .col-arrow { display: none; }
   .bosses .boss td[data-label]::before {
     content: attr(data-label) ': ';
     color: var(--soft);

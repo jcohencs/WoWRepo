@@ -1,5 +1,6 @@
 import { REALM_REGION, REALMS, type ApiStatus, type Comparison, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
 import { DAY, HOUR, MINUTE, type TtlCache } from './cache.js';
+import { classByName } from './core/classes.js';
 import type { CharacterRef } from './core/input.js';
 import { raidsFromZones } from './core/raids.js';
 import { TBC_ZONES } from './core/zones.js';
@@ -55,6 +56,8 @@ interface Roster {
 const FORGET_AFTER = 14 * DAY;
 /** How long a "character not found" answer is remembered. */
 const NOT_FOUND_TTL = 6 * HOUR;
+/** How long before an unexpected failure is retried. */
+const RETRY_AFTER = 15 * MINUTE;
 /** Keep this much of the hourly allowance unspent by refreshes, so queued lookups can still run. */
 const REFRESH_RESERVE = 0.15;
 const KEEP = 365 * DAY;
@@ -125,7 +128,7 @@ export class Puller {
   }
 
   private cachedRaids(): Raid[] {
-    return raidsFromZones(this.cache.peekAny<typeof TBC_ZONES>('zones')?.value ?? TBC_ZONES);
+    return raidsFromZones(this.cache.peekAny<typeof TBC_ZONES>('zones-v2')?.value ?? TBC_ZONES);
   }
 
   /** One scheduled pass. Overlapping calls share the same pass. */
@@ -201,6 +204,7 @@ export class Puller {
         pages = await this.live.realmRankings(REALM_REGION, realm, batch.map((t) => ({ encounterId: t.encounterId, metric: t.metric, page: t.nextPage })));
       } catch (err) {
         if (err instanceof ApiFailure && err.code === 'rate_limited') return 'limited';
+        console.error(`[parsecheck] Finding raiders on ${realm} failed: ${err instanceof Error ? err.message : err}`);
         batch.forEach((t) => (t.done = true)); // skip a boss Warcraft Logs won't rank rather than stall
         continue;
       }
@@ -240,6 +244,7 @@ export class Puller {
             await this.live.prefetchCharacters(chunk, zoneId);
           } catch (err) {
             if (err instanceof ApiFailure && err.code === 'rate_limited') return;
+            console.error(`[parsecheck] Pulling a batch of ${realm.name} characters failed: ${err instanceof Error ? err.message : err}`);
             continue;
           }
           for (const ref of chunk)
@@ -259,11 +264,34 @@ export class Puller {
       return 'ok';
     } catch (err) {
       if (err instanceof ApiFailure && err.code === 'rate_limited') return 'limited';
-      const message = err instanceof ApiFailure && err.code !== 'upstream' ? err.message : 'Warcraft Logs could not be reached for this one.';
-      this.cache.set(`notfound|${key}`, { message, code: err instanceof ApiFailure ? err.code : 'upstream' }, NOT_FOUND_TTL);
+      const detail = err instanceof Error ? err.message : String(err);
+      const code = err instanceof ApiFailure ? err.code : 'upstream';
+      if (code === 'not_found' || code === 'bad_request') {
+        this.cache.set(`notfound|${key}`, { message: detail, code }, NOT_FOUND_TTL);
+      } else {
+        // Unexpected failures are logged with Warcraft Logs' own message and retried soon.
+        console.error(`[parsecheck] Pull failed for ${key}: ${detail}`);
+        this.cache.set(`notfound|${key}`, { message: `Warcraft Logs returned an error for this lookup; it will be retried shortly. (${detail})`, code }, RETRY_AFTER);
+      }
       return 'failed';
     }
   }
+}
+
+/**
+ * Pages saved by earlier versions of the site may lack newer fields. Fill them in on read so old
+ * saved data keeps working without being pulled again.
+ */
+export function upgradePage<T>(page: T, fetchedAt: number, job: Job): T {
+  const p = page as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...p, updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : fetchedAt };
+  if (job.kind === 'zone') {
+    const report = page as unknown as ZoneReport;
+    if (!Array.isArray(report.specs)) out.specs = classByName(report.character?.className ?? '')?.specs ?? [];
+    if (typeof report.mainSpec !== 'string') out.mainSpec = job.spec ?? report.rows?.find((r) => r.best != null)?.spec ?? report.rows?.[0]?.spec ?? '';
+    if (report.spec === undefined) out.spec = job.spec ?? null;
+  }
+  return out as T;
 }
 
 export class SnapshotProvider implements Provider {
@@ -280,7 +308,7 @@ export class SnapshotProvider implements Provider {
   }
 
   async raids(): Promise<Raid[]> {
-    const zones = this.cache.peekAny<typeof TBC_ZONES>('zones')?.value;
+    const zones = this.cache.peekAny<typeof TBC_ZONES>('zones-v2')?.value;
     return raidsFromZones(zones ?? TBC_ZONES);
   }
 
@@ -315,7 +343,7 @@ export class SnapshotProvider implements Provider {
     const key = jobKey(job);
     this.touch(key, job);
     const saved = this.cache.peekAny<T>(`view|${key}`);
-    if (saved) return saved.value;
+    if (saved) return upgradePage(saved.value, saved.fetchedAt, job);
     const failed = this.cache.peek<{ message: string; code: ApiFailure['code'] } | null>(`notfound|${key}`);
     if (failed) throw new ApiFailure(failed.code, failed.message);
     throw new PendingPull(this.puller.enqueue(job), this.puller.secondsUntilNextRun());

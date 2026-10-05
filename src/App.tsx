@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Meta, Region, ZoneReport } from '../shared/types';
 import { BossTable } from './components/BossTable';
 import { CharacterHeader } from './components/CharacterHeader';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { ParseChart } from './components/ParseChart';
 import { Pending } from './components/Pending';
 import { RaidSelect } from './components/RaidSelect';
@@ -114,7 +115,9 @@ export function App() {
               <CharacterHeader report={shown} site={meta?.site ?? 'fresh'}>
                 {raidPicker}
               </CharacterHeader>
-              <SpecBar specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec} onSelect={(s) => setSpec(s ?? undefined)} />
+              {shown.specs?.length > 0 && (
+                <SpecBar specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec ?? ''} onSelect={(s) => setSpec(s ?? undefined)} />
+              )}
             </>
           ) : (
             <div className="character-placeholder">{raidPicker}</div>
@@ -130,11 +133,13 @@ export function App() {
               </button>
             </div>
           ) : shown ? (
-            <div className={loading ? 'is-stale' : undefined}>
-              <Summary summary={shown.summary} />
-              <ParseChart rows={shown.rows} />
-              <BossTable report={shown} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} />
-            </div>
+            <ErrorBoundary what="this raid" resetKey={shown}>
+              <div className={loading ? 'is-stale' : undefined}>
+                <Summary summary={shown.summary} />
+                <ParseChart rows={shown.rows} />
+                <BossTable report={shown} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} />
+              </div>
+            </ErrorBoundary>
           ) : (
             <TableSkeleton />
           )}

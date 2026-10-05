@@ -109,6 +109,20 @@ describe('saved pages + scheduled puller', () => {
     expect((await site.zoneReport(brannoc, raid, 'Arms')).spec).toBe('Arms');
   });
 
+  it('upgrades pages saved by older versions instead of breaking', async () => {
+    const { site, puller, cache } = setup();
+    await puller.run();
+    const key = 'view|zone|US|nightslayer|Brannoc|2011-black-temple';
+    const page = await site.zoneReport(brannoc, raid);
+    const { specs: _s, mainSpec: _m, spec: _p, updatedAt: _u, ...old } = page;
+    cache.set(key, old, 365 * 24 * HOUR);
+    const upgraded = await site.zoneReport(brannoc, raid);
+    expect(upgraded.specs).toEqual(['Arms', 'Fury', 'Protection']);
+    expect(upgraded.mainSpec).toBe('Fury');
+    expect(upgraded.spec).toBeNull();
+    expect(typeof upgraded.updatedAt).toBe('number');
+  });
+
   it('queues comparisons the same way', async () => {
     const { site, puller } = setup();
     await puller.run();

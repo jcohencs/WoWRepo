@@ -10,7 +10,8 @@
     "start": "tsx server/index.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "sync": "tsx scripts/sync.ts"
+    "sync": "tsx scripts/sync.ts",
+    "doctor": "tsx scripts/doctor.ts"
   },
   "engines": {
     "node": ">=20"

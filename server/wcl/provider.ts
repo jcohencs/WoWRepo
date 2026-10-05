@@ -1,6 +1,6 @@
 import type { Benchmark, Comparison, FightSide, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
 import { join, resolve } from 'node:path';
-import { DAY, HOUR, TtlCache } from '../cache.js';
+import { DAY, HOUR, MINUTE, TtlCache } from '../cache.js';
 import {
   buildBenchmark,
   keyString,
@@ -134,20 +134,32 @@ export class WclProvider implements Provider {
     };
   }
 
-  private zones(): Promise<Zone[]> {
-    return this.cache.get('zones', TTL.zones, async () => {
-      try {
-        const data = await this.client.query<{ worldData: { expansions: Parameters<typeof tbcZonesFromExpansions>[0] } }>(
-          `{ worldData { expansions { id name zones { id name frozen encounters { id name } } } } }`,
-        );
-        const zones = tbcZonesFromExpansions(data.worldData.expansions);
-        return zones.length ? zones : TBC_ZONES;
-      } catch (err) {
-        if (err instanceof ApiFailure && err.code === 'config') throw err;
-        return TBC_ZONES;
+  /**
+   * TBC raid zones on this Warcraft Logs site. Only a successful lookup is saved (for a week); if
+   * it fails, the built-in TBC Classic list is used and the lookup is retried after 10 minutes.
+   */
+  private async zones(): Promise<Zone[]> {
+    const saved = this.cache.peek<Zone[]>('zones-v2');
+    if (saved) return saved;
+    if (this.cache.peek('zones-v2-failed')) return TBC_ZONES;
+    try {
+      const data = await this.client.query<{ worldData: { expansions: Parameters<typeof tbcZonesFromExpansions>[0] } }>(
+        `{ worldData { expansions { id name zones { id name frozen encounters { id name } } } } }`,
+      );
+      const zones = tbcZonesFromExpansions(data.worldData.expansions);
+      if (zones.length) {
+        this.cache.set('zones-v2', zones, TTL.zones);
+        return zones;
       }
-    });
+      console.error('[parsecheck] Warcraft Logs listed no TBC raid zones; using the built-in list for now.');
+    } catch (err) {
+      if (err instanceof ApiFailure && err.code === 'config') throw err;
+      console.error(`[parsecheck] Could not load the raid list: ${err instanceof Error ? err.message : err}`);
+    }
+    this.cache.set('zones-v2-failed', true, 10 * MINUTE);
+    return TBC_ZONES;
   }
+
 
   async raids(): Promise<Raid[]> {
     return raidsFromZones(await this.zones());

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { raidsFromZones } from '../../server/core/raids';
+import { tbcZonesFromExpansions } from '../../server/core/zones';
 import { shortBossName } from '../../src/components/ParseChart';
 
 describe('shortBossName', () => {
@@ -24,5 +25,17 @@ describe('raidsFromZones', () => {
 
   it('keeps a raid that only has a full-raid listing', () => {
     expect(raidsFromZones([bt(2018, 'Black Temple Full Raid')]).map((r) => r.name)).toEqual(['Black Temple']);
+  });
+});
+
+
+describe('tbcZonesFromExpansions', () => {
+  it('finds TBC raids by their bosses, whatever the expansion is called', () => {
+    const zones = tbcZonesFromExpansions([
+      { name: 'Anniversary', zones: [{ id: 2018, name: 'Black Temple', encounters: [{ id: 1, name: "High Warlord Naj'entus" }, { id: 2, name: 'Supremus' }] }] },
+      { name: 'Classic', zones: [{ id: 1000, name: 'Molten Core', encounters: [{ id: 3, name: 'Lucifron' }, { id: 4, name: 'Ragnaros' }] }] },
+      { name: 'Anniversary', zones: [{ id: 2019, name: 'Heroic Dungeons', encounters: [{ id: 5, name: 'Supremus' }, { id: 6, name: 'Gruul' }] }] },
+    ]);
+    expect(zones.map((z) => z.name)).toEqual(['Black Temple']);
   });
 });

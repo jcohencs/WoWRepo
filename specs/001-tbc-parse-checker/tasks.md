@@ -101,3 +101,10 @@ description: "Task list for TBC Parse Checker"
 
 - [x] T048 Deduplicate raids by name, preferring the regular listing over 25-man / "full raid" zones, then the newest
 - [x] T049 Spec bar: `spec` on `/api/character`, `specName`-filtered zone rankings, one saved page per spec; header and bar stay while another spec loads
+
+## Phase 16: Pull fixes
+
+- [x] T050 Find TBC raid zones by their bosses, not the expansion name (TBC Anniversary); only cache a successful raid list, retry a failed one after 10 minutes
+- [x] T051 Log the real Warcraft Logs error for failed pulls and retry them after 15 minutes instead of hiding them for 6 hours
+- [x] T052 Upgrade pages saved by older versions on read (spec fields, updatedAt); error boundaries so a display error never blanks the page
+- [x] T053 `npm run doctor` checks every request type with the configured key

@@ -15,6 +15,10 @@ const RAIDS: { name: string; bosses: string[] }[] = [
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+export function isTbcBoss(encounterName: string): boolean {
+  return raidOf(encounterName) >= 0;
+}
+
 function raidOf(encounterName: string): number {
   const n = encounterName.toLowerCase();
   return RAIDS.findIndex((r) => r.bosses.some((b) => n.includes(b)));

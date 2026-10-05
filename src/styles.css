@@ -285,6 +285,10 @@ select option {
 .state p {
   margin: 0 0 14px;
 }
+.error-detail {
+  font: 13px var(--mono);
+  word-break: break-word;
+}
 .state.pending {
   border-style: solid;
   border-color: var(--line);

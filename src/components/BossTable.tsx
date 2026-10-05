@@ -3,6 +3,7 @@ import type { BossRow, Site, ZoneReport } from '../../shared/types';
 import type { Query } from '../lib/api';
 import { amount, gapText, integer, metricLabel, parse, parseTier, specLabel } from '../lib/format';
 import { ComparePanel } from './ComparePanel';
+import { ErrorBoundary } from './ErrorBoundary';
 
 interface Props {
   report: ZoneReport;
@@ -88,7 +89,9 @@ export function BossTable({ report, query, site, demo }: Props) {
                 {isOpen && (
                   <tr className="compare-row">
                     <td colSpan={7}>
-                      <ComparePanel query={query} row={row} site={site} demo={demo} />
+                      <ErrorBoundary what="this comparison">
+                        <ComparePanel query={query} row={row} site={site} demo={demo} />
+                      </ErrorBoundary>
                     </td>
                   </tr>
                 )}

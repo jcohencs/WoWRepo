@@ -50,6 +50,14 @@ Everything lives in one file, `.cache/wcl-<site>.json` (or `$CACHE_DIR`). To fil
 npm run sync -- --class Warrior --spec Fury
 ```
 
+## Something not working?
+
+```bash
+npm run doctor -- --name Yourcharacter
+```
+
+Checks each kind of Warcraft Logs request with your key (raid list, finding raiders, a character page, a comparison) and prints ✓ or ✗ with Warcraft Logs' own error message. It doesn't print your key, so the output is safe to share. Failed scheduled pulls are also logged as `[parsecheck] Pull failed for …` lines.
+
 ## Put it online
 
 The API key must stay on the server, so this needs a host that runs Node (not a static host).

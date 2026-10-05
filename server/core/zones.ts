@@ -1,4 +1,5 @@
 import type { Zone } from '../../shared/types.js';
+import { isTbcBoss } from './raids.js';
 
 /**
  * TBC raids with Warcraft Logs encounter ids (the game's DungeonEncounter ids).
@@ -94,14 +95,18 @@ export const TBC_ZONES: Zone[] = [
 
 const NON_RAID = /dungeon|arena|battleground|mythic|beta|test|world boss/i;
 
-/** Picks TBC raid zones out of a WCL `worldData.expansions` response. */
+/**
+ * Picks TBC raid zones out of a WCL `worldData.expansions` response. Zones are recognised by their
+ * bosses rather than the expansion's name, because Warcraft Logs names re-releases differently
+ * (e.g. TBC Anniversary).
+ */
 export function tbcZonesFromExpansions(
   expansions: { name: string; zones: { id: number; name: string; frozen?: boolean; encounters: Zone['encounters'] }[] }[],
 ): Zone[] {
-  const tbc = expansions.filter((e) => /burning crusade/i.test(e.name));
-  return tbc
+  return expansions
     .flatMap((e) => e.zones)
     .filter((z) => z.encounters.length > 1 && !NON_RAID.test(z.name))
+    .filter((z) => z.encounters.filter((e) => isTbcBoss(e.name)).length >= Math.ceil(z.encounters.length / 2))
     .map(({ id, name, encounters }) => ({ id, name, encounters }))
     .sort((a, b) => a.id - b.id);
 }

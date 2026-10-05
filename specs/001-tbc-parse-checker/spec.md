@@ -82,8 +82,8 @@ are at or above p99, and the median gap to p99.
 
 ### Functional Requirements
 
-- **FR-001**: Users MUST be able to pick their realm (Dreamscythe or Nightslayer, US TBC
-  Anniversary) from a dropdown and type a character name, or paste a Warcraft Logs character URL.
+- **FR-001**: Users MUST be able to type a Nightslayer (US TBC Anniversary) character name, or
+  paste a Warcraft Logs character URL. More realms can be added later.
 - **FR-002**: System MUST list the TBC raids available on the configured Warcraft Logs site
   and let the user switch between them.
 - **FR-003**: For each boss, system MUST show the character's best amount, rank percent,

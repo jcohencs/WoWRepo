@@ -4,7 +4,8 @@ See how your **TBC** Warcraft Logs parses compare to the **99th percentile of yo
 
 - Per boss: your best DPS/HPS, parse, median (p50), 99th percentile, gap to p99, and how many parses the benchmark came from.
 - Percentiles are read from the exact ranking position (`rank = ceil(N × (1 − p))`) on Warcraft Logs, not estimated.
-- Comparison view: kill time, active time, share of damage/healing and casts per minute for every ability, sorted by the biggest difference.
+- **Parse by boss** column chart for the whole raid, in Warcraft Logs parse colours.
+- Comparison view: head-to-head meters (DPS, kill time, time active, total), pie charts of where the damage comes from, a buttons-pressed-per-minute chart, and the full ability list.
 - Paste a Warcraft Logs character link into the search to fill everything in.
 - Works on phones.
 
@@ -20,7 +21,7 @@ Create an API client at <https://www.warcraftlogs.com/api/clients> (any redirect
 
 When `npm run dev` starts, a `[parsecheck]` line in the terminal tells you whether the key was loaded or what is missing. `.env.txt` also works.
 
-Realms are limited to Dreamscythe and Nightslayer (US TBC Anniversary); edit `REALMS` in `shared/types.ts` to add more.
+Only Nightslayer (US TBC Anniversary) is supported for now; add realms to `REALMS` in `shared/types.ts`.
 
 Without credentials the app runs on generated **demo data**, labelled as such in the header.
 
@@ -33,10 +34,10 @@ Visitors only ever see **saved data**. The site never calls Warcraft Logs becaus
 - **Every 10 minutes** (`PULL_INTERVAL_MINUTES`) the puller runs, in this order, until the hourly allowance runs low:
   1. Anything a visitor is waiting on (a character or boss comparison not saved yet), in the order asked.
   2. Saved pages people still open: characters older than 2 hours, comparisons older than 12 hours, stalest first.
-  3. **Finding everyone on the realms** (daily): it reads the Dreamscythe and Nightslayer rankings for the first boss of every raid and keeps a list of everyone with a ranked kill.
+  3. **Finding everyone on the realms** (daily): it reads the Nightslayer rankings for the first boss of every raid and keeps a list of everyone with a ranked kill.
   4. **Pulling everyone**: every listed character's raid pages, ten characters per request, newest raid first, refreshed daily.
 
-  Steps 2–4 stop while 15% of the hourly allowance is left, so a visitor's new lookup always fits in the next run. The first full pass over both realms takes a while on a 720-point allowance; each run logs how far it got, e.g. `Up to date (latest raid): Dreamscythe 412/1530, Nightslayer 0/980`.
+  Steps 2–4 stop while 15% of the hourly allowance is left, so a visitor's new lookup always fits in the next run. The first full pass over both realms takes a while on a 720-point allowance; each run logs how far it got, e.g. `Up to date (latest raid): Nightslayer 412/1530`.
 - The search box suggests names from that list.
 - A character that isn't saved yet shows "not pulled yet, number 2 in line, about 8 minutes" and fills in by itself after the next run.
 - Every page shows when it was pulled ("Updated 25 min ago").

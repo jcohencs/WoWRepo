@@ -89,3 +89,10 @@ description: "Task list for TBC Parse Checker"
 - [x] T041 Roster discovery: realm-filtered rankings for the first boss of every raid (DPS + HPS), paged, resumable, refreshed daily
 - [x] T042 Realm sweep: batch 10 characters per request, newest raid first, refresh daily, after queued and opened pages; progress logged each run
 - [x] T043 `GET /api/characters?realm=` and name suggestions in the search box
+
+## Phase 14: Nightslayer only + more charts
+
+- [x] T044 Limit realms to Nightslayer (fixed realm field instead of a dropdown when only one realm)
+- [x] T045 "Parse by boss" column chart above the boss table (parse colours, tier gridlines, vertical labels on phones)
+- [x] T046 Head-to-head meters in the comparison (DPS, kill time, time active, total) replacing the stat grids
+- [x] T047 "Buttons pressed per minute" paired bar chart in the comparison

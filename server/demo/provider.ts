@@ -24,7 +24,7 @@ const TIER_P99: Record<number, number> = { 1007: 1450, 1008: 1620, 1010: 1930, 1
 const UNKILLED = new Set([728, 729]);
 
 const SPEC = 'Fury';
-const realmName = (slug: string) => REALMS.find((r) => r.slug === slug)?.name ?? slug;
+const realmName = (slug: string) => REALMS.find((r) => r.slug === slug)?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1);
 const CLASS = 'Warrior';
 
 function benchmarkFor(zoneId: number, encounterId: number): Benchmark {

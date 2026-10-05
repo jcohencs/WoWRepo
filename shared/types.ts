@@ -146,9 +146,6 @@ export interface ApiError {
   error: { code: 'bad_request' | 'not_found' | 'upstream' | 'rate_limited' | 'config'; message: string };
 }
 
-/** The realms this app supports. All are US TBC Anniversary realms. */
-export const REALMS = [
-  { name: 'Dreamscythe', slug: 'dreamscythe' },
-  { name: 'Nightslayer', slug: 'nightslayer' },
-] as const;
+/** The realms this app supports (US TBC Anniversary). Add entries here to support more. */
+export const REALMS: readonly { name: string; slug: string }[] = [{ name: 'Nightslayer', slug: 'nightslayer' }];
 export const REALM_REGION: Region = 'US';

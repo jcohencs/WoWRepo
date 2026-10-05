@@ -93,8 +93,8 @@ export function handler(query: string, variables: Record<string, unknown>) {
     };
   }
   if (query.includes('serverSlug: $realm')) {
-    // Realm-filtered rankings: two raiders on Dreamscythe, nobody on Nightslayer.
-    const names = variables.realm === 'dreamscythe' ? ['Brannoc', 'Morwenna'] : [];
+    // Realm-filtered rankings: two raiders on Nightslayer.
+    const names = variables.realm === 'nightslayer' ? ['Brannoc', 'Morwenna'] : [];
     const worldData: Record<string, unknown> = {};
     for (const m of query.matchAll(/(q\d+): encounter/g)) {
       worldData[m[1]] = { characterRankings: { page: 1, hasMorePages: false, rankings: names.map((name) => ({ ...ranking(1), name })) } };

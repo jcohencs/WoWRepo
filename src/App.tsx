@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Meta, Region, ZoneReport } from '../shared/types';
 import { BossTable } from './components/BossTable';
 import { CharacterHeader } from './components/CharacterHeader';
+import { ParseChart } from './components/ParseChart';
 import { Pending } from './components/Pending';
 import { RaidSelect } from './components/RaidSelect';
 import { SearchBar } from './components/SearchBar';
@@ -122,6 +123,7 @@ export function App() {
           ) : report ? (
             <div className={loading ? 'is-stale' : undefined}>
               <Summary summary={report.summary} />
+              <ParseChart rows={report.rows} />
               <BossTable report={report} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} />
             </div>
           ) : (
@@ -155,7 +157,7 @@ function EmptyIntro() {
     <section className="intro">
       <ol>
         <li>
-          <strong>Find your character</strong> Pick Dreamscythe or Nightslayer, then type your name.
+          <strong>Find your character</strong> Type your Nightslayer character's name.
         </li>
         <li>
           <strong>See every boss</strong> Your best kill next to a typical player and the top 1% of your spec.

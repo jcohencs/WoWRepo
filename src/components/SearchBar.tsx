@@ -52,13 +52,17 @@ export function SearchBar({ initial, busy, onSearch }: Props) {
     <form className="search" onSubmit={submit}>
       <label className="field field-realm">
         <span>Realm</span>
-        <select value={realm} onChange={(e) => setRealm(e.target.value)}>
-          {REALMS.map((r) => (
-            <option key={r.slug} value={r.slug}>
-              {r.name}
-            </option>
-          ))}
-        </select>
+        {REALMS.length > 1 ? (
+          <select value={realm} onChange={(e) => setRealm(e.target.value)}>
+            {REALMS.map((r) => (
+              <option key={r.slug} value={r.slug}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className="fixed-field">{REALMS[0].name}</div>
+        )}
       </label>
       <label className="field field-name">
         <span>Character name</span>

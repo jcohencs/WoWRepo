@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AbilityLine, BossRow, Comparison, FightSide, Site } from '../../shared/types';
 import { api, PendingError, type Query } from '../lib/api';
-import { ago, amount, compact, duration, metricLabel, percent, specLabel } from '../lib/format';
+import { ago, percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
+import { CastsChart } from './CastsChart';
+import { HeadToHead } from './HeadToHead';
 import { Pending } from './Pending';
 
 interface Props {
@@ -40,7 +42,6 @@ export function ComparePanel({ query, row, site, demo }: Props) {
   if (pending) return <Pending pending={pending} what={`This ${row.encounter.name} comparison`} onRetry={retry} />;
   if (!data) return <CompareSkeleton />;
 
-  const unit = metricLabel(data.metric);
   const noun = data.metric === 'hps' ? 'healing' : 'damage';
   const abilities = [...data.abilities].sort(
     (a, b) => (b.ref?.share ?? 0) - (a.ref?.share ?? 0) || (b.you?.share ?? 0) - (a.you?.share ?? 0),
@@ -51,9 +52,11 @@ export function ComparePanel({ query, row, site, demo }: Props) {
   return (
     <div className="compare">
       <div className="sides">
-        <Side label="You" side={data.you} site={site} demo={demo} unit={unit} noun={noun} />
-        <Side label="Top 1% player" side={data.ref} site={site} demo={demo} unit={unit} noun={noun} top />
+        <Side label="You" side={data.you} site={site} demo={demo} />
+        <Side label="Top 1% player" side={data.ref} site={site} demo={demo} top />
       </div>
+
+      <HeadToHead data={data} />
 
       <div className="breakdown-head">
         <h3>
@@ -62,6 +65,8 @@ export function ComparePanel({ query, row, site, demo }: Props) {
       </div>
 
       <AbilityPies abilities={abilities} noun={noun} />
+
+      <CastsChart abilities={abilities} />
 
       <div className="breakdown-head sub">
         <h3>Every ability</h3>
@@ -104,7 +109,7 @@ function CompareSkeleton() {
   );
 }
 
-function Side({ label, side, site, demo, unit, noun, top }: { label: string; side: FightSide; site: Site; demo: boolean; unit: string; noun: string; top?: boolean }) {
+function Side({ label, side, site, demo, top }: { label: string; side: FightSide; site: Site; demo: boolean; top?: boolean }) {
   return (
     <div className={`side${top ? ' ref' : ' you'}`}>
       <div className="side-head">
@@ -119,24 +124,6 @@ function Side({ label, side, site, demo, unit, noun, top }: { label: string; sid
           </a>
         )}
       </div>
-      <dl className="side-stats">
-        <div>
-          <dt>{unit}</dt>
-          <dd>{amount(side.perSecond)}</dd>
-        </div>
-        <div>
-          <dt>Kill time</dt>
-          <dd>{duration(side.durationMs)}</dd>
-        </div>
-        <div>
-          <dt title="Share of the fight spent attacking or casting">Time active</dt>
-          <dd>{percent(side.activeTime)}</dd>
-        </div>
-        <div>
-          <dt>Total {noun}</dt>
-          <dd>{compact(side.amount)}</dd>
-        </div>
-      </dl>
     </div>
   );
 }

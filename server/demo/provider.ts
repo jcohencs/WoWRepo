@@ -24,16 +24,20 @@ const TIER_P99: Record<number, number> = { 1007: 1450, 1008: 1620, 1010: 1930, 1
 const UNKILLED = new Set([728, 729]);
 
 const SPEC = 'Fury';
+const WARRIOR_SPECS = ['Arms', 'Fury', 'Protection'];
 const realmName = (slug: string) => REALMS.find((r) => r.slug === slug)?.name ?? slug.charAt(0).toUpperCase() + slug.slice(1);
 const CLASS = 'Warrior';
 
-function benchmarkFor(zoneId: number, encounterId: number): Benchmark {
-  const r = rng(encounterId * 7919);
-  const p99 = Math.round(TIER_P99[zoneId] * (0.88 + r() * 0.24));
+/** Rough DPS of each Warrior spec relative to Fury. */
+const SPEC_SCALE: Record<string, number> = { Fury: 1, Arms: 0.9, Protection: 0.52 };
+
+function benchmarkFor(zoneId: number, encounterId: number, spec = SPEC): Benchmark {
+  const r = rng(encounterId * 7919 + spec.length);
+  const p99 = Math.round(TIER_P99[zoneId] * (SPEC_SCALE[spec] ?? 1) * (0.88 + r() * 0.24));
   return {
     encounterId,
     className: CLASS,
-    spec: SPEC,
+    spec,
     metric: 'dps',
     sampleSize: Math.round(1800 + r() * 5200),
     p50: Math.round(p99 * (0.64 + r() * 0.08)),
@@ -105,19 +109,20 @@ export class DemoProvider implements Provider {
     return Math.round(b.p99 * (0.74 + r() * 0.31));
   }
 
-  async zoneReport(ref: CharacterRef, raidId?: string): Promise<ZoneReport> {
+  async zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
+    const shown = spec && WARRIOR_SPECS.includes(spec) ? spec : SPEC;
     const raid = raidId ? this.allRaids.find((r) => r.id === raidId) : this.allRaids[this.allRaids.length - 1];
     if (!raid) throw new ApiFailure('not_found', `Unknown raid "${raidId}".`);
     const rows = raid.encounters.map((encounter) => {
-      const b = benchmarkFor(raid.zoneId, encounter.id);
-      const best = this.bestFor(ref.name, encounter.id, b);
+      const b = benchmarkFor(raid.zoneId, encounter.id, shown);
+      const best = this.bestFor(ref.name + shown, encounter.id, b);
       return buildRow(
         encounter,
-        SPEC,
+        shown,
         'dps',
         best == null
           ? undefined
-          : { encounterId: encounter.id, spec: SPEC, kills: 1 + (encounter.id % 9), best, rankPercent: parseFor(best, b) },
+          : { encounterId: encounter.id, spec: shown, kills: 1 + (encounter.id % 9), best, rankPercent: parseFor(best, b) },
         b,
       );
     });
@@ -127,15 +132,18 @@ export class DemoProvider implements Provider {
       rows,
       summary: summarise(rows),
       updatedAt: Date.now() - 25 * 60_000,
+      spec: spec ?? null,
+      mainSpec: shown,
+      specs: WARRIOR_SPECS,
     };
   }
 
   async compare(ref: CharacterRef, encounterId: number, spec: string): Promise<Comparison> {
     const zone = TBC_ZONES.find((z) => z.encounters.some((e) => e.id === encounterId));
-    if (!zone || spec !== SPEC) throw new ApiFailure('not_found', 'No kill for that boss in the demo data.');
+    if (!zone || !WARRIOR_SPECS.includes(spec)) throw new ApiFailure('not_found', 'No kill for that boss in the demo data.');
     const encounter = zone.encounters.find((e) => e.id === encounterId)!;
-    const b = benchmarkFor(zone.id, encounterId);
-    const best = this.bestFor(ref.name, encounterId, b);
+    const b = benchmarkFor(zone.id, encounterId, spec);
+    const best = this.bestFor(ref.name + spec, encounterId, b);
     if (best == null) throw new ApiFailure('not_found', `${ref.name} has no ranked ${spec} kill on ${encounter.name}.`);
 
     const refDuration = b.reference.durationMs;

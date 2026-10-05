@@ -10,7 +10,7 @@ import {
   type RawRanking,
   type RawRankingPage,
 } from '../core/benchmark.js';
-import { CLASSES, classById, metricFor, metricForSpec, type ClassInfo } from '../core/classes.js';
+import { CLASSES, classById, metricFor, metricForSpec, specLabel, type ClassInfo } from '../core/classes.js';
 import { compareAbilities, type TableEntry } from '../core/compare.js';
 import type { CharacterRef } from '../core/input.js';
 import { raidsFromZones } from '../core/raids.js';
@@ -153,17 +153,23 @@ export class WclProvider implements Provider {
     return raidsFromZones(await this.zones());
   }
 
-  async zoneReport(ref: CharacterRef, raidId?: string): Promise<ZoneReport> {
+  /**
+   * A character's raid page. With `spec`, every boss is shown and benchmarked as that spec;
+   * without it, each boss uses the spec of the character's best kill there.
+   */
+  async zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
     const raids = await this.raids();
     const raid = raidId ? raids.find((r) => r.id === raidId) : raids[raids.length - 1];
     if (!raid) throw new ApiFailure('not_found', `Unknown raid "${raidId}".`);
+    if (spec && !SAFE_NAME.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
 
-    const charKey = this.charKey(ref, raid.zoneId);
-    const character = await this.cache.get(charKey, TTL.character, () => this.fetchCharacter(ref, raid.zoneId));
+    const charKey = this.charKey(ref, raid.zoneId, spec);
+    const character = await this.cache.get(charKey, TTL.character, () => this.fetchCharacter(ref, raid.zoneId, spec));
     const c = character.characterData.character;
     if (!c) throw new ApiFailure('not_found', `Couldn't find "${ref.name}" on ${ref.realm} (${ref.region}). Check the spelling and realm.`);
     const cls = classById(c.classID);
     if (!cls) throw new ApiFailure('bad_request', `${c.name} is not a TBC class.`);
+    if (spec && !cls.specs.includes(spec)) throw new ApiFailure('bad_request', `${cls.label}s don't have a ${specLabel(spec)} spec.`);
 
     const sets: Record<Metric, Map<number, ZoneRankingEntry>> = {
       dps: new Map((c.dps?.rankings ?? []).map((r) => [r.encounter.id, r])),
@@ -180,10 +186,10 @@ export class WclProvider implements Provider {
 
     const plan = raid.encounters.map((encounter) => {
       const seen = sets.dps.get(encounter.id);
-      const spec = seen?.spec && seen.totalKills ? seen.spec : main;
-      const metric = metricFor(cls.name, spec);
+      const rowSpec = spec ?? (seen?.spec && seen.totalKills ? seen.spec : main);
+      const metric = metricFor(cls.name, rowSpec);
       const best = sets[metric].get(encounter.id);
-      return { encounter, spec, metric, best: best ? toBest(best) : undefined };
+      return { encounter, spec: rowSpec, metric, best: best ? toBest(best) : undefined };
     });
     const keyOf = (p: (typeof plan)[number]): BenchmarkKey => ({ encounterId: p.encounter.id, className: cls.name, spec: p.spec, metric: p.metric });
 
@@ -197,11 +203,14 @@ export class WclProvider implements Provider {
       rows,
       summary: summarise(rows),
       updatedAt: this.cache.fetchedAt(charKey) ?? Date.now(),
+      spec: spec ?? null,
+      mainSpec: spec ?? main,
+      specs: cls.specs,
     };
   }
 
-  charKey(ref: CharacterRef, zoneId: number) {
-    return `char|${ref.region}|${ref.realm}|${ref.name}|${zoneId}`;
+  charKey(ref: CharacterRef, zoneId: number, spec?: string) {
+    return `char|${ref.region}|${ref.realm}|${ref.name}|${zoneId}${spec ? `|${spec}` : ''}`;
   }
 
   /**
@@ -260,16 +269,17 @@ export class WclProvider implements Provider {
     });
   }
 
-  private fetchCharacter(ref: CharacterRef, zoneId: number) {
+  private fetchCharacter(ref: CharacterRef, zoneId: number, spec?: string) {
+    const bySpec = spec ? ', specName: $spec' : '';
     return this.client.query<CharacterResponse>(
-      `query($name: String!, $server: String!, $region: String!, $zone: Int!) {
+      `query($name: String!, $server: String!, $region: String!, $zone: Int!${spec ? ', $spec: String!' : ''}) {
         characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
           name classID server { name slug }
-          dps: zoneRankings(zoneID: $zone, metric: dps)
-          hps: zoneRankings(zoneID: $zone, metric: hps)
+          dps: zoneRankings(zoneID: $zone, metric: dps${bySpec})
+          hps: zoneRankings(zoneID: $zone, metric: hps${bySpec})
         } }
       }`,
-      { name: ref.name, server: ref.realm, region: ref.region, zone: zoneId },
+      { name: ref.name, server: ref.realm, region: ref.region, zone: zoneId, ...(spec ? { spec } : {}) },
     );
   }
 

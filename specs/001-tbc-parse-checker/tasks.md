@@ -96,3 +96,8 @@ description: "Task list for TBC Parse Checker"
 - [x] T045 "Parse by boss" column chart above the boss table (parse colours, tier gridlines, vertical labels on phones)
 - [x] T046 Head-to-head meters in the comparison (DPS, kill time, time active, total) replacing the stat grids
 - [x] T047 "Buttons pressed per minute" paired bar chart in the comparison
+
+## Phase 15: One listing per raid + spec bar
+
+- [x] T048 Deduplicate raids by name, preferring the regular listing over 25-man / "full raid" zones, then the newest
+- [x] T049 Spec bar: `spec` on `/api/character`, `specName`-filtered zone rankings, one saved page per spec; header and bar stay while another spec loads

@@ -20,9 +20,16 @@ function raidOf(encounterName: string): number {
   return RAIDS.findIndex((r) => r.bosses.some((b) => n.includes(b)));
 }
 
-/** Splits WCL zones into individual raids, ordered by progression. Unknown bosses keep their zone's name. */
+/** Zone names Warcraft Logs uses for alternate 25-man / "full raid" listings of a raid. */
+const ALTERNATE_LISTING = /\b25\b|full raid/i;
+
+/**
+ * Splits WCL zones into individual raids, ordered by progression. Warcraft Logs can list the
+ * same raid under more than one zone; each raid is kept once, preferring the regular listing over
+ * a 25-man / "full raid" one, then the newest zone. Unknown bosses keep their zone's name.
+ */
 export function raidsFromZones(zones: Zone[]): Raid[] {
-  const out: (Raid & { order: number })[] = [];
+  const byName = new Map<string, Raid & { order: number; alternate: boolean }>();
   for (const zone of zones) {
     const groups = new Map<number, Zone['encounters']>();
     for (const e of zone.encounters) {
@@ -31,8 +38,21 @@ export function raidsFromZones(zones: Zone[]): Raid[] {
     }
     for (const [i, encounters] of groups) {
       const name = i >= 0 ? RAIDS[i].name : zone.name;
-      out.push({ id: `${zone.id}-${slug(name)}`, name, zoneId: zone.id, encounters, order: i >= 0 ? i : 100 + zone.id });
+      const candidate = {
+        id: `${zone.id}-${slug(name)}`,
+        name,
+        zoneId: zone.id,
+        encounters,
+        order: i >= 0 ? i : 100 + zone.id,
+        alternate: ALTERNATE_LISTING.test(zone.name),
+      };
+      const kept = byName.get(name);
+      const better =
+        !kept ||
+        (kept.alternate && !candidate.alternate) ||
+        (kept.alternate === candidate.alternate && candidate.zoneId > kept.zoneId);
+      if (better) byName.set(name, candidate);
     }
   }
-  return out.sort((a, b) => a.order - b.order).map(({ order: _order, ...raid }) => raid);
+  return [...byName.values()].sort((a, b) => a.order - b.order).map(({ order: _o, alternate: _a, ...raid }) => raid);
 }

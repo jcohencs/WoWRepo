@@ -17,7 +17,7 @@ import type { WclProvider } from './wcl/provider.js';
  */
 
 type Job =
-  | { kind: 'zone'; ref: CharacterRef; raidId: string }
+  | { kind: 'zone'; ref: CharacterRef; raidId: string; spec?: string }
   | { kind: 'compare'; ref: CharacterRef; encounterId: number; spec: string };
 
 interface SavedPage {
@@ -61,7 +61,9 @@ const KEEP = 365 * DAY;
 
 const refKey = (r: CharacterRef) => `${r.region}|${r.realm}|${r.name}`;
 export const jobKey = (j: Job) =>
-  j.kind === 'zone' ? `zone|${refKey(j.ref)}|${j.raidId}` : `compare|${refKey(j.ref)}|${j.encounterId}|${j.spec}`;
+  j.kind === 'zone'
+    ? `zone|${refKey(j.ref)}|${j.raidId}${j.spec ? `|${j.spec}` : ''}`
+    : `compare|${refKey(j.ref)}|${j.encounterId}|${j.spec}`;
 
 export class Puller {
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -251,7 +253,7 @@ export class Puller {
     const key = jobKey(job);
     try {
       const page =
-        job.kind === 'zone' ? await this.live.zoneReport(job.ref, job.raidId) : await this.live.compare(job.ref, job.encounterId, job.spec);
+        job.kind === 'zone' ? await this.live.zoneReport(job.ref, job.raidId, job.spec) : await this.live.compare(job.ref, job.encounterId, job.spec);
       this.cache.set(`view|${key}`, page, KEEP);
       this.cache.set(`notfound|${key}`, null, -1);
       return 'ok';
@@ -296,11 +298,12 @@ export class SnapshotProvider implements Provider {
     return this.puller.roster(realm).names;
   }
 
-  async zoneReport(ref: CharacterRef, raidId?: string): Promise<ZoneReport> {
+  async zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
     const raids = await this.raids();
     const id = raidId ?? raids[raids.length - 1]?.id;
     if (!raids.some((r) => r.id === id)) throw new ApiFailure('not_found', `Unknown raid "${raidId}".`);
-    return this.read<ZoneReport>({ kind: 'zone', ref, raidId: id! });
+    if (spec && !/^[A-Za-z]+$/.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
+    return this.read<ZoneReport>({ kind: 'zone', ref, raidId: id!, ...(spec ? { spec } : {}) });
   }
 
   async compare(ref: CharacterRef, encounterId: number, spec: string): Promise<Comparison> {

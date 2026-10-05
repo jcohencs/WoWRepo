@@ -100,6 +100,15 @@ describe('saved pages + scheduled puller', () => {
     expect(queries.length).toBe(before);
   });
 
+  it('keeps each spec as its own saved page', async () => {
+    const { site, puller } = setup();
+    await puller.run();
+    await site.zoneReport(brannoc, raid); // swept already
+    expect((await pending(site.zoneReport(brannoc, raid, 'Arms'))).position).toBe(1);
+    await puller.run();
+    expect((await site.zoneReport(brannoc, raid, 'Arms')).spec).toBe('Arms');
+  });
+
   it('queues comparisons the same way', async () => {
     const { site, puller } = setup();
     await puller.run();

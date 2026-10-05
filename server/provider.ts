@@ -8,6 +8,6 @@ export interface Provider {
   /** Character names known on a realm (for search suggestions). */
   characterNames(realm: string): Promise<string[]>;
   raids(): Promise<Raid[]>;
-  zoneReport(ref: CharacterRef, raidId?: string): Promise<ZoneReport>;
+  zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;
   compare(ref: CharacterRef, encounterId: number, spec: string): Promise<Comparison>;
 }

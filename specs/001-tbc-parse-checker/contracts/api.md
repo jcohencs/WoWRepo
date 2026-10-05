@@ -6,8 +6,8 @@ All responses are JSON. Errors: `{ "error": { "code": string, "message": string 
 ## GET /api/meta
 → `{ site: "fresh"|"classic", demo: boolean, raids: Raid[] }` (one entry per raid instance, progression order)
 
-## GET /api/character?region=US&realm=dreamscythe&name=Foo&raid=1011-black-temple
-→ `ZoneReport`. `raid` optional (defaults to the latest TBC raid).
+## GET /api/character?region=US&realm=nightslayer&name=Foo&raid=1011-black-temple&spec=Fury
+→ `ZoneReport`. `raid` optional (defaults to the latest TBC raid). `spec` optional (default: each boss's best spec).
 
 ## GET /api/compare?region=US&realm=dreamscythe&name=Foo&encounter=601&spec=Fury
 → `Comparison`. 404 `not_found` if the character has no kill on the encounter.

@@ -66,6 +66,7 @@ export const api = {
     return hit;
   },
   meta: () => get<Meta>('/api/meta'),
-  character: (q: Query, raid?: string, signal?: AbortSignal) => get<ZoneReport>('/api/character', { ...q, raid }, signal),
+  character: (q: Query, raid?: string, spec?: string, signal?: AbortSignal) =>
+    get<ZoneReport>('/api/character', { ...q, raid, spec }, signal),
   compare,
 };

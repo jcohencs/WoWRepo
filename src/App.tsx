@@ -5,21 +5,24 @@ import { CharacterHeader } from './components/CharacterHeader';
 import { ParseChart } from './components/ParseChart';
 import { Pending } from './components/Pending';
 import { RaidSelect } from './components/RaidSelect';
+import { SpecBar } from './components/SpecBar';
 import { SearchBar } from './components/SearchBar';
 import { Summary } from './components/Summary';
 import { api, PendingError, type Query } from './lib/api';
 
-function readUrl(): { query: Query | null; raid?: string } {
+function readUrl(): { query: Query | null; raid?: string; spec?: string } {
   const p = new URLSearchParams(location.search);
   const region = p.get('region')?.toUpperCase();
   const realm = p.get('realm');
   const name = p.get('name');
   const raid = p.get('raid') || undefined;
-  return { query: region && realm && name ? { region: region as Region, realm, name } : null, raid };
+  const spec = p.get('spec') || undefined;
+  return { query: region && realm && name ? { region: region as Region, realm, name } : null, raid, spec };
 }
 
-function writeUrl(q: Query, raid: string) {
+function writeUrl(q: Query, raid: string, spec: string | null) {
   const p = new URLSearchParams({ region: q.region.toLowerCase(), realm: q.realm, name: q.name, raid });
+  if (spec) p.set('spec', spec);
   history.replaceState(null, '', `?${p}`);
 }
 
@@ -29,6 +32,7 @@ export function App() {
   const [metaError, setMetaError] = useState<string | null>(null);
   const [query, setQuery] = useState<Query | null>(initial.current.query);
   const [raidId, setRaidId] = useState<string | undefined>(initial.current.raid);
+  const [spec, setSpec] = useState<string | undefined>(initial.current.spec);
   const [report, setReport] = useState<ZoneReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,29 +50,31 @@ export function App() {
     setError(null);
     setPending(null);
     api
-      .character(query, raidId, ctrl.signal)
+      .character(query, raidId, spec, ctrl.signal)
       .then((r) => {
         setReport(r);
-        writeUrl(query, r.raid.id);
+        writeUrl(query, r.raid.id, r.spec);
       })
       .catch((e: Error) => {
         if (ctrl.signal.aborted) return;
-        setReport(null);
         if (e instanceof PendingError) setPending(e);
         else setError(e.message);
       })
       .finally(() => !ctrl.signal.aborted && setLoading(false));
     return () => ctrl.abort();
-  }, [query, raidId, attempt]);
+  }, [query, raidId, spec, attempt]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   const search = useCallback((q: Query) => {
     setQuery(q);
+    setSpec(undefined);
     setAttempt((n) => n + 1);
   }, []);
 
-  const activeRaid = report?.raid.id ?? raidId;
+  // Keep the header (and spec bar) while another raid or spec for the same character loads.
+  const shown = report && query && report.character.name.toLowerCase() === query.name.toLowerCase() && report.character.realm === query.realm ? report : null;
+  const activeRaid = raidId ?? shown?.raid.id;
   const raidPicker = meta ? <RaidSelect raids={meta.raids} active={activeRaid} onSelect={setRaidId} /> : null;
 
   return (
@@ -103,10 +109,13 @@ export function App() {
 
       {query && (
         <main className="content">
-          {report ? (
-            <CharacterHeader report={report} site={meta?.site ?? 'fresh'}>
-              {raidPicker}
-            </CharacterHeader>
+          {shown ? (
+            <>
+              <CharacterHeader report={shown} site={meta?.site ?? 'fresh'}>
+                {raidPicker}
+              </CharacterHeader>
+              <SpecBar specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec} onSelect={(s) => setSpec(s ?? undefined)} />
+            </>
           ) : (
             <div className="character-placeholder">{raidPicker}</div>
           )}
@@ -120,11 +129,11 @@ export function App() {
                 Try again
               </button>
             </div>
-          ) : report ? (
+          ) : shown ? (
             <div className={loading ? 'is-stale' : undefined}>
-              <Summary summary={report.summary} />
-              <ParseChart rows={report.rows} />
-              <BossTable report={report} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} />
+              <Summary summary={shown.summary} />
+              <ParseChart rows={shown.rows} />
+              <BossTable report={shown} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} />
             </div>
           ) : (
             <TableSkeleton />

@@ -78,7 +78,7 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
         case '/api/status':
           return send(res, 200, provider.status());
         case '/api/character':
-          return send(res, 200, await provider.zoneReport(ref(p), p.get('raid') || undefined));
+          return send(res, 200, await provider.zoneReport(ref(p), p.get('raid') || undefined, p.get('spec') || undefined));
         case '/api/compare': {
           const spec = p.get('spec') ?? '';
           if (!spec) throw new ApiFailure('bad_request', 'Missing "spec".');

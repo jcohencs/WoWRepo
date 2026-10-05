@@ -91,6 +91,10 @@ are at or above p99, and the median gap to p99.
 - **FR-004**: Percentile benchmarks MUST be read from the ranking at position
   `ceil(N × (1 − p))` of N ranked parses.
 - **FR-005**: Metric MUST be HPS for healing specs and DPS otherwise.
+- **FR-005a**: Users MUST be able to switch the page to any spec of the character's class (or
+  "best spec", where each boss uses the spec of the character's best kill there).
+- **FR-002a**: Each raid MUST appear once in the raid picker; alternate 25-man / "full raid"
+  listings from Warcraft Logs are skipped when a regular listing exists.
 - **FR-006**: System MUST offer an ability‑level comparison against the 99th‑percentile player's
   log for the same encounter and spec.
 - **FR-007**: API credentials MUST stay server‑side.

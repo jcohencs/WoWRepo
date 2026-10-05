@@ -98,6 +98,12 @@ export interface ZoneReport {
   summary: ZoneSummary;
   /** When this character's data was pulled from Warcraft Logs (epoch ms). */
   updatedAt: number;
+  /** The spec chosen with the spec bar, or null when each boss uses the character's best spec. */
+  spec: string | null;
+  /** The spec this page mostly shows (the chosen one, or the one the character plays most). */
+  mainSpec: string;
+  /** Every spec the character's class has, for the spec bar. */
+  specs: string[];
 }
 
 export interface AbilityStat {

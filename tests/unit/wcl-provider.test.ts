@@ -29,6 +29,20 @@ describe('WclProvider', () => {
     expect(queries.filter((q) => q.includes('characterRankings')).length).toBe(2);
   });
 
+  it('shows a chosen spec on every boss and refuses specs the class does not have', async () => {
+    const { provider, queries } = fakeWcl(handler);
+    const arms = await provider.zoneReport(brannoc, '2011-black-temple', 'Arms');
+    expect(arms.spec).toBe('Arms');
+    expect(arms.specs).toEqual(['Arms', 'Fury', 'Protection']);
+    expect(arms.rows.every((r) => r.spec === 'Arms')).toBe(true);
+    expect(queries.some((q) => q.includes('specName: $spec'))).toBe(true);
+    await expect(provider.zoneReport(brannoc, '2011-black-temple', 'Holy')).rejects.toThrow(/don't have a Holy spec/);
+
+    const auto = await provider.zoneReport(brannoc, '2011-black-temple');
+    expect(auto.spec).toBeNull();
+    expect(auto.mainSpec).toBe('Fury');
+  });
+
   it('syncs benchmarks for a spec, skipping saved ones', async () => {
     const { provider, queries } = fakeWcl(handler);
     const first = await provider.syncBenchmarks('warrior', 'fury');

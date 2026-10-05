@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Meta, Region, ZoneReport } from '../shared/types';
-import { BossTable } from './components/BossTable';
 import { CharacterHeader } from './components/CharacterHeader';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { ParseChart } from './components/ParseChart';
 import { RaidSelect } from './components/RaidSelect';
+import { RaidView } from './components/RaidView';
 import { SpecBar } from './components/SpecBar';
 import { ThemeToggle } from './components/ThemeToggle';
 import { SearchBar } from './components/SearchBar';
-import { Summary } from './components/Summary';
 import { api, type Query } from './lib/api';
 
 function readUrl(): { query: Query | null; raid?: string; spec?: string } {
@@ -130,9 +128,7 @@ export function App() {
           ) : shown ? (
             <ErrorBoundary what="this raid" resetKey={shown}>
               <div className={loading ? 'is-stale' : undefined}>
-                <Summary summary={shown.summary} />
-                <ParseChart rows={shown.rows} />
-                <BossTable report={shown} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} />
+                <RaidView report={shown} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} />
               </div>
             </ErrorBoundary>
           ) : (

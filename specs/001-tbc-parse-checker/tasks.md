@@ -133,3 +133,7 @@ description: "Task list for TBC Parse Checker"
 
 - [x] T065 Boss breakdown opens in a sticky panel to the right of the boss list (list keeps its key columns, page widens, × closes, clicking another boss switches); stacks below 1100px
 - [x] T066 Full-width page; right-pointing arrow column; every list column (typical player, sample size, range bar) stays visible beside the panel; panel shows everything at full height (no inner scroll), scrolls into view when opened
+
+## Phase 21: Raid view layout
+
+- [x] T067 Replace the summary strip, parse chart and boss table with a slim sticky sidebar (mini summary + boss list with parse bars, doubling as parse-by-boss) and a main area that always shows the selected boss (first kill by default): stat strip plus the full breakdown in two columns

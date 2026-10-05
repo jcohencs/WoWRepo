@@ -66,46 +66,51 @@ export function ComparePanel({ query, row, site, demo }: Props) {
         )}
       </div>
 
-      <HeadToHead data={data} />
+      <div className="compare-cols">
+        <div className="cc-col">
+          <HeadToHead data={data} />
 
-      <div className="breakdown-head">
-        <h3>
-          <SpecIcon className={data.className} spec={data.spec} size={22} />
-          Where your {noun} comes from <span className="soft">· {specLabel(data.spec)} {data.className}</span>
-        </h3>
-      </div>
-
-      <AbilityPies abilities={abilities} noun={noun} hasRef={hasRef} />
-
-      <CastsChart abilities={abilities} hasRef={hasRef} />
-
-      <div className="breakdown-head sub">
-        <h3>Every ability</h3>
-        {hasRef && (
-          <div className="legend" aria-hidden>
-            <span className="legend-you">You</span>
-            <span className="legend-ref">Top 1%</span>
+          <div className="breakdown-head">
+            <h3>
+              <SpecIcon className={data.className} spec={data.spec} size={22} />
+              Where your {noun} comes from <span className="soft">· {specLabel(data.spec)} {data.className}</span>
+            </h3>
           </div>
-        )}
-      </div>
 
-      <div className="breakdown" role="table" aria-label={`Ability comparison for ${data.encounter.name}`}>
-        <div className="bd-row bd-header" role="row">
-          <span role="columnheader">Ability</span>
-          <span role="columnheader" className="num">
-            Uses per minute
-            {hasRef && <small>you · top 1%</small>}
-          </span>
-          <span role="columnheader">Share of total {noun}</span>
+          <AbilityPies abilities={abilities} noun={noun} hasRef={hasRef} />
         </div>
-        {abilities.map((a) => (
-          <AbilityRow key={a.id} a={a} maxShare={maxShare} color={colors.get(a.id)} noun={noun} hasRef={hasRef} />
-        ))}
+        <div className="cc-col">
+          <CastsChart abilities={abilities} hasRef={hasRef} />
+
+          <div className="breakdown-head sub">
+            <h3>Every ability</h3>
+            {hasRef && (
+              <div className="legend" aria-hidden>
+                <span className="legend-you">You</span>
+                <span className="legend-ref">Top 1%</span>
+              </div>
+            )}
+          </div>
+
+          <div className="breakdown" role="table" aria-label={`Ability comparison for ${data.encounter.name}`}>
+            <div className="bd-row bd-header" role="row">
+              <span role="columnheader">Ability</span>
+              <span role="columnheader" className="num">
+                Uses per minute
+                {hasRef && <small>you · top 1%</small>}
+              </span>
+              <span role="columnheader">Share of total {noun}</span>
+        </div>
+            {abilities.map((a) => (
+              <AbilityRow key={a.id} a={a} maxShare={maxShare} color={colors.get(a.id)} noun={noun} hasRef={hasRef} />
+            ))}
+          </div>
+          <p className="footnote">
+            "Share" is how much of each player's total {noun} came from that ability. "Uses per minute" accounts for kill time, so a
+            longer fight isn't held against you. Logs pulled {ago(data.updatedAt)}.
+          </p>
+        </div>
       </div>
-      <p className="footnote">
-        "Share" is how much of each player's total {noun} came from that ability. "Uses per minute" accounts for kill time, so a
-        longer fight isn't held against you. Logs pulled {ago(data.updatedAt)}.
-      </p>
     </div>
   );
 }

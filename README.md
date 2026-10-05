@@ -5,7 +5,7 @@ See how your **TBC** Warcraft Logs parses compare to the **99th percentile of yo
 - Per boss: your best DPS/HPS, parse, median (p50), 99th percentile, gap to p99, and how many parses the benchmark came from.
 - Percentiles are read from the exact ranking position (`rank = ceil(N × (1 − p))`) on Warcraft Logs, not estimated.
 - **Spec bar** to view any of your class's specs (or each boss's best spec).
-- **Parse by boss** column chart for the whole raid, in Warcraft Logs parse colours.
+- A slim sidebar lists every boss with your parse as a coloured bar (parse by boss); the selected boss's numbers and breakdown fill the rest of the page.
 - Comparison view: head-to-head meters (DPS, kill time, time active, total), pie charts of where the damage comes from, a buttons-pressed-per-minute chart, and the full ability list.
 - Paste a Warcraft Logs character link into the search to fill everything in.
 - Works on phones.

@@ -1,19 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { raidsFromZones } from '../../server/core/raids';
 import { tbcZonesFromExpansions } from '../../server/core/zones';
-import { shortBossName } from '../../src/components/ParseChart';
-
-describe('shortBossName', () => {
-  it('drops titles and keeps a recognisable word', () => {
-    expect(shortBossName("High Warlord Naj'entus")).toBe("Naj'entus");
-    expect(shortBossName('The Illidari Council')).toBe('Illidari');
-    expect(shortBossName('Mother Shahraz')).toBe('Shahraz');
-    expect(shortBossName('Supremus')).toBe('Supremus');
-    expect(shortBossName('Illidan Stormrage')).toBe('Illidan');
-    expect(shortBossName('Gruul the Dragonkiller')).toBe('Gruul');
-  });
-});
-
 
 describe('raidsFromZones', () => {
   const bt = (id: number, name: string) => ({ id, name, encounters: [{ id: 601, name: "High Warlord Naj'entus" }, { id: 609, name: 'Illidan Stormrage' }] });

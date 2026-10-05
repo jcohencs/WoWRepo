@@ -81,6 +81,7 @@ if (!nameArg) {
 }
 
 const r = client.rateLimit();
+if (client.lastRefusal) console.log(`\nWarcraft Logs said: ${client.lastRefusal}`);
 const used = r && r.limitPerHour > 0 ? ` Allowance used: ${Math.round(r.pointsSpentThisHour)} of ${r.limitPerHour}.` : '';
 console.log(`\n${failures ? `${failures} check(s) failed.` : 'All checks passed.'}${used}`);
 process.exit(failures ? 1 : 0);

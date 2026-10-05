@@ -35,6 +35,8 @@ export class WclClient {
   private rate: RateLimit | null = null;
   /** Set when Warcraft Logs refuses a request (HTTP 429); no requests are sent before this time. */
   private blockedUntil = 0;
+  /** What Warcraft Logs said when it last refused a request, for diagnostics. */
+  lastRefusal: string | null = null;
   private readonly fetch: typeof fetch;
   readonly endpoint: string;
 
@@ -97,6 +99,7 @@ export class WclClient {
       body: JSON.stringify({ query: withRateLimit(query), variables }),
     });
     if (res.status === 429) {
+      this.lastRefusal = `HTTP 429${res.headers.get('retry-after') ? `, retry-after ${res.headers.get('retry-after')}s` : ''}: ${(await res.text().catch(() => '')).slice(0, 300).trim() || '(no message)'}`;
       // Wait for the known reset; if we don't know it yet, try again in a few minutes.
       const knownReset = this.rate && this.rate.resetsAt > Date.now() ? this.rate.resetsAt : 0;
       this.blockedUntil = knownReset || Date.now() + RETRY_AFTER_429_MS;

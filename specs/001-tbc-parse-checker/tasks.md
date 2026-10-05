@@ -83,3 +83,9 @@ description: "Task list for TBC Parse Checker"
 - [x] T038 `SnapshotProvider`: visitors read finished saved pages only; unknown lookups are queued (HTTP 202 with place in line and time to next update)
 - [x] T039 `Puller`: every `PULL_INTERVAL_MINUTES` pull the queue in order, then re-pull stale saved pages (zone 2h, compare 12h) while 15% of the allowance remains; remember "not found"
 - [x] T040 UI "not pulled yet" state with countdown and automatic re-check; drop the background warm-up and per-request refreshes
+
+## Phase 13: Pull everyone on the realms
+
+- [x] T041 Roster discovery: realm-filtered rankings for the first boss of every raid (DPS + HPS), paged, resumable, refreshed daily
+- [x] T042 Realm sweep: batch 10 characters per request, newest raid first, refresh daily, after queued and opened pages; progress logged each run
+- [x] T043 `GET /api/characters?realm=` and name suggestions in the search box

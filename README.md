@@ -30,10 +30,15 @@ Production: `npm run build && npm start` serves the built app and API on `PORT` 
 
 Visitors only ever see **saved data**. The site never calls Warcraft Logs because someone opened a page; a scheduled job does all the pulling.
 
-- **Every 10 minutes** (`PULL_INTERVAL_MINUTES`) the puller runs:
-  1. It pulls anything visitors asked for that isn't saved yet (a new character, or a boss comparison), in the order they were asked.
-  2. It re-pulls saved pages that people still open: characters older than 2 hours, comparisons older than 12 hours, stalest first. It stops while 15% of the hourly allowance is left so the next round of new lookups always fits.
-- A character nobody has looked up yet shows "not pulled yet, number 2 in line, about 8 minutes" and fills in by itself after the next run.
+- **Every 10 minutes** (`PULL_INTERVAL_MINUTES`) the puller runs, in this order, until the hourly allowance runs low:
+  1. Anything a visitor is waiting on (a character or boss comparison not saved yet), in the order asked.
+  2. Saved pages people still open: characters older than 2 hours, comparisons older than 12 hours, stalest first.
+  3. **Finding everyone on the realms** (daily): it reads the Dreamscythe and Nightslayer rankings for the first boss of every raid and keeps a list of everyone with a ranked kill.
+  4. **Pulling everyone**: every listed character's raid pages, ten characters per request, newest raid first, refreshed daily.
+
+  Steps 2–4 stop while 15% of the hourly allowance is left, so a visitor's new lookup always fits in the next run. The first full pass over both realms takes a while on a 720-point allowance; each run logs how far it got, e.g. `Up to date (latest raid): Dreamscythe 412/1530, Nightslayer 0/980`.
+- The search box suggests names from that list.
+- A character that isn't saved yet shows "not pulled yet, number 2 in line, about 8 minutes" and fills in by itself after the next run.
 - Every page shows when it was pulled ("Updated 25 min ago").
 - Pages nobody opens for two weeks stop being refreshed.
 

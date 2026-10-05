@@ -119,6 +119,11 @@ export class WclProvider implements Provider {
     return this.client.headroom();
   }
 
+  /** The live provider doesn't keep a roster; the scheduled puller does. */
+  async characterNames(): Promise<string[]> {
+    return [];
+  }
+
   status() {
     const r = this.client.rateLimit();
     return {
@@ -195,8 +200,64 @@ export class WclProvider implements Provider {
     };
   }
 
-  private charKey(ref: CharacterRef, zoneId: number) {
+  charKey(ref: CharacterRef, zoneId: number) {
     return `char|${ref.region}|${ref.realm}|${ref.name}|${zoneId}`;
+  }
+
+  /**
+   * Fetches several characters' raid rankings in one request and saves each one, so their pages
+   * can then be built without further calls. Returns how many were found.
+   */
+  async prefetchCharacters(refs: CharacterRef[], zoneId: number): Promise<number> {
+    if (!refs.length) return 0;
+    const vars: Record<string, unknown> = { zone: zoneId };
+    const defs = ['$zone: Int!'];
+    const fields = refs.map((r, i) => {
+      vars[`n${i}`] = r.name;
+      vars[`s${i}`] = r.realm;
+      vars[`r${i}`] = r.region;
+      defs.push(`$n${i}: String!`, `$s${i}: String!`, `$r${i}: String!`);
+      return `c${i}: character(name: $n${i}, serverSlug: $s${i}, serverRegion: $r${i}) {
+        name classID server { name slug }
+        dps: zoneRankings(zoneID: $zone, metric: dps)
+        hps: zoneRankings(zoneID: $zone, metric: hps)
+      }`;
+    });
+    const data = await this.client.query<{ characterData: Record<string, CharacterResponse['characterData']['character']> }>(
+      `query(${defs.join(', ')}) { characterData { ${fields.join('\n')} } }`,
+      vars,
+    );
+    let found = 0;
+    refs.forEach((ref, i) => {
+      const character = data.characterData[`c${i}`] ?? null;
+      if (character) found++;
+      this.cache.set(this.charKey(ref, zoneId), { characterData: { character } } satisfies CharacterResponse, TTL.character);
+    });
+    return found;
+  }
+
+  /**
+   * Ranked players on one realm for a boss (all classes), one page each. Used to discover who
+   * raids on the realm.
+   */
+  async realmRankings(
+    region: string,
+    realm: string,
+    items: { encounterId: number; metric: Metric; page: number }[],
+  ): Promise<{ names: string[]; hasMore: boolean }[]> {
+    const data = await this.client.query<{ worldData: Record<string, { characterRankings: RawRankingPage } | null> }>(
+      `query($region: String!, $realm: String!) { worldData { ${items
+        .map(
+          (it, i) =>
+            `q${i}: encounter(id: ${it.encounterId}) { characterRankings(metric: ${it.metric}, page: ${it.page}, serverRegion: $region, serverSlug: $realm) }`,
+        )
+        .join('\n')} } }`,
+      { region, realm },
+    );
+    return items.map((_, i) => {
+      const page = data.worldData[`q${i}`]?.characterRankings;
+      return { names: (page?.rankings ?? []).map((r) => r.name), hasMore: Boolean(page?.hasMorePages) };
+    });
   }
 
   private fetchCharacter(ref: CharacterRef, zoneId: number) {

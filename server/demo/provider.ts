@@ -88,6 +88,10 @@ export class DemoProvider implements Provider {
     return null;
   }
 
+  async characterNames(): Promise<string[]> {
+    return ['Brannoc', 'Kaelthys', 'Morwenna', 'Thalric', 'Velindra'];
+  }
+
   private readonly allRaids = raidsFromZones(TBC_ZONES);
 
   async raids(): Promise<Raid[]> {

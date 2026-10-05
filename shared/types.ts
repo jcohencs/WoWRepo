@@ -31,6 +31,8 @@ export interface ApiStatus {
   /** Lookups waiting for the next scheduled pull. */
   queued?: number;
   nextUpdateInSec?: number;
+  /** Realm-wide sweep progress: raiders found, and how many are current for the latest raid. */
+  realms?: { realm: string; characters: number; current: number }[];
 }
 
 export interface Meta {

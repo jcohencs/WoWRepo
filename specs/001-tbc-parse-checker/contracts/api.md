@@ -14,3 +14,6 @@ All responses are JSON. Errors: `{ "error": { "code": string, "message": string 
 
 ## GET /api/status
 → `ApiStatus | null` — `{ limitPerHour, pointsSpent, resetsInSec, savedResults }` (null in demo mode).
+
+## GET /api/characters?realm=dreamscythe
+→ `string[]` — every character the site knows on that realm (search suggestions).

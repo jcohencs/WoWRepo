@@ -105,6 +105,9 @@ are at or above p99, and the median gap to p99.
   Warcraft Logs. All pulls happen on a schedule: queued first-time lookups first, then the
   stalest saved pages, within the hourly allowance. Not-yet-pulled lookups show their place in
   line and the time to the next update, and fill in automatically.
+- **FR-014**: The scheduled pulls MUST discover every character with a ranked kill on the
+  supported realms and pull their raid pages ahead of time (newest raid first, daily refresh),
+  after visitor requests and refreshes of opened pages. The search box MUST suggest known names.
 - **FR-013**: The app MUST be deployable as a public website with the API key held only in the
   host's environment.
 

@@ -52,7 +52,19 @@ function compare(q: Query, encounter: number, spec: string): Promise<Comparison>
   return hit;
 }
 
+const nameLists = new Map<string, Promise<string[]>>();
+
 export const api = {
+  /** Every character the site has on a realm, for search suggestions. */
+  names: (realm: string) => {
+    let hit = nameLists.get(realm);
+    if (!hit) {
+      hit = get<string[]>('/api/characters', { realm });
+      hit.catch(() => nameLists.delete(realm));
+      nameLists.set(realm, hit);
+    }
+    return hit;
+  },
   meta: () => get<Meta>('/api/meta'),
   character: (q: Query, raid?: string, signal?: AbortSignal) => get<ZoneReport>('/api/character', { ...q, raid }, signal),
   compare,

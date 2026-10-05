@@ -41,6 +41,23 @@ const rankingsPage = (page: number, count: number) => ({
 const table = (entries: object[]) => ({ data: { totalTime: 120000, entries } });
 
 export function handler(query: string, variables: Record<string, unknown>) {
+  if (query.includes('c0: character(')) {
+    const characterData: Record<string, unknown> = {};
+    for (const m of query.matchAll(/(c\d+): character\(name: \$n(\d+)/g)) {
+      const name = variables[`n${m[2]}`] as string;
+      characterData[m[1]] =
+        name === 'Nobody'
+          ? null
+          : {
+              name,
+              classID: 11,
+              server: { name: 'Dreamscythe', slug: 'dreamscythe' },
+              dps: { rankings: [{ encounter: { id: 601, name: "Naj'entus" }, spec: 'Fury', totalKills: 1, rankPercent: 50, bestAmount: 2500 }] },
+              hps: { rankings: [] },
+            };
+    }
+    return { characterData };
+  }
   if (query.includes('expansions')) {
     return { worldData: { expansions: [{ id: 1001, name: 'The Burning Crusade', zones: [zone, { id: 9, name: 'Dungeons', encounters: [{ id: 1, name: 'a' }, { id: 2, name: 'b' }] }] }] } };
   }
@@ -74,6 +91,15 @@ export function handler(query: string, variables: Record<string, unknown>) {
         },
       },
     };
+  }
+  if (query.includes('serverSlug: $realm')) {
+    // Realm-filtered rankings: two raiders on Dreamscythe, nobody on Nightslayer.
+    const names = variables.realm === 'dreamscythe' ? ['Brannoc', 'Morwenna'] : [];
+    const worldData: Record<string, unknown> = {};
+    for (const m of query.matchAll(/(q\d+): encounter/g)) {
+      worldData[m[1]] = { characterRankings: { page: 1, hasMorePages: false, rankings: names.map((name) => ({ ...ranking(1), name })) } };
+    }
+    return { worldData };
   }
   if (query.includes('characterRankings')) {
     const worldData: Record<string, unknown> = {};

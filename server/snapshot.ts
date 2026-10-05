@@ -1,4 +1,4 @@
-import type { ApiStatus, Comparison, Raid, ZoneReport } from '../shared/types.js';
+import { REALM_REGION, REALMS, type ApiStatus, type Comparison, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
 import { DAY, HOUR, MINUTE, type TtlCache } from './cache.js';
 import type { CharacterRef } from './core/input.js';
 import { raidsFromZones } from './core/raids.js';
@@ -25,8 +25,32 @@ interface SavedPage {
   lastViewed: number;
 }
 
-/** Re-pull saved pages once they are this old. */
+/** Re-pull saved pages people open once they are this old. */
 const REFRESH_AFTER = { zone: 2 * HOUR, compare: 12 * HOUR };
+/** Pages built by the realm-wide sweep are re-pulled daily. */
+const SWEEP_REFRESH = DAY;
+/** Who raids on each realm is re-discovered daily. */
+const ROSTER_REFRESH = DAY;
+/** Characters per request during the sweep. */
+const SWEEP_BATCH = 10;
+/** Ranking pages per request during roster discovery. */
+const DISCOVERY_BATCH = 6;
+
+interface DiscoveryTask {
+  encounterId: number;
+  metric: Metric;
+  nextPage: number;
+  done: boolean;
+}
+
+/** Everyone with a ranked raid kill on one realm, found from that realm's boss rankings. */
+interface Roster {
+  names: string[];
+  /** When the last full discovery finished; 0 if never. */
+  discoveredAt: number;
+  /** Progress of the discovery in flight, if any. */
+  tasks: DiscoveryTask[] | null;
+}
 /** Stop re-pulling pages nobody has opened for this long. */
 const FORGET_AFTER = 14 * DAY;
 /** How long a "character not found" answer is remembered. */
@@ -48,6 +72,7 @@ export class Puller {
     private readonly live: WclProvider,
     private readonly cache: TtlCache,
     readonly intervalMs = 10 * MINUTE,
+    private readonly log = false,
   ) {}
 
   start(): void {
@@ -77,6 +102,30 @@ export class Puller {
     return q.length;
   }
 
+  roster(realm: string): Roster {
+    return this.cache.peekAny<Roster>(`roster|${REALM_REGION}|${realm}`)?.value ?? { names: [], discoveredAt: 0, tasks: null };
+  }
+
+  /** How far the realm-wide sweep has got, per realm. */
+  progress(): { realm: string; characters: number; current: number }[] {
+    return REALMS.map((r) => {
+      const names = this.roster(r.slug).names;
+      const raids = this.cachedRaids();
+      const latest = raids[raids.length - 1];
+      const current = latest
+        ? names.filter((name) => {
+            const at = this.cache.fetchedAt(`view|${jobKey({ kind: 'zone', ref: { region: REALM_REGION, realm: r.slug, name }, raidId: latest.id })}`);
+            return at != null && Date.now() - at < SWEEP_REFRESH;
+          }).length
+        : 0;
+      return { realm: r.name, characters: names.length, current };
+    });
+  }
+
+  private cachedRaids(): Raid[] {
+    return raidsFromZones(this.cache.peekAny<typeof TBC_ZONES>('zones')?.value ?? TBC_ZONES);
+  }
+
   /** One scheduled pass. Overlapping calls share the same pass. */
   run(): Promise<void> {
     if (!this.running) {
@@ -84,6 +133,10 @@ export class Puller {
       this.running = this.pass().finally(() => {
         this.running = null;
         this.cache.flush();
+        if (this.log) {
+          const p = this.progress().map((r) => `${r.realm} ${r.current}/${r.characters}`).join(', ');
+          console.log(`[parsecheck] Pull finished. Up to date (latest raid): ${p}. Waiting: ${this.queue().length}.`);
+        }
       });
     }
     return this.running;
@@ -117,6 +170,80 @@ export class Puller {
     for (const { page } of due) {
       if (this.live.headroom() <= REFRESH_RESERVE) return;
       if ((await this.pull(page.job)) === 'limited') return;
+    }
+
+    // 3. Find who raids on each realm (re-checked daily).
+    for (const realm of REALMS) if ((await this.discover(realm.slug)) === 'limited') return;
+
+    // 4. Pull everyone on the realms, newest raid first.
+    await this.sweep();
+  }
+
+  /** Works through the realm's boss rankings, a few pages per request, collecting raider names. */
+  private async discover(realm: string): Promise<'ok' | 'limited'> {
+    const key = `roster|${REALM_REGION}|${realm}`;
+    const roster = this.roster(realm);
+    if (!roster.tasks && Date.now() - roster.discoveredAt < ROSTER_REFRESH) return 'ok';
+    if (!roster.tasks) {
+      // The first boss of each raid sees the most kills, so it finds the most raiders.
+      roster.tasks = this.cachedRaids().flatMap((r) =>
+        r.encounters.length ? (['dps', 'hps'] as const).map((metric) => ({ encounterId: r.encounters[0].id, metric, nextPage: 1, done: false })) : [],
+      );
+    }
+    const names = new Set(roster.names);
+    while (roster.tasks.some((t) => !t.done)) {
+      if (this.live.headroom() <= REFRESH_RESERVE) return 'limited';
+      const batch = roster.tasks.filter((t) => !t.done).slice(0, DISCOVERY_BATCH);
+      let pages;
+      try {
+        pages = await this.live.realmRankings(REALM_REGION, realm, batch.map((t) => ({ encounterId: t.encounterId, metric: t.metric, page: t.nextPage })));
+      } catch (err) {
+        if (err instanceof ApiFailure && err.code === 'rate_limited') return 'limited';
+        batch.forEach((t) => (t.done = true)); // skip a boss Warcraft Logs won't rank rather than stall
+        continue;
+      }
+      batch.forEach((t, i) => {
+        pages[i].names.forEach((n) => names.add(n));
+        if (pages[i].hasMore && t.nextPage < 200) t.nextPage++;
+        else t.done = true;
+      });
+      roster.names = [...names].sort((a, b) => a.localeCompare(b));
+      this.cache.set(key, roster, KEEP);
+    }
+    roster.tasks = null;
+    roster.discoveredAt = Date.now();
+    this.cache.set(key, roster, KEEP);
+    return 'ok';
+  }
+
+  /** Pulls every rostered character's raid pages that are missing or a day old, newest raid first. */
+  private async sweep(): Promise<void> {
+    const raids = this.cachedRaids();
+    const zoneIds = [...new Set(raids.map((r) => r.zoneId))].reverse();
+    for (const zoneId of zoneIds) {
+      const zoneRaids = raids.filter((r) => r.zoneId === zoneId);
+      for (const realm of REALMS) {
+        const due = this.roster(realm.slug)
+          .names.map((name) => ({ region: REALM_REGION, realm: realm.slug, name }))
+          .filter((ref) =>
+            zoneRaids.some((raid) => {
+              const at = this.cache.fetchedAt(`view|${jobKey({ kind: 'zone', ref, raidId: raid.id })}`);
+              return at == null || Date.now() - at > SWEEP_REFRESH;
+            }),
+          );
+        for (let i = 0; i < due.length; i += SWEEP_BATCH) {
+          if (this.live.headroom() <= REFRESH_RESERVE) return;
+          const chunk = due.slice(i, i + SWEEP_BATCH);
+          try {
+            await this.live.prefetchCharacters(chunk, zoneId);
+          } catch (err) {
+            if (err instanceof ApiFailure && err.code === 'rate_limited') return;
+            continue;
+          }
+          for (const ref of chunk)
+            for (const raid of zoneRaids) if ((await this.pull({ kind: 'zone', ref, raidId: raid.id })) === 'limited') return;
+        }
+      }
     }
   }
 
@@ -156,7 +283,17 @@ export class SnapshotProvider implements Provider {
   }
 
   status(): ApiStatus {
-    return { ...this.live.status(), queued: this.puller.queue().length, nextUpdateInSec: this.puller.secondsUntilNextRun() };
+    return {
+      ...this.live.status(),
+      queued: this.puller.queue().length,
+      nextUpdateInSec: this.puller.secondsUntilNextRun(),
+      realms: this.puller.progress(),
+    };
+  }
+
+  /** Names known on a realm, for the search box suggestions. */
+  async characterNames(realm: string): Promise<string[]> {
+    return this.puller.roster(realm).names;
   }
 
   async zoneReport(ref: CharacterRef, raidId?: string): Promise<ZoneReport> {

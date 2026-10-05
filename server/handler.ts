@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { Meta, Site } from '../shared/types.js';
+import { REALMS, type Meta, type Site } from '../shared/types.js';
 import { MINUTE, TtlCache } from './cache.js';
 import { validateRef } from './core/input.js';
 import { DemoProvider } from './demo/provider.js';
@@ -27,7 +27,7 @@ export function providerFromEnv(env: Record<string, string | undefined> = proces
   const setup = liveProviderFromEnv(env);
   if (!setup) return new DemoProvider();
   const minutes = Number(env.PULL_INTERVAL_MINUTES) || 10;
-  const puller = new Puller(setup.live, setup.cache, minutes * MINUTE);
+  const puller = new Puller(setup.live, setup.cache, minutes * MINUTE, Boolean(opts.schedule));
   if (opts.schedule) puller.start();
   return new SnapshotProvider(setup.live, setup.cache, puller);
 }
@@ -69,6 +69,11 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
         case '/api/meta': {
           const meta: Meta = { site: provider.site, demo: provider.demo, raids: await provider.raids() };
           return send(res, 200, meta);
+        }
+        case '/api/characters': {
+          const realm = p.get('realm') ?? '';
+          if (!REALMS.some((r) => r.slug === realm)) throw new ApiFailure('bad_request', 'Unknown realm.');
+          return send(res, 200, await provider.characterNames(realm));
         }
         case '/api/status':
           return send(res, 200, provider.status());

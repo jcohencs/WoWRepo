@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { TtlCache } from '../../server/cache';
 import { WclClient } from '../../server/wcl/client';
 import { WclProvider } from '../../server/wcl/provider';
 
 type Handler = (query: string, variables: Record<string, unknown>) => unknown;
 
 /** Fake fetch for the token endpoint + GraphQL endpoint; records every query. */
-function fakeWcl(handler: Handler) {
+function fakeWcl(handler: Handler, cache = new TtlCache()) {
   const queries: string[] = [];
   const fetch = (async (url: string, init: RequestInit) => {
     if (url.endsWith('/oauth/token')) return Response.json({ access_token: 't', expires_in: 3600 });
@@ -13,7 +14,7 @@ function fakeWcl(handler: Handler) {
     queries.push(query);
     return Response.json({ data: handler(query, variables) });
   }) as typeof globalThis.fetch;
-  const provider = new WclProvider(new WclClient({ clientId: 'a', clientSecret: 'b', site: 'fresh', fetch }), 'fresh');
+  const provider = new WclProvider(new WclClient({ clientId: 'a', clientSecret: 'b', site: 'fresh', fetch }), 'fresh', cache);
   return { provider, queries };
 }
 
@@ -118,6 +119,24 @@ describe('WclProvider', () => {
 
     await provider.zoneReport(brannoc, '2011-black-temple');
     expect(queries.filter((q) => q.includes('characterRankings')).length).toBe(2);
+  });
+
+  it('shows the saved pull while refreshing it, and the refresher updates searched characters', async () => {
+    const cache = new TtlCache();
+    const { provider, queries } = fakeWcl(handler, cache);
+    const first = await provider.zoneReport(brannoc, '2011-black-temple');
+    const charKey = 'char|US|dreamscythe|Brannoc|2011';
+    cache.expire(charKey);
+    const before = queries.filter((q) => q.includes('zoneRankings')).length;
+
+    const second = await provider.zoneReport(brannoc, '2011-black-temple');
+    expect(second.updatedAt).toBe(first.updatedAt); // saved copy, no waiting
+    await new Promise((r) => setTimeout(r, 0));
+    expect(queries.filter((q) => q.includes('zoneRankings')).length).toBe(before + 1); // refreshed behind the scenes
+
+    cache.expire(charKey);
+    expect(await provider.refreshTracked()).toBe(1);
+    expect(cache.peek(charKey)).toBeDefined();
   });
 
   it('syncs benchmarks for a spec, skipping saved ones', async () => {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AbilityLine, BossRow, Comparison, FightSide, Site } from '../../shared/types';
 import { api, type Query } from '../lib/api';
-import { amount, compact, duration, metricLabel, percent, specLabel } from '../lib/format';
+import { ago, amount, compact, duration, metricLabel, percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 
@@ -19,10 +19,7 @@ export function ComparePanel({ query, row, site, demo }: Props) {
   useEffect(() => {
     let live = true;
     api.compare(query, row.encounter.id, row.spec).then(
-      (c) => {
-        window.dispatchEvent(new Event('parsecheck:loaded'));
-        if (live) setData(c);
-      },
+      (c) => live && setData(c),
       (e: Error) => live && setError(e.message),
     );
     return () => {
@@ -79,7 +76,7 @@ export function ComparePanel({ query, row, site, demo }: Props) {
       </div>
       <p className="footnote">
         "Share" is how much of each player's total {noun} came from that ability. "Uses per minute" accounts for kill time, so a
-        longer fight isn't held against you.
+        longer fight isn't held against you. Logs pulled {ago(data.updatedAt)}.
       </p>
     </div>
   );

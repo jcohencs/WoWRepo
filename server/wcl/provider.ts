@@ -1,6 +1,6 @@
 import type { Benchmark, Comparison, FightSide, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
 import { join, resolve } from 'node:path';
-import { DAY, HOUR, MINUTE, TtlCache } from '../cache.js';
+import { DAY, HOUR, TtlCache } from '../cache.js';
 import {
   buildBenchmark,
   keyString,
@@ -76,30 +76,49 @@ interface ResolvedSide {
 
 const SAFE_NAME = /^[A-Za-z]+$/;
 
+interface Tracked {
+  ref: CharacterRef;
+  raidId: string;
+  lastViewed: number;
+}
+
 const bestKillFrom = (ranks: EncounterRanks | null | undefined) =>
   [...(ranks?.ranks ?? [])].sort((a, b) => b.amount - a.amount)[0];
 
 /** Where cached Warcraft Logs responses live between restarts. */
-export const cacheFile = (site: Site) => join(resolve(import.meta.dirname, '../..'), '.cache', `wcl-${site}.json`);
+export const cacheFile = (site: Site, dir?: string) => join(dir || join(resolve(import.meta.dirname, '../..'), '.cache'), `wcl-${site}.json`);
 
-/** How long each kind of data is reused before asking Warcraft Logs again. Reports never change. */
+/**
+ * How old each kind of saved data may get before it is refreshed in the background. Visitors are
+ * always served the saved copy meanwhile. Reports never change once uploaded.
+ */
 const TTL = {
   zones: 7 * DAY,
-  character: 30 * MINUTE,
-  bestKill: HOUR,
+  character: 2 * HOUR,
+  bestKill: 2 * HOUR,
   benchmark: DAY,
   report: 30 * DAY,
-  compare: HOUR,
+  compare: 6 * HOUR,
+  tracked: 14 * DAY,
 };
+
+/** Keep this share of the hourly allowance free for first-time lookups. */
+export const REFRESH_HEADROOM = 0.35;
 
 export class WclProvider implements Provider {
   readonly demo = false;
+  private readonly refreshing = new Set<string>();
 
   constructor(
     private readonly client: WclClient,
     readonly site: Site,
     private readonly cache: TtlCache = new TtlCache(),
   ) {}
+
+  /** Background refreshes only use the allowance while plenty is left for new lookups. */
+  private canRefresh(): boolean {
+    return this.client.headroom() > REFRESH_HEADROOM;
+  }
 
   status() {
     const r = this.client.rateLimit();
@@ -135,20 +154,11 @@ export class WclProvider implements Provider {
     const raid = raidId ? raids.find((r) => r.id === raidId) : raids[raids.length - 1];
     if (!raid) throw new ApiFailure('not_found', `Unknown raid "${raidId}".`);
 
-    const character = await this.cache.get(`char|${ref.region}|${ref.realm}|${ref.name}|${raid.zoneId}`, TTL.character, () =>
-      this.client.query<CharacterResponse>(
-        `query($name: String!, $server: String!, $region: String!, $zone: Int!) {
-          characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
-            name classID server { name slug }
-            dps: zoneRankings(zoneID: $zone, metric: dps)
-            hps: zoneRankings(zoneID: $zone, metric: hps)
-          } }
-        }`,
-        { name: ref.name, server: ref.realm, region: ref.region, zone: raid.zoneId },
-      ),
-    );
+    const charKey = this.charKey(ref, raid.zoneId);
+    const character = await this.cache.get(charKey, TTL.character, () => this.fetchCharacter(ref, raid.zoneId));
     const c = character.characterData.character;
     if (!c) throw new ApiFailure('not_found', `Couldn't find "${ref.name}" on ${ref.realm} (${ref.region}). Check the spelling and realm.`);
+    this.track(ref, raid.id);
     const cls = classById(c.classID);
     if (!cls) throw new ApiFailure('bad_request', `${c.name} is not a TBC class.`);
 
@@ -179,16 +189,75 @@ export class WclProvider implements Provider {
 
     // Warm the best-kill lookups in the background so opening a comparison skips that round trip.
     const killed = plan.filter(
-      (p) => p.best && p.best.kills > 0 && SAFE_NAME.test(p.spec) && this.cache.peek(this.bestKillKey(ref, p.encounter.id, p.spec, p.metric)) === undefined,
+      (p) => p.best && p.best.kills > 0 && SAFE_NAME.test(p.spec) && !this.cache.peekAny(this.bestKillKey(ref, p.encounter.id, p.spec, p.metric)),
     );
-    if (killed.length) void this.warmBestKills(ref, cls, c.name, c.server.name, killed).catch(() => undefined);
+    if (killed.length && this.canRefresh()) void this.warmBestKills(ref, cls, c.name, c.server.name, killed).catch(() => undefined);
 
     return {
       character: { name: c.name, realm: c.server.slug, realmName: c.server.name, region: ref.region, className: cls.name },
       raid,
       rows,
       summary: summarise(rows),
+      updatedAt: this.cache.fetchedAt(charKey) ?? Date.now(),
     };
+  }
+
+  private charKey(ref: CharacterRef, zoneId: number) {
+    return `char|${ref.region}|${ref.realm}|${ref.name}|${zoneId}`;
+  }
+
+  private fetchCharacter(ref: CharacterRef, zoneId: number) {
+    return this.client.query<CharacterResponse>(
+      `query($name: String!, $server: String!, $region: String!, $zone: Int!) {
+        characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
+          name classID server { name slug }
+          dps: zoneRankings(zoneID: $zone, metric: dps)
+          hps: zoneRankings(zoneID: $zone, metric: hps)
+        } }
+      }`,
+      { name: ref.name, server: ref.realm, region: ref.region, zone: zoneId },
+    );
+  }
+
+  /** Remembers which characters people look at so the refresher keeps them current. */
+  private track(ref: CharacterRef, raidId: string) {
+    const list = this.cache.peekAny<Record<string, Tracked>>('tracked')?.value ?? {};
+    list[`${ref.region}|${ref.realm}|${ref.name}|${raidId}`] = { ref, raidId, lastViewed: Date.now() };
+    this.cache.set('tracked', list, TTL.tracked);
+  }
+
+  /**
+   * Refreshes characters people have looked at in the last two weeks, stalest first, while the
+   * hourly allowance has room. Visitors keep seeing the previous pull until this lands.
+   */
+  async refreshTracked(max = 5): Promise<number> {
+    const list = this.cache.peekAny<Record<string, Tracked>>('tracked')?.value ?? {};
+    const raids = await this.raids();
+    const cutoff = Date.now() - TTL.tracked;
+    const due: { t: Tracked; key: string; zoneId: number; at: number }[] = [];
+    for (const [id, t] of Object.entries(list)) {
+      const raid = raids.find((r) => r.id === t.raidId);
+      if (t.lastViewed < cutoff || !raid) {
+        delete list[id];
+        continue;
+      }
+      const key = this.charKey(t.ref, raid.zoneId);
+      const saved = this.cache.peekAny(key);
+      if (!saved?.fresh) due.push({ t, key, zoneId: raid.zoneId, at: saved?.fetchedAt ?? 0 });
+    }
+    due.sort((a, b) => a.at - b.at);
+    let refreshed = 0;
+    for (const d of due.slice(0, max)) {
+      if (!this.canRefresh()) break;
+      try {
+        await this.cache.load(d.key, TTL.character, () => this.fetchCharacter(d.t.ref, d.zoneId));
+        await this.zoneReport(d.t.ref, d.t.raidId); // also refreshes stale benchmarks for this raid
+        refreshed++;
+      } catch {
+        // A renamed or deleted character shouldn't stop the rest.
+      }
+    }
+    return refreshed;
   }
 
   private bestKillKey(ref: CharacterRef, encounterId: number, spec: string, metric: Metric) {
@@ -244,18 +313,35 @@ export class WclProvider implements Provider {
     });
   }
 
-  /** Two batched queries: page 1 for every key, then the pages holding p50/p99. */
+  /**
+   * Saved benchmarks are used as-is (stale ones are refreshed in the background when the allowance
+   * allows); only benchmarks never pulled before are fetched before returning.
+   */
   private async getBenchmarks(keys: BenchmarkKey[]): Promise<Map<string, Benchmark | null>> {
     const result = new Map<string, Benchmark | null>();
     const missing = new Map<string, BenchmarkKey>();
+    const stale = new Map<string, BenchmarkKey>();
     for (const k of keys) {
       const id = keyString(k);
-      const hit = this.cache.peek<Benchmark | null>(`bench|${id}`);
-      if (hit !== undefined) result.set(id, hit);
-      else if (SAFE_NAME.test(k.className) && SAFE_NAME.test(k.spec)) missing.set(id, k);
+      if (!SAFE_NAME.test(k.className) || !SAFE_NAME.test(k.spec)) continue;
+      const saved = this.cache.peekAny<Benchmark | null>(`bench|${id}`);
+      if (saved) result.set(id, saved.value);
+      if (!saved) missing.set(id, k);
+      else if (!saved.fresh && !this.refreshing.has(id)) stale.set(id, k);
     }
-    if (!missing.size) return result;
+    if (stale.size && this.canRefresh()) {
+      for (const id of stale.keys()) this.refreshing.add(id);
+      void this.fetchBenchmarks(stale)
+        .catch(() => undefined)
+        .finally(() => stale.forEach((_, id) => this.refreshing.delete(id)));
+    }
+    if (missing.size) for (const [id, v] of await this.fetchBenchmarks(missing)) result.set(id, v);
+    return result;
+  }
 
+  /** Two batched queries: page 1 for every key, then the pages holding p50/p99. */
+  private async fetchBenchmarks(missing: Map<string, BenchmarkKey>): Promise<Map<string, Benchmark | null>> {
+    const result = new Map<string, Benchmark | null>();
     const field = (k: BenchmarkKey, page: number) =>
       `encounter(id: ${k.encounterId}) { characterRankings(className: "${k.className}", specName: "${k.spec}", metric: ${k.metric}, page: ${page}) }`;
 
@@ -384,6 +470,7 @@ export class WclProvider implements Provider {
         you: toSide(you),
         ref: toSide(top),
         abilities: compareAbilities(you.tables, top.tables),
+        updatedAt: Date.now(),
       };
     });
   }
@@ -410,7 +497,8 @@ export class WclProvider implements Provider {
     let fetched = 0;
     for (let i = 0; i < todo.length; i += BATCH) {
       try {
-        await this.getBenchmarks(todo.slice(i, i + BATCH));
+        const batch = todo.slice(i, i + BATCH);
+        await this.fetchBenchmarks(new Map(batch.map((k) => [keyString(k), k])));
       } catch (err) {
         if (err instanceof ApiFailure && err.code === 'rate_limited') break;
         throw err;

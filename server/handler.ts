@@ -1,18 +1,21 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Meta, Site } from '../shared/types.js';
-import { TtlCache } from './cache.js';
+import { MINUTE, TtlCache } from './cache.js';
 import { validateRef } from './core/input.js';
 import { DemoProvider } from './demo/provider.js';
 import { ApiFailure } from './errors.js';
 import type { Provider } from './provider.js';
 import { WclClient } from './wcl/client.js';
-import { cacheFile, WclProvider } from './wcl/provider.js';
+import { cacheFile, REFRESH_HEADROOM, WclProvider } from './wcl/provider.js';
 
-export function providerFromEnv(env: Record<string, string | undefined> = process.env): Provider {
+export function providerFromEnv(env: Record<string, string | undefined> = process.env, opts: { refresh?: boolean } = {}): Provider {
   const site: Site = env.WCL_SITE === 'classic' ? 'classic' : 'fresh';
   if (!env.WCL_CLIENT_ID || !env.WCL_CLIENT_SECRET) return new DemoProvider();
   const client = new WclClient({ clientId: env.WCL_CLIENT_ID, clientSecret: env.WCL_CLIENT_SECRET, site });
-  return new WclProvider(client, site, new TtlCache(cacheFile(site)));
+  const cache = new TtlCache({ file: cacheFile(site, env.CACHE_DIR), canRefresh: () => client.headroom() > REFRESH_HEADROOM });
+  const provider = new WclProvider(client, site, cache);
+  if (opts.refresh) setInterval(() => void provider.refreshTracked().catch(() => undefined), 10 * MINUTE).unref();
+  return provider;
 }
 
 function send(res: ServerResponse, status: number, body: unknown) {
@@ -41,7 +44,7 @@ function intParam(params: URLSearchParams, key: string, required: boolean): numb
 
 export type ApiHandler = (req: IncomingMessage, res: ServerResponse, next?: () => void) => Promise<void>;
 
-export function createApiHandler(provider: Provider = providerFromEnv()): ApiHandler {
+export function createApiHandler(provider: Provider = providerFromEnv(process.env, { refresh: true })): ApiHandler {
   return async (req, res, next) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (!url.pathname.startsWith('/api/')) return next ? next() : send(res, 404, { error: { code: 'not_found', message: 'Not found' } });

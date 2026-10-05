@@ -122,6 +122,7 @@ export class DemoProvider implements Provider {
       raid,
       rows,
       summary: summarise(rows),
+      updatedAt: Date.now() - 25 * 60_000,
     };
   }
 
@@ -146,6 +147,7 @@ export class DemoProvider implements Provider {
       you: { name: ref.name, server: realmName(ref.realm), amount: sum(youTables), perSecond: best, durationMs: youDuration, activeTime: 0.952, reportCode: 'demo', fightId: 1 },
       ref: { name: b.reference.name, server: b.reference.server, amount: sum(refTables), perSecond: b.p99, durationMs: refDuration, activeTime: 0.991, reportCode: 'demo', fightId: 1 },
       abilities: compareAbilities(youTables, refTables),
+      updatedAt: Date.now() - 3 * 60 * 60_000,
     };
   }
 }

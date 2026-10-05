@@ -158,31 +158,6 @@ code {
   border-radius: 999px;
 }
 
-.allowance {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-variant-numeric: tabular-nums;
-  cursor: help;
-}
-.allowance-bar {
-  display: inline-block;
-  width: 48px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line-strong);
-  overflow: hidden;
-}
-.allowance-bar span {
-  display: block;
-  height: 100%;
-  background: var(--soft);
-}
-.allowance.low { color: var(--parse-gold); }
-.allowance.low .allowance-bar span { background: var(--parse-gold); }
-.allowance.out { color: var(--neg); }
-.allowance.out .allowance-bar span { background: var(--neg); }
-
 /* ---------- Form controls ---------- */
 
 .search {

@@ -26,20 +26,43 @@ Without credentials the app runs on generated **demo data**, labelled as such in
 
 Production: `npm run build && npm start` serves the built app and API on `PORT` (default 8787).
 
-## Staying under the Warcraft Logs hourly limit
+## How data is pulled
 
-Your API key gets a fixed number of points per hour (the header shows how many are used). To make them go further:
+Every visitor sees the **most recent saved pull**, so the site doesn't call Warcraft Logs on every page view:
 
-- **Everything is saved** in `.cache/` and reused after restarts. Old logs never change, so they are kept for a month; benchmarks for a day.
-- **Pre-download your spec** so the raid tables load from saved data:
+- Anything pulled before (characters, benchmarks, logs) is served instantly from `.cache/` with an "Updated … ago" note. If it is old, it is refreshed in the background.
+- Only a character nobody has searched yet waits on Warcraft Logs; after that everyone gets the saved copy.
+- Every 10 minutes a refresher re-pulls characters people have viewed in the last two weeks, stalest first. It only runs while at least 35% of the hourly allowance is left, so new searches always have room.
+- Old logs never change, so they are kept for 30 days. Benchmarks refresh daily and characters every 2 hours.
 
-  ```bash
-  npm run sync -- --class Warrior --spec Fury
-  npm run sync -- --class Priest --spec Shadow --raid "Black Temple,Sunwell Plateau"
-  ```
+To fill the cache ahead of time, pre-pull benchmarks for a spec:
 
-  It skips what's already saved and stops by itself before the limit; run it again after the reset to finish.
-- When the allowance runs out, the app keeps working from saved results and tells you when it resets.
+```bash
+npm run sync -- --class Warrior --spec Fury
+```
+
+It skips what's saved and stops before the hourly limit; run it again after the reset to continue.
+
+## Put it online
+
+The API key must stay on the server, so this needs a host that runs Node (not a static host).
+
+**Render (simplest):**
+1. Sign in at <https://render.com> with GitHub.
+2. **New → Blueprint**, pick this repository. Render reads `render.yaml`.
+3. When asked, paste `WCL_CLIENT_ID` and `WCL_CLIENT_SECRET`, then **Apply**.
+4. After the build, your site is live at `https://parsecheck-xxxx.onrender.com`.
+
+`render.yaml` uses the Starter plan with a 1 GB disk so saved data survives restarts. The free plan works too, but it sleeps when idle and starts with an empty cache each time.
+
+**Anywhere else with Docker** (Fly.io, Railway, a VPS):
+
+```bash
+docker build -t parsecheck .
+docker run -p 8787:8787 -e WCL_CLIENT_ID=… -e WCL_CLIENT_SECRET=… -v parsecheck-data:/data parsecheck
+```
+
+Keep the key in the host's environment settings, never in a committed file.
 
 ## Checks
 

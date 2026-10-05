@@ -91,6 +91,8 @@ export interface ZoneReport {
   raid: Raid;
   rows: BossRow[];
   summary: ZoneSummary;
+  /** When this character's data was pulled from Warcraft Logs (epoch ms). */
+  updatedAt: number;
 }
 
 export interface AbilityStat {
@@ -131,6 +133,8 @@ export interface Comparison {
   you: FightSide;
   ref: FightSide;
   abilities: AbilityLine[];
+  /** When these logs were pulled from Warcraft Logs (epoch ms). */
+  updatedAt: number;
 }
 
 export interface ApiError {

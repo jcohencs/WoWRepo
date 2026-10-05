@@ -1,4 +1,4 @@
-import type { ApiError, ApiStatus, Comparison, Meta, Region, ZoneReport } from '../../shared/types';
+import type { ApiError, Comparison, Meta, Region, ZoneReport } from '../../shared/types';
 
 export interface Query {
   region: Region;
@@ -42,5 +42,4 @@ export const api = {
   meta: () => get<Meta>('/api/meta'),
   character: (q: Query, raid?: string, signal?: AbortSignal) => get<ZoneReport>('/api/character', { ...q, raid }, signal),
   compare,
-  status: () => get<ApiStatus | null>('/api/status'),
 };

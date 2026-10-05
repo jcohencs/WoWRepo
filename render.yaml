@@ -1,0 +1,28 @@
+# One-click setup on Render (https://render.com): New → Blueprint → pick this repo.
+# Add WCL_CLIENT_ID and WCL_CLIENT_SECRET when Render asks for them.
+services:
+  - type: web
+    name: parsecheck
+    runtime: node
+    # "starter" keeps saved Warcraft Logs data on a disk across restarts.
+    # "free" also works, but sleeps when idle and forgets saved data each time it wakes.
+    plan: starter
+    branch: claude/relaxed-galileo-x7g4ol
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/meta
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: WCL_SITE
+        value: fresh
+      - key: CACHE_DIR
+        value: /var/data
+      - key: WCL_CLIENT_ID
+        sync: false
+      - key: WCL_CLIENT_SECRET
+        sync: false
+    disk:
+      name: wcl-cache
+      mountPath: /var/data
+      sizeGB: 1

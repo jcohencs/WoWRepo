@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Site, ZoneReport } from '../../shared/types';
-import { CLASS_COLORS, specLabel } from '../lib/format';
+import { ago, CLASS_COLORS, specLabel } from '../lib/format';
 import { characterUrl } from '../lib/links';
 
 export function CharacterHeader({ report, site, children }: { report: ZoneReport; site: Site; children?: ReactNode }) {
@@ -23,6 +23,12 @@ export function CharacterHeader({ report, site, children }: { report: ZoneReport
         <a href={characterUrl(site, character.region, character.realm, character.name)} target="_blank" rel="noreferrer">
           View on Warcraft Logs ↗
         </a>
+        <span className="dot" aria-hidden>
+          ·
+        </span>
+        <span className="soft" title={new Date(report.updatedAt).toLocaleString()}>
+          Updated {ago(report.updatedAt)}
+        </span>
       </p>
       </div>
       {children}

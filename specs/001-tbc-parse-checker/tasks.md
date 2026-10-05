@@ -70,3 +70,10 @@ description: "Task list for TBC Parse Checker"
 - [x] T031 Read `rateLimitData` with every query, refuse new requests near the limit with the reset time, show usage in the header (`/api/status`)
 - [x] T032 `npm run sync -- --class X --spec Y [--raid ...]` pre-downloads benchmarks within the hourly budget and resumes on the next run
 - [x] T033 Remove hover prefetch; skip warming best kills that are already saved
+
+## Phase 11: Public site
+
+- [x] T034 Remove the allowance readout from the UI
+- [x] T035 Stale-while-revalidate cache: visitors always get the most recent saved pull; stale data refreshes in the background only while ≥35% of the hourly allowance is left
+- [x] T036 Track searched characters and refresh them every 10 minutes, stalest first; show "Updated … ago"
+- [x] T037 Deployment: `render.yaml` (Starter + disk), `Dockerfile`, `CACHE_DIR`, security headers (CSP, nosniff, referrer policy)

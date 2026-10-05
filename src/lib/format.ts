@@ -83,3 +83,13 @@ export function gapText(fraction: number | null | undefined): string {
   if (v < 0.5) return 'Even';
   return `${v < 10 ? v.toFixed(1) : Math.round(v)}% ${fraction > 0 ? 'ahead' : 'behind'}`;
 }
+
+/** "just now", "25 min ago", "3 hours ago", "2 days ago". */
+export function ago(ts: number, now = Date.now()): string {
+  const mins = Math.max(0, Math.round((now - ts) / 60_000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  return `${Math.round(hours / 24)} days ago`;
+}

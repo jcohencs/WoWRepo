@@ -60,6 +60,13 @@ export class WclClient {
     return this.rate;
   }
 
+  /** Fraction of this hour's allowance still unspent (1 when unknown). */
+  headroom(): number {
+    const r = this.rateLimit();
+    if (!r || !r.limitPerHour) return 1;
+    return Math.max(0, 1 - r.pointsSpentThisHour / r.limitPerHour);
+  }
+
   /** Points kept in reserve so a single large query can't push us over the limit. */
   private reserve(): number {
     return Math.max(10, Math.round((this.rate?.limitPerHour ?? 0) * 0.03));

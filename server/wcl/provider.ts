@@ -1,4 +1,4 @@
-import type { Benchmark, Comparison, FightSide, Metric, Site, Zone, ZoneReport } from '../../shared/types.js';
+import type { Benchmark, Comparison, FightSide, Metric, Raid, Realm, Region, Site, Zone, ZoneReport } from '../../shared/types.js';
 import { HOUR, MINUTE, TtlCache } from '../cache.js';
 import {
   buildBenchmark,
@@ -9,9 +9,11 @@ import {
   type RawRanking,
   type RawRankingPage,
 } from '../core/benchmark.js';
-import { classById, metricFor } from '../core/classes.js';
+import { classById, metricFor, metricForSpec, type ClassInfo } from '../core/classes.js';
 import { compareAbilities, type TableEntry } from '../core/compare.js';
 import type { CharacterRef } from '../core/input.js';
+import { raidsFromZones } from '../core/raids.js';
+import { FALLBACK_REALMS, realmList, sortRealms } from '../core/realms.js';
 import { buildRow, mainSpec, summarise, type CharacterBest } from '../core/report.js';
 import { TBC_ZONES, tbcZonesFromExpansions } from '../core/zones.js';
 import { ApiFailure } from '../errors.js';
@@ -35,7 +37,7 @@ interface CharacterResponse {
     character: null | {
       name: string;
       classID: number;
-      server: { name: string; slug: string; region: { slug: string } };
+      server: { name: string; slug: string };
       dps: ZoneRankings | null;
       hps: ZoneRankings | null;
     };
@@ -50,7 +52,32 @@ interface ReportTable {
   data?: { totalTime?: number; entries?: (TableEntry & { id?: number; activeTime?: number })[] };
 }
 
+/** The character's best kill on one encounter, as needed by the comparison. */
+interface BestKill {
+  name: string;
+  server: string;
+  cls: ClassInfo;
+  code: string;
+  fight: number;
+}
+
+/** One side of a comparison resolved to a player inside a report fight. */
+interface ResolvedSide {
+  name: string;
+  server: string;
+  code: string;
+  fightId: number;
+  startTime: number;
+  endTime: number;
+  sourceId: number;
+  total: number;
+  activeTime: number | null;
+}
+
 const SAFE_NAME = /^[A-Za-z]+$/;
+
+const bestKillFrom = (ranks: EncounterRanks | null | undefined) =>
+  [...(ranks?.ranks ?? [])].sort((a, b) => b.amount - a.amount)[0];
 
 export class WclProvider implements Provider {
   readonly demo = false;
@@ -59,7 +86,7 @@ export class WclProvider implements Provider {
 
   constructor(private readonly client: WclClient, readonly site: Site) {}
 
-  zones(): Promise<Zone[]> {
+  private zones(): Promise<Zone[]> {
     return this.cache.get('zones', 24 * HOUR, async () => {
       try {
         const data = await this.client.query<{ worldData: { expansions: Parameters<typeof tbcZonesFromExpansions>[0] } }>(
@@ -74,25 +101,56 @@ export class WclProvider implements Provider {
     });
   }
 
-  async zoneReport(ref: CharacterRef, zoneId?: number): Promise<ZoneReport> {
-    const zones = await this.zones();
-    const zone = zoneId ? zones.find((z) => z.id === zoneId) : zones[zones.length - 1];
-    if (!zone) throw new ApiFailure('not_found', `Unknown raid id ${zoneId}.`);
+  async raids(): Promise<Raid[]> {
+    return raidsFromZones(await this.zones());
+  }
 
-    const character = await this.cache.get(`char|${ref.region}|${ref.realm}|${ref.name}|${zone.id}`, 10 * MINUTE, () =>
+  realms(region: Region): Promise<Realm[]> {
+    return this.cache.get(`realms|${region}`, 24 * HOUR, async () => {
+      const fallback = realmList(FALLBACK_REALMS[this.site][region] ?? []);
+      try {
+        type Page = { last_page?: number; data: Realm[] };
+        const first = await this.client.query<{ worldData: { regions: { id: number; slug: string; servers: Page }[] } }>(
+          `{ worldData { regions { id slug servers(limit: 100, page: 1) { last_page data { name slug } } } } }`,
+        );
+        const match = first.worldData.regions.find((r) => r.slug.toUpperCase() === region);
+        if (!match) return fallback;
+        const realms = [...match.servers.data];
+        const last = Math.min(match.servers.last_page ?? 1, 15);
+        if (last > 1) {
+          const pages = Array.from({ length: last - 1 }, (_, i) => i + 2);
+          const more = await this.client.query<{ worldData: Record<string, { servers: Page }> }>(
+            `{ worldData { ${pages.map((p) => `p${p}: region(id: ${match.id}) { servers(limit: 100, page: ${p}) { data { name slug } } }`).join('\n')} } }`,
+          );
+          for (const p of pages) realms.push(...(more.worldData[`p${p}`]?.servers.data ?? []));
+        }
+        return realms.length ? sortRealms(realms) : fallback;
+      } catch (err) {
+        if (err instanceof ApiFailure && err.code === 'config') throw err;
+        return fallback;
+      }
+    });
+  }
+
+  async zoneReport(ref: CharacterRef, raidId?: string): Promise<ZoneReport> {
+    const raids = await this.raids();
+    const raid = raidId ? raids.find((r) => r.id === raidId) : raids[raids.length - 1];
+    if (!raid) throw new ApiFailure('not_found', `Unknown raid "${raidId}".`);
+
+    const character = await this.cache.get(`char|${ref.region}|${ref.realm}|${ref.name}|${raid.zoneId}`, 10 * MINUTE, () =>
       this.client.query<CharacterResponse>(
         `query($name: String!, $server: String!, $region: String!, $zone: Int!) {
           characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
-            name classID server { name slug region { slug } }
+            name classID server { name slug }
             dps: zoneRankings(zoneID: $zone, metric: dps)
             hps: zoneRankings(zoneID: $zone, metric: hps)
           } }
         }`,
-        { name: ref.name, server: ref.realm, region: ref.region, zone: zone.id },
+        { name: ref.name, server: ref.realm, region: ref.region, zone: raid.zoneId },
       ),
     );
     const c = character.characterData.character;
-    if (!c) throw new ApiFailure('not_found', `No character "${ref.name}" on ${ref.realm} (${ref.region}).`);
+    if (!c) throw new ApiFailure('not_found', `Couldn't find "${ref.name}" on ${ref.realm} (${ref.region}). Check the spelling and realm.`);
     const cls = classById(c.classID);
     if (!cls) throw new ApiFailure('bad_request', `${c.name} is not a TBC class.`);
 
@@ -109,27 +167,81 @@ export class WclProvider implements Provider {
     });
     const main = mainSpec([...sets.dps.values()].map(toBest), cls.specs[0]);
 
-    const plan = zone.encounters.map((encounter) => {
+    const plan = raid.encounters.map((encounter) => {
       const seen = sets.dps.get(encounter.id);
       const spec = seen?.spec && seen.totalKills ? seen.spec : main;
       const metric = metricFor(cls.name, spec);
       const best = sets[metric].get(encounter.id);
       return { encounter, spec, metric, best: best ? toBest(best) : undefined };
     });
+    const keyOf = (p: (typeof plan)[number]): BenchmarkKey => ({ encounterId: p.encounter.id, className: cls.name, spec: p.spec, metric: p.metric });
 
-    const benchmarks = await this.getBenchmarks(
-      plan.map((p) => ({ encounterId: p.encounter.id, className: cls.name, spec: p.spec, metric: p.metric })),
-    );
-    const rows = plan.map((p) =>
-      buildRow(p.encounter, p.spec, p.metric, p.best, benchmarks.get(keyString({ encounterId: p.encounter.id, className: cls.name, spec: p.spec, metric: p.metric })) ?? null),
-    );
+    const benchmarks = await this.getBenchmarks(plan.map(keyOf));
+    const rows = plan.map((p) => buildRow(p.encounter, p.spec, p.metric, p.best, benchmarks.get(keyString(keyOf(p))) ?? null));
+
+    // Warm the best-kill lookups in the background so opening a comparison skips that round trip.
+    const killed = plan.filter((p) => p.best && p.best.kills > 0 && SAFE_NAME.test(p.spec));
+    if (killed.length) void this.warmBestKills(ref, cls, c.name, c.server.name, killed).catch(() => undefined);
 
     return {
       character: { name: c.name, realm: c.server.slug, realmName: c.server.name, region: ref.region, className: cls.name },
-      zone,
+      raid,
       rows,
       summary: summarise(rows),
     };
+  }
+
+  private bestKillKey(ref: CharacterRef, encounterId: number, spec: string, metric: Metric) {
+    return `best|${ref.region}|${ref.realm}|${ref.name}|${encounterId}|${spec}|${metric}`;
+  }
+
+  /** One aliased query fetching the best-kill report for every killed boss. */
+  private async warmBestKills(
+    ref: CharacterRef,
+    cls: ClassInfo,
+    name: string,
+    server: string,
+    items: { encounter: { id: number }; spec: string; metric: Metric }[],
+  ) {
+    const load = this.client.query<{ characterData: { character: Record<string, EncounterRanks | null> | null } }>(
+      `query($name: String!, $server: String!, $region: String!) {
+        characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
+          ${items.map((it, i) => `e${i}: encounterRankings(encounterID: ${it.encounter.id}, metric: ${it.metric}, specName: "${it.spec}")`).join('\n')}
+        } }
+      }`,
+      { name: ref.name, server: ref.realm, region: ref.region },
+    );
+    items.forEach((it, i) => {
+      void this.cache
+        .get(this.bestKillKey(ref, it.encounter.id, it.spec, it.metric), 10 * MINUTE, async () => {
+          const kill = bestKillFrom((await load).characterData.character?.[`e${i}`]);
+          return kill ? ({ name, server, cls, code: kill.report.code, fight: kill.report.fightID } satisfies BestKill) : null;
+        })
+        .catch(() => undefined);
+    });
+    await load;
+  }
+
+  private bestKill(ref: CharacterRef, encounterId: number, spec: string, metric: Metric): Promise<BestKill | null> {
+    return this.cache.get(this.bestKillKey(ref, encounterId, spec, metric), 10 * MINUTE, async () => {
+      const data = await this.client.query<{
+        characterData: { character: null | { name: string; classID: number; server: { name: string }; ranks: EncounterRanks | null } };
+      }>(
+        `query($name: String!, $server: String!, $region: String!, $enc: Int!, $spec: String!) {
+          characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
+            name classID server { name }
+            ranks: encounterRankings(encounterID: $enc, metric: ${metric}, specName: $spec)
+          } }
+        }`,
+        { name: ref.name, server: ref.realm, region: ref.region, enc: encounterId, spec },
+      );
+      const c = data.characterData.character;
+      if (!c) throw new ApiFailure('not_found', `Couldn't find "${ref.name}" on ${ref.realm} (${ref.region}).`);
+      const cls = classById(c.classID);
+      if (!cls) throw new ApiFailure('bad_request', `${c.name} is not a TBC class.`);
+      const kill = bestKillFrom(c.ranks);
+      return kill ? { name: c.name, server: c.server.name, cls, code: kill.report.code, fight: kill.report.fightID } : null;
+    });
   }
 
   /** Two batched queries: page 1 for every key, then the pages holding p50/p99. */
@@ -179,112 +291,101 @@ export class WclProvider implements Provider {
     return result;
   }
 
+  /** Finds the player in the fight and reads fight bounds, total and active time. Reports never change, so cache long. */
+  private resolveSide(code: string, fightId: number, name: string, server: string, dataType: string): Promise<ResolvedSide> {
+    return this.cache.get(`side|${code}|${fightId}|${name}|${dataType}`, 24 * HOUR, async () => {
+      const data = await this.client.query<{
+        reportData: { report: { fights: { id: number; startTime: number; endTime: number }[]; players: ReportTable } | null };
+      }>(
+        `query($code: String!, $fight: Int!) {
+          reportData { report(code: $code) { fights(fightIDs: [$fight]) { id startTime endTime } players: table(dataType: ${dataType}, fightIDs: [$fight]) } }
+        }`,
+        { code, fight: fightId },
+      );
+      const report = data.reportData.report;
+      const fight = report?.fights[0];
+      const player = report?.players.data?.entries?.find((e) => e.name === name);
+      if (!fight || !player?.id) throw new ApiFailure('upstream', `Could not find ${name} in report ${code}.`);
+      const totalTime = report.players.data?.totalTime || fight.endTime - fight.startTime;
+      return {
+        name,
+        server,
+        code,
+        fightId: fight.id,
+        startTime: fight.startTime,
+        endTime: fight.endTime,
+        sourceId: player.id,
+        total: player.total,
+        activeTime: player.activeTime != null ? player.activeTime / totalTime : null,
+      };
+    });
+  }
+
+  private sideTables(s: ResolvedSide, dataType: string) {
+    return this.cache.get(`tables|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`, 24 * HOUR, async () => {
+      const data = await this.client.query<{ reportData: { report: { amounts: ReportTable; casts: ReportTable } } }>(
+        `query($code: String!, $fight: Int!, $source: Int!, $start: Float!, $end: Float!) {
+          reportData { report(code: $code) {
+            amounts: table(dataType: ${dataType}, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+            casts: table(dataType: Casts, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+          } }
+        }`,
+        { code: s.code, fight: s.fightId, source: s.sourceId, start: s.startTime, end: s.endTime },
+      );
+      return {
+        durationMs: s.endTime - s.startTime,
+        amounts: data.reportData.report.amounts.data?.entries ?? [],
+        casts: data.reportData.report.casts.data?.entries ?? [],
+      };
+    });
+  }
+
   async compare(ref: CharacterRef, encounterId: number, spec: string): Promise<Comparison> {
     if (!SAFE_NAME.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
-    const zones = await this.zones();
-    const encounter = zones.flatMap((z) => z.encounters).find((e) => e.id === encounterId);
+    const raids = await this.raids();
+    const encounter = raids.flatMap((r) => r.encounters).find((e) => e.id === encounterId);
     if (!encounter) throw new ApiFailure('not_found', `Unknown encounter ${encounterId}.`);
 
-    const lookup = await this.client.query<{
-      characterData: { character: null | { name: string; classID: number; server: { name: string }; dps: EncounterRanks | null; hps: EncounterRanks | null } };
-    }>(
-      `query($name: String!, $server: String!, $region: String!, $enc: Int!, $spec: String!) {
-        characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
-          name classID server { name }
-          dps: encounterRankings(encounterID: $enc, metric: dps, specName: $spec)
-          hps: encounterRankings(encounterID: $enc, metric: hps, specName: $spec)
-        } }
-      }`,
-      { name: ref.name, server: ref.realm, region: ref.region, enc: encounterId, spec },
-    );
-    const c = lookup.characterData.character;
-    if (!c) throw new ApiFailure('not_found', `No character "${ref.name}" on ${ref.realm} (${ref.region}).`);
-    const cls = classById(c.classID);
-    if (!cls) throw new ApiFailure('bad_request', `${c.name} is not a TBC class.`);
-    const metric = metricFor(cls.name, spec);
-    const bestKill = [...(c[metric]?.ranks ?? [])].sort((a, b) => b.amount - a.amount)[0];
-    if (!bestKill) throw new ApiFailure('not_found', `${c.name} has no ranked ${spec} kill on ${encounter.name}.`);
+    return this.cache.get(`compare|${ref.region}|${ref.realm}|${ref.name}|${encounterId}|${spec}`, 10 * MINUTE, async () => {
+      const metric = metricForSpec(spec);
+      const kill = await this.bestKill(ref, encounterId, spec, metric);
+      if (!kill) throw new ApiFailure('not_found', `${ref.name} has no ranked ${spec} kill on ${encounter.name}.`);
 
-    const key = { encounterId, className: cls.name, spec, metric };
-    const benchmark = (await this.getBenchmarks([key])).get(keyString(key));
-    if (!benchmark) throw new ApiFailure('not_found', `No ranked ${spec} ${cls.name} parses on ${encounter.name} yet.`);
+      const key = { encounterId, className: kill.cls.name, spec, metric };
+      const benchmark = (await this.getBenchmarks([key])).get(keyString(key));
+      if (!benchmark) throw new ApiFailure('not_found', `No ranked ${spec} ${kill.cls.name} logs on ${encounter.name} yet.`);
+      const dataType = metric === 'hps' ? 'Healing' : 'DamageDone';
 
-    const sides = [
-      { name: c.name, server: c.server.name, code: bestKill.report.code, fight: bestKill.report.fightID },
-      { name: benchmark.reference.name, server: benchmark.reference.server, code: benchmark.reference.reportCode, fight: benchmark.reference.fightId },
-    ];
-    const dataType = metric === 'hps' ? 'Healing' : 'DamageDone';
+      // Both sides load in parallel; each is two small queries, cached per report.
+      const load = async (code: string, fight: number, name: string, server: string) => {
+        const side = await this.resolveSide(code, fight, name, server, dataType);
+        return { side, tables: await this.sideTables(side, dataType) };
+      };
+      const [you, top] = await Promise.all([
+        load(kill.code, kill.fight, kill.name, kill.server),
+        load(benchmark.reference.reportCode, benchmark.reference.fightId, benchmark.reference.name, benchmark.reference.server),
+      ]);
 
-    // Pass 1: fight bounds and the player-level table (gives source id + active time).
-    const overview = await this.cache.get(`ov|${sides.map((s) => `${s.code}:${s.fight}`).join('|')}|${dataType}`, 24 * HOUR, () =>
-      this.client.query<Record<string, { report: { fights: { id: number; startTime: number; endTime: number }[]; players: ReportTable } }>>(
-        `query($c0: String!, $f0: Int!, $c1: String!, $f1: Int!) {
-          r0: reportData { report(code: $c0) { fights(fightIDs: [$f0]) { id startTime endTime } players: table(dataType: ${dataType}, fightIDs: [$f0]) } }
-          r1: reportData { report(code: $c1) { fights(fightIDs: [$f1]) { id startTime endTime } players: table(dataType: ${dataType}, fightIDs: [$f1]) } }
-        }`,
-        { c0: sides[0].code, f0: sides[0].fight, c1: sides[1].code, f1: sides[1].fight },
-      ),
-    );
+      const toSide = ({ side }: { side: ResolvedSide }): FightSide => ({
+        name: side.name,
+        server: side.server,
+        amount: side.total,
+        perSecond: side.total / ((side.endTime - side.startTime) / 1000),
+        durationMs: side.endTime - side.startTime,
+        activeTime: side.activeTime,
+        reportCode: side.code,
+        fightId: side.fightId,
+      });
 
-    const resolved = sides.map((s, i) => {
-      const report = overview[`r${i}`]?.report;
-      const fight = report?.fights[0];
-      const player = report?.players.data?.entries?.find((e) => e.name === s.name);
-      if (!fight || !player?.id) throw new ApiFailure('upstream', `Could not find ${s.name} in report ${s.code}.`);
-      const durationMs = fight.endTime - fight.startTime;
-      const totalTime = report.players.data?.totalTime || durationMs;
-      return { ...s, fight, sourceId: player.id, total: player.total, durationMs, activeTime: player.activeTime != null ? player.activeTime / totalTime : null };
+      return {
+        encounter,
+        metric,
+        className: kill.cls.name,
+        spec,
+        you: toSide(you),
+        ref: toSide(top),
+        abilities: compareAbilities(you.tables, top.tables),
+      };
     });
-
-    // Pass 2: per-ability amounts and casts for each player.
-    const tables = await this.cache.get(`tb|${resolved.map((s) => `${s.code}:${s.fight.id}:${s.sourceId}`).join('|')}|${dataType}`, 24 * HOUR, () =>
-      this.client.query<Record<string, { report: { amounts: ReportTable; casts: ReportTable } }>>(
-        `query(${resolved.map((_, i) => `$c${i}: String!, $f${i}: Int!, $s${i}: Int!, $a${i}: Float!, $b${i}: Float!`).join(', ')}) {
-          ${resolved
-            .map(
-              (_, i) => `r${i}: reportData { report(code: $c${i}) {
-                amounts: table(dataType: ${dataType}, fightIDs: [$f${i}], sourceID: $s${i}, startTime: $a${i}, endTime: $b${i})
-                casts: table(dataType: Casts, fightIDs: [$f${i}], sourceID: $s${i}, startTime: $a${i}, endTime: $b${i})
-              } }`,
-            )
-            .join('\n')}
-        }`,
-        Object.fromEntries(
-          resolved.flatMap((s, i) => [
-            [`c${i}`, s.code],
-            [`f${i}`, s.fight.id],
-            [`s${i}`, s.sourceId],
-            [`a${i}`, s.fight.startTime],
-            [`b${i}`, s.fight.endTime],
-          ]),
-        ),
-      ),
-    );
-
-    const sideTables = resolved.map((_, i) => ({
-      durationMs: resolved[i].durationMs,
-      amounts: tables[`r${i}`]?.report.amounts.data?.entries ?? [],
-      casts: tables[`r${i}`]?.report.casts.data?.entries ?? [],
-    }));
-    const side = (i: number): FightSide => ({
-      name: resolved[i].name,
-      server: resolved[i].server,
-      amount: resolved[i].total,
-      perSecond: resolved[i].total / (resolved[i].durationMs / 1000),
-      durationMs: resolved[i].durationMs,
-      activeTime: resolved[i].activeTime,
-      reportCode: resolved[i].code,
-      fightId: resolved[i].fight.id,
-    });
-
-    return {
-      encounter,
-      metric,
-      className: cls.name,
-      spec,
-      you: side(0),
-      ref: side(1),
-      abilities: compareAbilities(sideTables[0], sideTables[1]),
-    };
   }
 }

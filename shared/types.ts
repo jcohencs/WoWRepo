@@ -13,10 +13,24 @@ export interface Zone {
   encounters: Encounter[];
 }
 
+/** A single raid instance. Warcraft Logs groups some raids into one zone (e.g. BT + Hyjal). */
+export interface Raid {
+  /** `${zoneId}-${slug}` */
+  id: string;
+  name: string;
+  zoneId: number;
+  encounters: Encounter[];
+}
+
+export interface Realm {
+  name: string;
+  slug: string;
+}
+
 export interface Meta {
   site: Site;
   demo: boolean;
-  zones: Zone[];
+  raids: Raid[];
 }
 
 export interface Character {
@@ -71,7 +85,7 @@ export interface ZoneSummary {
 
 export interface ZoneReport {
   character: Character;
-  zone: Zone;
+  raid: Raid;
   rows: BossRow[];
   summary: ZoneSummary;
 }

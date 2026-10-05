@@ -29,15 +29,27 @@ describe('API (demo provider)', () => {
     const { body } = await get('/api/meta');
     const meta = body as Meta;
     expect(meta.demo).toBe(true);
-    expect(meta.zones.map((z) => z.name)).toContain('Sunwell Plateau');
+    const names = meta.raids.map((r) => r.name);
+    expect(names).toEqual([
+      'Karazhan',
+      "Gruul's Lair",
+      "Magtheridon's Lair",
+      'Serpentshrine Cavern',
+      'Tempest Keep',
+      'Mount Hyjal',
+      'Black Temple',
+      "Zul'Aman",
+      'Sunwell Plateau',
+    ]);
   });
 
   it('returns a zone report with p99 benchmarks', async () => {
-    const { status, body } = await get('/api/character?region=us&realm=dreamscythe&name=brannoc&zone=1011');
+    const { status, body } = await get('/api/character?region=us&realm=dreamscythe&name=brannoc&raid=1011-black-temple');
     expect(status).toBe(200);
     const report = body as ZoneReport;
     expect(report.character.name).toBe('Brannoc');
-    expect(report.rows).toHaveLength(14);
+    expect(report.raid.name).toBe('Black Temple');
+    expect(report.rows).toHaveLength(9);
     for (const row of report.rows) {
       expect(row.benchmark!.p99).toBeGreaterThan(row.benchmark!.p50);
       expect(row.benchmark!.sampleSize).toBeGreaterThan(0);
@@ -50,6 +62,13 @@ describe('API (demo provider)', () => {
     const c = body as Comparison;
     expect(c.abilities.length).toBeGreaterThan(3);
     expect(c.ref.perSecond).toBeGreaterThan(0);
+  });
+
+  it('lists realms for a region', async () => {
+    const { status, body } = await get('/api/realms?region=eu');
+    expect(status).toBe(200);
+    expect(body.map((r: { name: string }) => r.name)).toContain('Thunderstrike');
+    expect((await get('/api/realms?region=xx')).status).toBe(400);
   });
 
   it('validates input', async () => {

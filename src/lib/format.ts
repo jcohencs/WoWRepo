@@ -75,3 +75,11 @@ export function specLabel(spec: string): string {
 export function metricLabel(metric: 'dps' | 'hps'): string {
   return metric.toUpperCase();
 }
+
+/** "12% behind" / "4% ahead" — easier to read than a signed percentage. */
+export function gapText(fraction: number | null | undefined): string {
+  if (fraction == null) return '—';
+  const v = Math.abs(fraction * 100);
+  if (v < 0.5) return 'Even';
+  return `${v < 10 ? v.toFixed(1) : Math.round(v)}% ${fraction > 0 ? 'ahead' : 'behind'}`;
+}

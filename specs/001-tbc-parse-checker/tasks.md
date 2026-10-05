@@ -45,3 +45,11 @@ description: "Task list for TBC Parse Checker"
 
 - [x] T019 Handler tests in demo mode `tests/unit/handler.test.ts`
 - [x] T020 360px layout pass, empty/error/loading states
+
+## Phase 7: Feedback round 1
+
+- [x] T021 Split combined WCL zones into single raids (BT / Hyjal, SSC / TK, Gruul / Mag) in `server/core/raids.ts`; raid dropdown replaces tabs
+- [x] T022 Realm dropdown backed by `GET /api/realms?region=` (WCL server list, cached 24h, static fallback)
+- [x] T023 Ability breakdown: one view, share chart + difference on the right, no sort tabs
+- [x] T024 Plain-language labels ("Top 1%", "Typical player", "9% behind"), larger type, higher-contrast secondary text
+- [x] T025 Faster comparison: best-kill lookups warmed with the raid report, both logs loaded in parallel and cached per report, results cached server-side, prefetch on hover client-side

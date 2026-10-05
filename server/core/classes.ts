@@ -39,3 +39,8 @@ export function metricFor(className: string, spec: string): Metric {
 export function specLabel(spec: string): string {
   return spec.replace(/([a-z])([A-Z])/g, '$1 $2');
 }
+
+/** Every TBC spec named Holy, Discipline or Restoration is a healer, so the spec alone decides. */
+export function metricForSpec(spec: string): Metric {
+  return Object.values(CLASSES).some((c) => c.healers.includes(spec)) ? 'hps' : 'dps';
+}

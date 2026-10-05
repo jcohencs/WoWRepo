@@ -1,5 +1,5 @@
 import type { ZoneSummary } from '../../shared/types';
-import { parse, parseTier, signedPercent } from '../lib/format';
+import { gapText, parse, parseTier } from '../lib/format';
 
 export function Summary({ summary }: { summary: ZoneSummary }) {
   const gap = summary.medianGapPercent;
@@ -10,21 +10,21 @@ export function Summary({ summary }: { summary: ZoneSummary }) {
         <dd className={`parse-${parseTier(summary.averageParse)}`}>{parse(summary.averageParse)}</dd>
       </div>
       <div>
-        <dt>At or above p99</dt>
+        <dt>Bosses where you're top 1%</dt>
         <dd>
           {summary.bossesAtP99}
-          <small> / {summary.bossesKilled}</small>
+          <small> of {summary.bossesKilled}</small>
         </dd>
       </div>
       <div>
-        <dt>Median gap to p99</dt>
-        <dd className={gap == null ? undefined : gap >= 0 ? 'pos' : 'neg'}>{signedPercent(gap)}</dd>
+        <dt>Usual distance from top 1%</dt>
+        <dd className={gap == null ? undefined : gap >= 0 ? 'pos' : 'neg'}>{gapText(gap)}</dd>
       </div>
       <div>
         <dt>Bosses killed</dt>
         <dd>
           {summary.bossesKilled}
-          <small> / {summary.bossCount}</small>
+          <small> of {summary.bossCount}</small>
         </dd>
       </div>
     </dl>

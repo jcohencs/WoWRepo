@@ -2,22 +2,22 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Meta, Region, ZoneReport } from '../shared/types';
 import { BossTable } from './components/BossTable';
 import { CharacterHeader } from './components/CharacterHeader';
+import { RaidSelect } from './components/RaidSelect';
 import { SearchBar } from './components/SearchBar';
 import { Summary } from './components/Summary';
-import { ZoneTabs } from './components/ZoneTabs';
 import { api, type Query } from './lib/api';
 
-function readUrl(): { query: Query | null; zone?: number } {
+function readUrl(): { query: Query | null; raid?: string } {
   const p = new URLSearchParams(location.search);
   const region = p.get('region')?.toUpperCase();
   const realm = p.get('realm');
   const name = p.get('name');
-  const zone = Number(p.get('zone')) || undefined;
-  return { query: region && realm && name ? { region: region as Region, realm, name } : null, zone };
+  const raid = p.get('raid') || undefined;
+  return { query: region && realm && name ? { region: region as Region, realm, name } : null, raid };
 }
 
-function writeUrl(q: Query, zone: number) {
-  const p = new URLSearchParams({ region: q.region.toLowerCase(), realm: q.realm, name: q.name, zone: String(zone) });
+function writeUrl(q: Query, raid: string) {
+  const p = new URLSearchParams({ region: q.region.toLowerCase(), realm: q.realm, name: q.name, raid });
   history.replaceState(null, '', `?${p}`);
 }
 
@@ -26,7 +26,7 @@ export function App() {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [query, setQuery] = useState<Query | null>(initial.current.query);
-  const [zoneId, setZoneId] = useState<number | undefined>(initial.current.zone);
+  const [raidId, setRaidId] = useState<string | undefined>(initial.current.raid);
   const [report, setReport] = useState<ZoneReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,10 +42,10 @@ export function App() {
     setLoading(true);
     setError(null);
     api
-      .character(query, zoneId, ctrl.signal)
+      .character(query, raidId, ctrl.signal)
       .then((r) => {
         setReport(r);
-        writeUrl(query, r.zone.id);
+        writeUrl(query, r.raid.id);
       })
       .catch((e: Error) => {
         if (ctrl.signal.aborted) return;
@@ -54,14 +54,15 @@ export function App() {
       })
       .finally(() => !ctrl.signal.aborted && setLoading(false));
     return () => ctrl.abort();
-  }, [query, zoneId, attempt]);
+  }, [query, raidId, attempt]);
 
   const search = useCallback((q: Query) => {
     setQuery(q);
     setAttempt((n) => n + 1);
   }, []);
 
-  const activeZone = report?.zone.id ?? zoneId;
+  const activeRaid = report?.raid.id ?? raidId;
+  const raidPicker = meta ? <RaidSelect raids={meta.raids} active={activeRaid} onSelect={setRaidId} /> : null;
 
   return (
     <div className="shell">
@@ -73,7 +74,7 @@ export function App() {
             <i />
           </span>
           <span className="brand-name">Parsecheck</span>
-          <span className="brand-sub">TBC · your parses against the 99th percentile of your spec</span>
+          <span className="brand-sub">How close are your TBC parses to the top 1% of your spec?</span>
         </div>
         {meta && (
           <div className="site-tag">
@@ -88,23 +89,19 @@ export function App() {
       {metaError && <p className="notice error">Could not load raids: {metaError}</p>}
       {meta?.demo && !report && !query && (
         <p className="notice">
-          No Warcraft Logs API key is configured, so the app is serving generated demo numbers. Search any name to see the layout,
-          or add <code>WCL_CLIENT_ID</code> and <code>WCL_CLIENT_SECRET</code> to <code>.env</code> for real logs.
+          You're looking at made-up demo numbers because no Warcraft Logs key is set up. Search any name to try it out, or add your
+          key to the <code>.env</code> file to see real logs.
         </p>
       )}
 
       {query && (
         <main className="content">
-          {report && <CharacterHeader report={report} site={meta?.site ?? 'fresh'} />}
-
-          {meta && (
-            <ZoneTabs
-              zones={meta.zones}
-              active={activeZone}
-              onSelect={(id) => {
-                setZoneId(id);
-              }}
-            />
+          {report ? (
+            <CharacterHeader report={report} site={meta?.site ?? 'fresh'}>
+              {raidPicker}
+            </CharacterHeader>
+          ) : (
+            <div className="character-placeholder">{raidPicker}</div>
           )}
 
           {error ? (
@@ -128,8 +125,8 @@ export function App() {
       {!query && <EmptyIntro />}
 
       <footer className="footer">
-        Data from Warcraft Logs. Benchmarks compare the same class, spec, boss and metric in the current phase; percentiles are read
-        from the exact ranking position, not estimated.
+        Numbers come from Warcraft Logs. You are only compared with players of the same class and spec, on the same boss, in the
+        current phase. "Top 1%" is the real log sitting at the 99th percentile, not an estimate.
       </footer>
     </div>
   );
@@ -150,13 +147,13 @@ function EmptyIntro() {
     <section className="intro">
       <ol>
         <li>
-          <strong>Search your character</strong> or paste your Warcraft Logs character link.
+          <strong>Find your character</strong> Pick your region and realm, then type your name.
         </li>
         <li>
-          <strong>See every boss</strong> with your best kill next to the median and the 99th percentile for your spec.
+          <strong>See every boss</strong> Your best kill next to a typical player and the top 1% of your spec.
         </li>
         <li>
-          <strong>Open a boss</strong> to line your log up against the player sitting at the 99th percentile, ability by ability.
+          <strong>Click a boss</strong> See which abilities a top 1% player gets more out of than you do.
         </li>
       </ol>
     </section>

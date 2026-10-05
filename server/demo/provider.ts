@@ -1,7 +1,9 @@
-import type { Benchmark, Comparison, Zone, ZoneReport } from '../../shared/types.js';
+import type { Benchmark, Comparison, Raid, Realm, Region, ZoneReport } from '../../shared/types.js';
 import { compareAbilities, type SideTables } from '../core/compare.js';
 import type { CharacterRef } from '../core/input.js';
 import { buildRow, summarise } from '../core/report.js';
+import { raidsFromZones } from '../core/raids.js';
+import { FALLBACK_REALMS, realmList } from '../core/realms.js';
 import { TBC_ZONES } from '../core/zones.js';
 import { ApiFailure } from '../errors.js';
 import type { Provider } from '../provider.js';
@@ -82,8 +84,14 @@ export class DemoProvider implements Provider {
   readonly site = 'fresh' as const;
   readonly demo = true;
 
-  async zones(): Promise<Zone[]> {
-    return TBC_ZONES;
+  private readonly allRaids = raidsFromZones(TBC_ZONES);
+
+  async raids(): Promise<Raid[]> {
+    return this.allRaids;
+  }
+
+  async realms(region: Region): Promise<Realm[]> {
+    return realmList(FALLBACK_REALMS.fresh[region] ?? []);
   }
 
   private bestFor(name: string, encounterId: number, b: Benchmark): number | null {
@@ -92,11 +100,11 @@ export class DemoProvider implements Provider {
     return Math.round(b.p99 * (0.74 + r() * 0.31));
   }
 
-  async zoneReport(ref: CharacterRef, zoneId?: number): Promise<ZoneReport> {
-    const zone = zoneId ? TBC_ZONES.find((z) => z.id === zoneId) : TBC_ZONES[TBC_ZONES.length - 1];
-    if (!zone) throw new ApiFailure('not_found', `Unknown raid id ${zoneId}.`);
-    const rows = zone.encounters.map((encounter) => {
-      const b = benchmarkFor(zone.id, encounter.id);
+  async zoneReport(ref: CharacterRef, raidId?: string): Promise<ZoneReport> {
+    const raid = raidId ? this.allRaids.find((r) => r.id === raidId) : this.allRaids[this.allRaids.length - 1];
+    if (!raid) throw new ApiFailure('not_found', `Unknown raid "${raidId}".`);
+    const rows = raid.encounters.map((encounter) => {
+      const b = benchmarkFor(raid.zoneId, encounter.id);
       const best = this.bestFor(ref.name, encounter.id, b);
       return buildRow(
         encounter,
@@ -110,7 +118,7 @@ export class DemoProvider implements Provider {
     });
     return {
       character: { name: ref.name, realm: ref.realm, realmName: 'Dreamscythe', region: ref.region, className: CLASS },
-      zone,
+      raid,
       rows,
       summary: summarise(rows),
     };

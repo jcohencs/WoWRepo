@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AbilityLine, BossRow, Comparison, FightSide, Site } from '../../shared/types';
 import { api, type Query } from '../lib/api';
-import { amount, compact, duration, metricLabel, percent, signed, specLabel } from '../lib/format';
+import { amount, compact, duration, metricLabel, percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 
 interface Props {
@@ -11,95 +11,96 @@ interface Props {
   demo: boolean;
 }
 
-type Sort = 'impact' | 'difference';
-
 export function ComparePanel({ query, row, site, demo }: Props) {
   const [data, setData] = useState<Comparison | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [sort, setSort] = useState<Sort>('difference');
 
   useEffect(() => {
-    const ctrl = new AbortController();
-    api.compare(query, row.encounter.id, row.spec, ctrl.signal).then(setData, (e: Error) => !ctrl.signal.aborted && setError(e.message));
-    return () => ctrl.abort();
+    let live = true;
+    api.compare(query, row.encounter.id, row.spec).then(
+      (c) => live && setData(c),
+      (e: Error) => live && setError(e.message),
+    );
+    return () => {
+      live = false;
+    };
   }, [query, row.encounter.id, row.spec]);
 
-  const abilities = useMemo(() => {
-    if (!data) return [];
-    const list = [...data.abilities];
-    if (sort === 'difference') list.sort((a, b) => Math.abs(b.shareDelta) - Math.abs(a.shareDelta) || cpmGap(b) - cpmGap(a));
-    return list;
-  }, [data, sort]);
-
   if (error) return <div className="compare state">{error}</div>;
-  if (!data) return <div className="compare state muted">Loading both logs…</div>;
+  if (!data) return <CompareSkeleton />;
 
   const unit = metricLabel(data.metric);
-  const maxShare = Math.max(...data.abilities.map((a) => Math.max(a.you?.share ?? 0, a.ref?.share ?? 0)), 0.01);
+  const noun = data.metric === 'hps' ? 'healing' : 'damage';
+  const abilities = [...data.abilities].sort(
+    (a, b) => (b.ref?.share ?? 0) - (a.ref?.share ?? 0) || (b.you?.share ?? 0) - (a.you?.share ?? 0),
+  );
+  const maxShare = Math.max(...abilities.map((a) => Math.max(a.you?.share ?? 0, a.ref?.share ?? 0)), 0.01);
 
   return (
     <div className="compare">
       <div className="sides">
-        <Side label="You" side={data.you} site={site} demo={demo} unit={unit} />
-        <Side label="99th percentile" side={data.ref} site={site} demo={demo} unit={unit} other={data.you} />
+        <Side label="You" side={data.you} site={site} demo={demo} unit={unit} noun={noun} />
+        <Side label="Top 1% player" side={data.ref} site={site} demo={demo} unit={unit} noun={noun} top />
       </div>
 
-      <div className="compare-toolbar">
+      <div className="breakdown-head">
         <h3>
-          Ability breakdown <span className="muted">· {specLabel(data.spec)} {data.className}</span>
+          Where your {noun} comes from <span className="soft">· {specLabel(data.spec)} {data.className}</span>
         </h3>
-        <div className="segmented" role="group" aria-label="Sort abilities">
-          <button aria-pressed={sort === 'difference'} onClick={() => setSort('difference')}>
-            Biggest difference
-          </button>
-          <button aria-pressed={sort === 'impact'} onClick={() => setSort('impact')}>
-            Share of {data.metric === 'hps' ? 'healing' : 'damage'}
-          </button>
+        <div className="legend" aria-hidden>
+          <span className="legend-you">You</span>
+          <span className="legend-ref">Top 1%</span>
         </div>
       </div>
 
-      <table className="abilities">
-        <thead>
-          <tr>
-            <th>Ability</th>
-            <th className="col-share">
-              Share <span className="legend you">you</span> <span className="legend ref">p99</span>
-            </th>
-            <th className="num" title="Percentage points">Δ pts</th>
-            <th className="num">Casts / min</th>
-            <th className="num">Δ cpm</th>
-          </tr>
-        </thead>
-        <tbody>
-          {abilities.map((a) => (
-            <AbilityRow key={a.id} a={a} maxShare={maxShare} />
-          ))}
-        </tbody>
-      </table>
+      <div className="breakdown" role="table" aria-label={`Ability comparison for ${data.encounter.name}`}>
+        <div className="bd-row bd-header" role="row">
+          <span role="columnheader">Ability</span>
+          <span role="columnheader" className="num">
+            Uses per minute
+            <small>you · top 1%</small>
+          </span>
+          <span role="columnheader">Share of total {noun}</span>
+          <span role="columnheader" className="num">
+            Difference
+          </span>
+        </div>
+        {abilities.map((a) => (
+          <AbilityRow key={a.id} a={a} maxShare={maxShare} noun={noun} />
+        ))}
+      </div>
       <p className="footnote">
-        Share is each ability's part of the player's total {data.metric === 'hps' ? 'healing' : 'damage'} on the kill. Casts per minute
-        are normalised by fight length, so different kill times compare fairly.
+        "Share" is how much of each player's total {noun} came from that ability. "Uses per minute" accounts for kill time, so a
+        longer fight isn't held against you.
       </p>
     </div>
   );
 }
 
-function cpmGap(a: AbilityLine) {
-  return Math.abs((a.you?.cpm ?? 0) - (a.ref?.cpm ?? 0));
+function CompareSkeleton() {
+  return (
+    <div className="compare" aria-busy="true" aria-label="Loading comparison">
+      <div className="sides">
+        <div className="side skeleton-block" />
+        <div className="side skeleton-block" />
+      </div>
+      <p className="soft loading-note">Loading your log and the top 1% log…</p>
+    </div>
+  );
 }
 
-function Side({ label, side, site, demo, unit, other }: { label: string; side: FightSide; site: Site; demo: boolean; unit: string; other?: FightSide }) {
+function Side({ label, side, site, demo, unit, noun, top }: { label: string; side: FightSide; site: Site; demo: boolean; unit: string; noun: string; top?: boolean }) {
   return (
-    <div className={`side${other ? ' ref' : ' you'}`}>
+    <div className={`side${top ? ' ref' : ' you'}`}>
       <div className="side-head">
         <span className="side-label">{label}</span>
         <span className="side-name">
           {side.name}
-          {side.server && <span className="muted"> · {side.server}</span>}
+          {side.server && <span className="soft"> · {side.server}</span>}
         </span>
         {!demo && (
           <a href={reportUrl(site, side.reportCode, side.fightId)} target="_blank" rel="noreferrer">
-            Log ↗
+            Open log ↗
           </a>
         )}
       </div>
@@ -113,11 +114,11 @@ function Side({ label, side, site, demo, unit, other }: { label: string; side: F
           <dd>{duration(side.durationMs)}</dd>
         </div>
         <div>
-          <dt>Active</dt>
+          <dt title="Share of the fight spent attacking or casting">Time active</dt>
           <dd>{percent(side.activeTime)}</dd>
         </div>
         <div>
-          <dt>Total</dt>
+          <dt>Total {noun}</dt>
           <dd>{compact(side.amount)}</dd>
         </div>
       </dl>
@@ -125,49 +126,55 @@ function Side({ label, side, site, demo, unit, other }: { label: string; side: F
   );
 }
 
-function AbilityRow({ a, maxShare }: { a: AbilityLine; maxShare: number }) {
+function differenceText(delta: number): { text: string; size: 'big' | 'small' | 'none' } {
+  const pts = Math.abs(delta * 100);
+  if (pts < 0.3) return { text: 'About the same', size: 'none' };
+  return { text: `${pts.toFixed(1)}% ${delta > 0 ? 'more' : 'less'}`, size: pts >= 2 ? 'big' : 'small' };
+}
+
+function AbilityRow({ a, maxShare, noun }: { a: AbilityLine; maxShare: number; noun: string }) {
   const icon = abilityIcon(a.icon);
-  const cpmDelta = a.you?.cpm != null && a.ref?.cpm != null && (a.you.cpm > 0 || a.ref.cpm > 0) ? a.you.cpm - a.ref.cpm : null;
-  const shareKnown = (a.you?.share ?? 0) > 0 || (a.ref?.share ?? 0) > 0;
+  const hasShare = (a.you?.share ?? 0) > 0 || (a.ref?.share ?? 0) > 0;
+  const diff = differenceText(a.shareDelta);
+  const tip = hasShare
+    ? `${a.name}: you ${percent(a.you?.share ?? 0)}, top 1% ${percent(a.ref?.share ?? 0)}`
+    : `${a.name}: used ${cpm(a.you?.cpm)} vs ${cpm(a.ref?.cpm)} times per minute`;
   return (
-    <tr>
-      <td className="ability">
-        {icon ? <img src={icon} alt="" width={20} height={20} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> : <span className="icon-blank" />}
-        <span>{a.name}</span>
-      </td>
-      <td className="col-share">
-        {shareKnown ? (
-          <div className="share">
+    <div className={`bd-row${diff.size === 'big' ? ' notable' : ''}`} role="row" title={tip}>
+      <span className="ability" role="cell">
+        {icon ? <img src={icon} alt="" width={22} height={22} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> : <span className="icon-blank" />}
+        <span className="ability-name">{a.name}</span>
+      </span>
+      <span className={`num uses${!a.you?.cpm && !a.ref?.cpm ? ' no-uses' : ''}`} role="cell">
+        <strong>{cpm(a.you?.cpm)}</strong>
+        <span className="soft"> · {cpm(a.ref?.cpm)}</span>
+      </span>
+      <span className="share-chart" role="cell">
+        {hasShare ? (
+          <>
             <Bar value={a.you?.share} max={maxShare} kind="you" />
             <Bar value={a.ref?.share} max={maxShare} kind="ref" />
-          </div>
+          </>
         ) : (
-          <span className="muted">utility</span>
+          <span className="soft">No direct {noun}</span>
         )}
-      </td>
-      <td className={`num ${deltaClass(a.shareDelta, 0.005)}`}>{shareKnown ? signed(a.shareDelta * 100) : '—'}</td>
-      <td className="num">
-        {cpmCell(a.you?.cpm)} <span className="muted">/ {cpmCell(a.ref?.cpm)}</span>
-      </td>
-      <td className={`num ${cpmDelta == null ? '' : deltaClass(cpmDelta, 0.3)}`}>{cpmDelta == null ? '—' : signed(cpmDelta)}</td>
-    </tr>
+      </span>
+      <span className={`num diff diff-${diff.size}`} role="cell">
+        {hasShare ? diff.text : '—'}
+      </span>
+    </div>
   );
 }
 
-function cpmCell(v: number | undefined) {
+function cpm(v: number | undefined) {
   return v == null || v === 0 ? '—' : v.toFixed(1);
-}
-
-function deltaClass(v: number, threshold: number) {
-  if (Math.abs(v) < threshold) return 'muted';
-  return v > 0 ? 'pos' : 'neg';
 }
 
 function Bar({ value, max, kind }: { value: number | undefined; max: number; kind: 'you' | 'ref' }) {
   return (
-    <div className={`share-bar ${kind}`}>
-      <div style={{ width: `${((value ?? 0) / max) * 100}%` }} />
-      <span>{value ? percent(value) : '—'}</span>
-    </div>
+    <span className={`bar bar-${kind}`}>
+      <span className="bar-fill" style={{ width: `${((value ?? 0) / max) * 100}%` }} />
+      <span className="bar-value">{value ? percent(value) : '—'}</span>
+    </span>
   );
 }

@@ -17,7 +17,16 @@ function fakeWcl(handler: Handler) {
   return { provider, queries };
 }
 
-const zone = { id: 2011, name: 'Black Temple', frozen: false, encounters: [{ id: 601, name: "Naj'entus" }, { id: 602, name: 'Supremus' }] };
+const zone = {
+  id: 2011,
+  name: 'Black Temple / Hyjal',
+  frozen: false,
+  encounters: [
+    { id: 618, name: 'Rage Winterchill' },
+    { id: 601, name: "High Warlord Naj'entus" },
+    { id: 602, name: 'Supremus' },
+  ],
+};
 const ranking = (rank: number) => ({
   name: `P${rank}`,
   amount: 3000 - rank,
@@ -28,23 +37,43 @@ const ranking = (rank: number) => ({
 const rankingsPage = (page: number, count: number) => ({
   characterRankings: { page, count, hasMorePages: true, rankings: Array.from({ length: 100 }, (_, i) => ranking((page - 1) * 100 + i + 1)) },
 });
+const table = (entries: object[]) => ({ data: { totalTime: 120000, entries } });
 
-function handler(query: string) {
+function handler(query: string, variables: Record<string, unknown>) {
   if (query.includes('expansions')) {
     return { worldData: { expansions: [{ id: 1001, name: 'The Burning Crusade', zones: [zone, { id: 9, name: 'Dungeons', encounters: [{ id: 1, name: 'a' }, { id: 2, name: 'b' }] }] }] } };
   }
+  if (query.includes('regions')) {
+    return {
+      worldData: {
+        regions: [
+          { id: 1, slug: 'us', servers: { last_page: 2, data: [{ name: 'Nightslayer', slug: 'nightslayer' }] } },
+          { id: 2, slug: 'eu', servers: { last_page: 1, data: [{ name: 'Thunderstrike', slug: 'thunderstrike' }] } },
+        ],
+      },
+    };
+  }
+  if (query.includes('p2: region')) return { worldData: { p2: { servers: { data: [{ name: 'Dreamscythe', slug: 'dreamscythe' }] } } } };
   if (query.includes('zoneRankings')) {
     return {
       characterData: {
         character: {
           name: 'Brannoc',
           classID: 11,
-          server: { name: 'Dreamscythe', slug: 'dreamscythe', region: { slug: 'us' } },
-          dps: { rankings: [{ encounter: { id: 601, name: "Naj'entus" }, spec: 'Fury', totalKills: 3, rankPercent: 91.2, bestAmount: 2700 }, { encounter: { id: 602, name: 'Supremus' }, totalKills: 0 }] },
+          server: { name: 'Dreamscythe', slug: 'dreamscythe' },
+          dps: {
+            rankings: [
+              { encounter: { id: 601, name: "Naj'entus" }, spec: 'Fury', totalKills: 3, rankPercent: 91.2, bestAmount: 2700 },
+              { encounter: { id: 602, name: 'Supremus' }, totalKills: 0 },
+            ],
+          },
           hps: { rankings: [] },
         },
       },
     };
+  }
+  if (query.includes('encounterRankings')) {
+    return { characterData: { character: { e0: { ranks: [{ amount: 2700, duration: 1, report: { code: 'MINE', fightID: 3 } }] } } } };
   }
   if (query.includes('characterRankings')) {
     const worldData: Record<string, unknown> = {};
@@ -53,18 +82,46 @@ function handler(query: string) {
     }
     return { worldData };
   }
+  if (query.includes('players: table')) {
+    const name = variables.code === 'MINE' ? 'Brannoc' : 'P10';
+    return {
+      reportData: {
+        report: { fights: [{ id: variables.fight, startTime: 0, endTime: 120000 }], players: table([{ name, id: 5, total: 300000, activeTime: 114000 }]) },
+      },
+    };
+  }
+  if (query.includes('amounts: table')) {
+    return {
+      reportData: {
+        report: {
+          amounts: table([{ guid: 1, name: 'Melee', total: 200000 }, { guid: 30335, name: 'Bloodthirst', total: 100000 }]),
+          casts: table([{ guid: 30335, name: 'Bloodthirst', total: 20 }]),
+        },
+      },
+    };
+  }
   throw new Error(`unexpected query ${query}`);
 }
 
+const brannoc = { region: 'US' as const, realm: 'dreamscythe', name: 'Brannoc' };
+
 describe('WclProvider', () => {
-  it('discovers TBC raid zones and drops non-raids', async () => {
+  it('splits combined zones into raids and drops non-raids', async () => {
     const { provider } = fakeWcl(handler);
-    expect((await provider.zones()).map((z) => z.name)).toEqual(['Black Temple']);
+    expect((await provider.raids()).map((r) => [r.id, r.name, r.encounters.length])).toEqual([
+      ['2011-mount-hyjal', 'Mount Hyjal', 1],
+      ['2011-black-temple', 'Black Temple', 2],
+    ]);
   });
 
-  it('builds the zone report with exact percentiles in three requests', async () => {
+  it('lists realms across pages, sorted', async () => {
+    const { provider } = fakeWcl(handler);
+    expect((await provider.realms('US')).map((r) => r.name)).toEqual(['Dreamscythe', 'Nightslayer']);
+  });
+
+  it('builds the raid report with exact percentiles and caches benchmarks', async () => {
     const { provider, queries } = fakeWcl(handler);
-    const report = await provider.zoneReport({ region: 'US', realm: 'dreamscythe', name: 'Brannoc' }, 2011);
+    const report = await provider.zoneReport(brannoc, '2011-black-temple');
     expect(report.character.className).toBe('Warrior');
     const [naj, sup] = report.rows;
     expect(naj.spec).toBe('Fury');
@@ -72,12 +129,28 @@ describe('WclProvider', () => {
     expect(naj.gap?.absolute).toBe(2700 - 2990);
     expect(sup.best).toBeNull();
     expect(sup.benchmark?.spec).toBe('Fury');
-    // zones, character, page-1 batch, percentile-page batch
-    expect(queries).toHaveLength(4);
-    expect(queries[3]).toContain('page: 5');
+    const benchmarkQueries = queries.filter((q) => q.includes('characterRankings')).length;
+    expect(benchmarkQueries).toBe(2);
 
-    // benchmarks are cached on the second search
-    await provider.zoneReport({ region: 'US', realm: 'dreamscythe', name: 'Brannoc' }, 2011);
-    expect(queries).toHaveLength(4);
+    await provider.zoneReport(brannoc, '2011-black-temple');
+    expect(queries.filter((q) => q.includes('characterRankings')).length).toBe(2);
+  });
+
+  it('opens a comparison without re-looking-up the best kill, loading both logs', async () => {
+    const { provider, queries } = fakeWcl(handler);
+    await provider.zoneReport(brannoc, '2011-black-temple');
+    await new Promise((r) => setTimeout(r, 0)); // let the background warm-up land
+    const before = queries.length;
+    const c = await provider.compare(brannoc, 601, 'Fury');
+    const used = queries.slice(before);
+    expect(used.some((q) => q.includes('encounterRankings'))).toBe(false);
+    expect(used).toHaveLength(4); // 2 per side, run in parallel
+    expect(c.you.name).toBe('Brannoc');
+    expect(c.ref.name).toBe('P10');
+    expect(c.you.activeTime).toBeCloseTo(0.95);
+    expect(c.abilities.map((a) => a.name)).toEqual(['Melee', 'Bloodthirst']);
+
+    await provider.compare(brannoc, 601, 'Fury');
+    expect(queries.length).toBe(before + 4);
   });
 });

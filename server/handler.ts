@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { Meta, Site } from '../shared/types.js';
-import { validateRef } from './core/input.js';
+import type { Meta, Region, Site } from '../shared/types.js';
+import { REGIONS, validateRef } from './core/input.js';
 import { DemoProvider } from './demo/provider.js';
 import { ApiFailure } from './errors.js';
 import type { Provider } from './provider.js';
@@ -48,11 +48,16 @@ export function createApiHandler(provider: Provider = providerFromEnv()): ApiHan
     try {
       switch (url.pathname) {
         case '/api/meta': {
-          const meta: Meta = { site: provider.site, demo: provider.demo, zones: await provider.zones() };
+          const meta: Meta = { site: provider.site, demo: provider.demo, raids: await provider.raids() };
           return send(res, 200, meta);
         }
+        case '/api/realms': {
+          const region = (p.get('region') ?? '').toUpperCase() as Region;
+          if (!REGIONS.includes(region)) throw new ApiFailure('bad_request', `Unknown region "${p.get('region') ?? ''}".`);
+          return send(res, 200, await provider.realms(region));
+        }
         case '/api/character':
-          return send(res, 200, await provider.zoneReport(ref(p), intParam(p, 'zone', false)));
+          return send(res, 200, await provider.zoneReport(ref(p), p.get('raid') || undefined));
         case '/api/compare': {
           const spec = p.get('spec') ?? '';
           if (!spec) throw new ApiFailure('bad_request', 'Missing "spec".');

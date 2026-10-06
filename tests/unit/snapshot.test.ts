@@ -116,7 +116,8 @@ describe('saved pages + scheduled puller', () => {
     expect(queries.length).toBe(before);
     expect(board.raid?.id).toBe(raid);
     expect(board.characters).toBe(2);
-    expect(board.specs).toHaveLength(27);
+    expect(board.classes.map((c) => c.className)).toHaveLength(9);
+    expect(board.classes.find((c) => c.className === 'Warrior')?.leader?.name).toMatch(/Brannoc|Morwenna/);
   });
 
   it('Refresh with the allowance used up quietly queues the pull and shows the saved page', async () => {

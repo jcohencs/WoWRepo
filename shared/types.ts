@@ -192,29 +192,29 @@ export interface ApiError {
 export const REALMS: readonly { name: string; slug: string }[] = [{ name: 'Nightslayer', slug: 'nightslayer' }];
 export const REALM_REGION: Region = 'US';
 
-/** A player with at least one top 1% (99+) parse in the raid, as one spec. */
-export interface Leader {
+/** The realm's best player of one class in a raid. */
+export interface ClassLeader {
+  className: string;
   name: string;
-  /** Bosses parsed 99 or higher as this spec. */
-  topParses: number;
-  /** Their best parse as this spec. */
-  bestParse: number;
+  spec: string;
+  metric: Metric;
   /** Average parse over the bosses they killed as this spec. */
   averageParse: number;
+  /** Average of their best DPS / HPS on each of those bosses. */
+  perSecond: number;
+  /** Bosses killed as this spec. */
+  bosses: number;
+  /** Of those, how many are top 1% (99+) parses. */
+  topParses: number;
 }
 
-export interface SpecLeaders {
-  className: string;
-  spec: string;
-  players: Leader[];
-}
-
-/** Every class and spec with the realm's top 1% players in one raid. */
+/** The #1 player of every class on the realm in one raid. */
 export interface Leaderboard {
   realm: string;
   raid: { id: string; name: string } | null;
   /** How many saved character pages the list was built from. */
   characters: number;
-  specs: SpecLeaders[];
+  /** One entry per class, in class order; null where nobody has a kill yet. */
+  classes: { className: string; leader: ClassLeader | null }[];
   updatedAt: number;
 }

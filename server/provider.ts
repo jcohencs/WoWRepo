@@ -10,7 +10,7 @@ export interface Provider {
   raids(): Promise<Raid[]>;
   zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;
   compare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison>;
-  /** The realm's top 1% players for each class and spec in a raid (main page). */
+  /** The realm's #1 player of each class in a raid (main page). */
   leaders?(realm: string, raidId?: string): Promise<Leaderboard>;
   /** Pulls the character's raid page again now (the page's Refresh button). */
   refresh(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;

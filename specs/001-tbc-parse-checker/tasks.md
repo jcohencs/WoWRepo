@@ -184,3 +184,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T100 Refresh never shows a "busy" message: with the allowance low it queues the pull and shows the saved page
 - [x] T101 "Top 1% on Nightslayer" on the main page: per class and spec, everyone with a 99+ parse in the chosen raid (`GET /api/leaders`, from saved pages), click a name to open their logs
 - [x] T102 Classes section moved below it and redesigned as square tiles with large class icons, spec guide icons and a Talents link
+- [x] T103 Main page reworked: welcome box ("Welcome to LogsForever") with the three steps; "#1 on Nightslayer" shows each class's best player (average parse, average DPS/HPS, top 1% count); classes and guides at the bottom

@@ -1,4 +1,4 @@
-import { CLASSES } from '../core/classes.js';
+import { CLASSES, metricFor } from '../core/classes.js';
 import { REALMS, type Benchmark, type Comparison, type Leaderboard, type Raid, type ZoneReport } from '../../shared/types.js';
 import { compareAbilities, type SideTables } from '../core/compare.js';
 import { weekStart } from '../core/fight.js';
@@ -101,30 +101,31 @@ export class DemoProvider implements Provider {
 
   private readonly allRaids = raidsFromZones(TBC_ZONES);
 
-  /** Made-up top 1% players for every class and spec. */
+  /** A made-up #1 player for every class. */
   async leaders(realm: string, raidId?: string): Promise<Leaderboard> {
     const raids = await this.raids();
     const raid = raids.find((r) => r.id === raidId) ?? raids[raids.length - 1];
-    const syllables = ['Ka', 'zul', 'mor', 'Ve', 'lis', 'Thra', 'nok', 'Ae', 'rin', 'Gor', 'dash', 'Shy', 'va', 'Bel', 'tor', 'Ny', 'ssa', 'Dro', 'gan'];
+    const names = ['Thraganssa', 'Zulva', 'Torbelnok', 'Kazul', 'Aetor', 'Gannokae', 'Nokssaka', 'Lisshygor', 'Brannoc'];
     const r = rng(raid.encounters.length * 97 + realm.length);
-    const name = () => {
-      const n = 2 + Math.floor(r() * 2);
-      const w = Array.from({ length: n }, () => syllables[Math.floor(r() * syllables.length)].toLowerCase()).join('');
-      return w[0].toUpperCase() + w.slice(1);
-    };
-    const specs = Object.values(CLASSES).flatMap((c) =>
-      c.specs
-        .filter((sp) => sp !== 'Guardian')
-        .map((spec) => {
-          const count = Math.floor(r() * 5);
-          const players = Array.from({ length: count }, () => {
-            const top = 1 + Math.floor(r() * raid.encounters.length);
-            return { name: name(), topParses: top, bestParse: 99 + r() * 1, averageParse: 92 + r() * 7 };
-          }).sort((a, b) => b.topParses - a.topParses || b.averageParse - a.averageParse);
-          return { className: c.name, spec, players };
-        }),
-    );
-    return { realm, raid: { id: raid.id, name: raid.name }, characters: 1530, specs, updatedAt: Date.now() };
+    const classes = Object.values(CLASSES).map((c, i) => {
+      const spec = c.specs.filter((sp) => sp !== 'Guardian')[Math.floor(r() * (c.specs.length - (c.name === 'Druid' ? 1 : 0)))];
+      const metric = metricFor(c.name, spec);
+      const bosses = Math.max(1, raid.encounters.length - Math.floor(r() * 2));
+      return {
+        className: c.name,
+        leader: {
+          className: c.name,
+          name: names[i],
+          spec,
+          metric,
+          averageParse: 93 + r() * 6.5,
+          perSecond: metric === 'hps' ? 1300 + r() * 600 : 1700 + r() * 900,
+          bosses,
+          topParses: Math.floor(r() * (bosses + 1)),
+        },
+      };
+    });
+    return { realm, raid: { id: raid.id, name: raid.name }, characters: 1530, classes, updatedAt: Date.now() };
   }
 
   async raids(): Promise<Raid[]> {

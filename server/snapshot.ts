@@ -449,7 +449,7 @@ export class SnapshotProvider implements Provider {
   private leaderMemo = new Map<string, { at: number; board: Leaderboard }>();
 
   /**
-   * The realm's top 1% players for every class and spec in one raid, built from the saved raid
+   * The realm's #1 player of every class in one raid, built from the saved raid
    * pages (no Warcraft Logs calls). Rebuilt at most every 10 minutes.
    */
   async leaders(realm: string, raidId?: string): Promise<Leaderboard> {
@@ -471,7 +471,7 @@ export class SnapshotProvider implements Provider {
       realm,
       raid: raid && { id: raid.id, name: raid.name },
       characters: pages.length,
-      specs: buildLeaders(pages),
+      classes: buildLeaders(pages, raid?.encounters.length ?? 0),
       updatedAt: Date.now(),
     };
     this.leaderMemo.set(memoKey, { at: Date.now(), board });

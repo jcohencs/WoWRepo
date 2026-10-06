@@ -215,16 +215,28 @@ function TableSkeleton() {
 
 function EmptyIntro() {
   return (
-    <section className="intro">
-      <ol>
+    <section className="welcome">
+      <div className="welcome-text">
+        <h1>
+          Welcome to <span>LogsForever</span>
+        </h1>
+        <p>See detailed visual breakdowns comparing your logs with the top 1% of your class.</p>
+      </div>
+      <ol className="welcome-steps">
         <li>
-          <strong>Find your character</strong> Type your Nightslayer character's name in the search box above.
+          <span className="ws-num">1</span>
+          <strong>Find your character</strong>
+          <span>Type your Nightslayer character's name in the search box above.</span>
         </li>
         <li>
-          <strong>See every boss</strong> Your best kill next to a typical player and the top 1% of your spec.
+          <span className="ws-num">2</span>
+          <strong>See every boss</strong>
+          <span>Your best kill next to a typical player and the top 1% of your spec.</span>
         </li>
         <li>
-          <strong>Click a boss</strong> See which abilities a top 1% player gets more out of than you do.
+          <span className="ws-num">3</span>
+          <strong>Click a boss</strong>
+          <span>See which abilities a top 1% player gets more out of than you do.</span>
         </li>
       </ol>
     </section>

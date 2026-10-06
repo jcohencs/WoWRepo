@@ -34,7 +34,8 @@ export function RaidView({ report, query, site, demo }: Props) {
 
   return (
     <div className="raid-view">
-      <aside className="sidebar">
+      <aside className="sidebar-col">
+        <div className="sidebar">
         <dl className="mini-summary">
           <div>
             <dt>Avg parse</dt>
@@ -87,6 +88,7 @@ export function RaidView({ report, query, site, demo }: Props) {
             );
           })}
         </ol>
+        </div>
 
         <ErrorBoundary what="the performance profile" resetKey={shown}>
           <PerformanceRadar data={shown} />

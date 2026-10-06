@@ -677,9 +677,12 @@ td {
   margin-top: 20px;
 }
 
+.sidebar-col {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
 .sidebar {
-  position: sticky;
-  top: 16px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
@@ -886,7 +889,8 @@ td {
 }
 
 @media (max-width: 1400px) {
-  .compare-cols {
+  .compare-cols,
+  .sides {
     grid-template-columns: minmax(0, 1fr);
   }
   .bs-tiles {
@@ -925,9 +929,10 @@ td {
 
 .sides {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 10px;
+  /* Same columns and gap as the breakdown below, so the two boxes line up with it. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px 20px;
+  margin: 14px 0 16px;
 }
 .side {
   border: 1px solid var(--line);
@@ -944,6 +949,10 @@ td {
   align-items: baseline;
   gap: 10px;
   min-width: 0;
+}
+.side-head a {
+  margin-left: auto;
+  padding-left: 16px;
 }
 .side-label {
   font-size: 13px;
@@ -2078,9 +2087,10 @@ td {
 
 /* ---------- Performance profile (sidebar radar) ---------- */
 .radar-card {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px;
 }
 .radar-note,
 .radar-empty {

@@ -165,3 +165,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T084 Remove light mode and the theme toggle; remove the "TBC Anniversary" tag from the top bar
 - [x] T085 Squarer corners throughout (3px radius)
 - [x] T086 Classes grid on the home page: class icon and colour, a Talents link (Wowhead TBC calculator) per class, and a Guide link per spec; `/guides/<class>/<spec>` placeholder pages; Talents and Guide links in each character's header
+- [x] T087 Performance profile in its own box under the boss list; "You" / "Top 1% player" boxes use the same columns and gap as the breakdown below, with space beneath them and the "Open log" link pushed right

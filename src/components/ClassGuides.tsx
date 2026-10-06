@@ -119,29 +119,19 @@ export function SpecLinksCard({ name, spec, navigate }: { name: string; spec: st
     <section className="side-card spec-links" style={{ '--class': classColor(name) } as CSSProperties} aria-label={`${guideTitle(name, spec)} talents and guide`}>
       <p className="sidebar-title">Talents &amp; guide</p>
       <div className="spec-links-body">
-        <div className="spec-links-who">
-          <SpecIcon className={name} spec={spec} size={40} />
-          <div>
-            <strong>{specLabel(spec)}</strong>
-            <span>{name}</span>
-          </div>
+        <SpecIcon className={name} spec={spec} size={48} />
+        <strong>{specLabel(spec)}</strong>
+        <span className="soft">{name}</span>
+        <div className="spec-link-row">
+          <a className="spec-link" href={talentsUrl(name)} target="_blank" rel="noreferrer" title={`${name} talent calculator on Wowhead`}>
+            <TalentsIcon />
+            Talents
+          </a>
+          <a className="spec-link" href={guide} onClick={inSite(navigate, guide)} title={`${guideTitle(name, spec)} guide`}>
+            <GuideIcon />
+            Guide
+          </a>
         </div>
-        <a className="spec-link" href={talentsUrl(name)} target="_blank" rel="noreferrer">
-          <TalentsIcon />
-          <span>
-            <b>Talents</b>
-            <small>Wowhead talent calculator</small>
-          </span>
-          <i aria-hidden>↗</i>
-        </a>
-        <a className="spec-link" href={guide} onClick={inSite(navigate, guide)}>
-          <GuideIcon />
-          <span>
-            <b>Guide</b>
-            <small>{guideTitle(name, spec)}</small>
-          </span>
-          <i aria-hidden>→</i>
-        </a>
       </div>
     </section>
   );

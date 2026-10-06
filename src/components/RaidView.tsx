@@ -140,11 +140,11 @@ function BossStats({ row }: { row: BossRow }) {
           <dd>{amount(row.best)}</dd>
         </div>
         <div>
-          <dt title="The median: half of players do more, half do less">Typical player</dt>
+          <dt title="The median: half of players do more, half do less">Typical {unit}</dt>
           <dd className="soft">{amount(b?.p50)}</dd>
         </div>
         <div>
-          <dt title="99th percentile: better than 99% of logged kills">Top 1%</dt>
+          <dt title="99th percentile: better than 99% of logged kills">Top 1% {unit}</dt>
           <dd>
             {amount(b?.p99)}
             {b && <small>from {integer(b.sampleSize)} logs</small>}

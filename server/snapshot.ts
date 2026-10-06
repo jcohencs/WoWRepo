@@ -68,6 +68,9 @@ const KEEP = 365 * DAY;
  */
 export const LEADERS_HOUR = 10;
 export const LEADERS_ZONE = 'America/New_York';
+/** The raid the main page's #1 section opens on (LEADERS_DEFAULT_RAID), if it's out; otherwise the newest raid. */
+const LEADERS_DEFAULT = process.env.LEADERS_DEFAULT_RAID || 'black-temple';
+export const defaultLeadersRaid = (raids: Raid[]): Raid | undefined => raids.find((r) => r.id === LEADERS_DEFAULT) ?? raids.at(-1);
 
 /**
  * What is written to disk: finished pages, benchmarks, rosters and bookkeeping. Raw Warcraft Logs
@@ -517,7 +520,7 @@ export class SnapshotProvider implements Provider {
    */
   async leaders(realm: string, raidId?: string): Promise<Leaderboard> {
     const raids = await this.raids();
-    const raid = (raidId ? raids.find((r) => r.id === normaliseRaidId(raidId)) : raids[raids.length - 1]) ?? null;
+    const raid = (raidId ? raids.find((r) => r.id === normaliseRaidId(raidId)) : defaultLeadersRaid(raids)) ?? null;
     const empty = (): Leaderboard => ({
       realm,
       raid: raid && { id: raid.id, name: raid.name },

@@ -1,9 +1,9 @@
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import { REALM_REGION, REALMS, type ClassLeader, type Leaderboard, type Raid } from '../../shared/types';
 import { api, type Query } from '../lib/api';
 import { preload } from '../lib/preload';
 import { classColor, classIconUrl } from '../lib/classes';
-import { ago, integer, metricLabel, specLabel } from '../lib/format';
+import { integer, metricLabel, specLabel } from '../lib/format';
 import { SpecIcon } from './SpecIcon';
 
 /** Main page: the realm's #1 player of every class in one raid, with their DPS or HPS. */
@@ -40,33 +40,30 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
 
   return (
     <section className="top-players" aria-labelledby="top-players-title">
-      <header className="section-head">
-        <div>
-          <h2 id="top-players-title">#1 on {realm.name}</h2>
-          <p className="soft">
-            Each class's best damage dealer, healer and tank{board?.raid ? ` in ${board.raid.name}` : ''} from Warcraft Logs' {realm.name} rankings.
-            <span className="tp-when"> Updated daily at 10:00 AM Eastern{board?.updatedAt ? ` · last ${ago(board.updatedAt)}` : ''}.</span>
-          </p>
-        </div>
-        {raids.length > 0 && (
-          <label className="raid-select compact">
-            <span>Raid</span>
-            <select value={raidId ?? board?.raid?.id ?? ''} onChange={(e) => setRaidId(e.target.value)}>
-              {raids.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </header>
 
       {error ? (
         <p className="state">{error}</p>
       ) : (
         <div className="leader-layout">
-          <RoleChart board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
+          <RoleChart
+            board={board}
+            realm={realm.slug}
+            onPick={(q) => onPick(q, board?.raid?.id)}
+            picker={
+              raids.length > 0 && (
+                <label className="raid-select compact">
+                  <span>Raid</span>
+                  <select value={raidId ?? board?.raid?.id ?? ''} onChange={(e) => setRaidId(e.target.value)}>
+                    {raids.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )
+            }
+          />
           <div className="leader-side">
             {ROLES.map((role) => (
               <TopOverall key={role.role} role={role} board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
@@ -95,7 +92,7 @@ function roleLeaders(board: Leaderboard | null, role: RoleDef): ClassLeader[] {
 }
 
 /** Bar chart of each class's #1 for one role; buttons switch between damage, healing and tanking. */
-function RoleChart({ board, realm, onPick }: { board: Leaderboard | null; realm: string; onPick: (q: Query) => void }) {
+function RoleChart({ board, realm, onPick, picker }: { board: Leaderboard | null; realm: string; onPick: (q: Query) => void; picker?: ReactNode }) {
   const [roleKey, setRoleKey] = useState<RoleDef['role']>('damage');
   const role = ROLES.find((r) => r.role === roleKey)!;
   const rows = roleLeaders(board, role);
@@ -112,7 +109,7 @@ function RoleChart({ board, realm, onPick }: { board: Leaderboard | null; realm:
             </button>
           ))}
         </div>
-        <span className="soft">#1 of each class · {unit}</span>
+        {picker}
       </header>
       {rows.length === 0 ? (
         <p className="rc-empty soft">{pending ? 'Being pulled from Warcraft Logs…' : 'No ranked kills yet.'}</p>

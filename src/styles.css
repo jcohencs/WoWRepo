@@ -3111,3 +3111,18 @@ button.top-overall:hover {
 .role-chart {
   min-height: 392px;
 }
+
+/* #1 section without its heading: space above it, raid picker inline in the chart header */
+.top-players {
+  margin-top: 24px;
+}
+.rc-head .raid-select.compact {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+.rc-head .raid-select.compact select {
+  width: 200px;
+  height: 34px;
+}

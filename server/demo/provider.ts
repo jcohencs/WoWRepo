@@ -105,7 +105,7 @@ export class DemoProvider implements Provider {
   /** A made-up #1 player for every class (and a healing #1 for hybrids). */
   async leaders(realm: string, raidId?: string): Promise<Leaderboard> {
     const raids = await this.raids();
-    const raid = raids.find((r) => r.id === raidId) ?? raids[raids.length - 1];
+    const raid = raids.find((r) => r.id === (raidId ?? 'black-temple')) ?? raids[raids.length - 1];
     const names = ['Thraganssa', 'Zulva', 'Torbelnok', 'Kazul', 'Aetor', 'Gannokae', 'Nokssaka', 'Lisshygor', 'Brannoc', 'Morwenna', 'Belrin', 'Dashthradash', 'Aerinnok'];
     const r = rng(raid.encounters.length * 97 + realm.length);
     let n = 0;

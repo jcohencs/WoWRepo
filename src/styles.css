@@ -2564,3 +2564,115 @@ a.spec-link {
   font-style: normal;
   color: var(--soft);
 }
+
+/* ---------- Character box ---------- */
+.character-box {
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--class, var(--line-strong));
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.cb-top {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+}
+.cb-who {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.cb-class-icon {
+  flex: none;
+  border: 1px solid var(--class, var(--line-strong));
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.character-box h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--class, var(--text));
+}
+.character-box p {
+  margin: 3px 0 0;
+  color: var(--text-2);
+}
+.character-box p .spec-icon {
+  margin-right: 6px;
+}
+.cb-tiles {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.cb-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 120px;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.cb-tile-label {
+  font-size: 12px;
+  color: var(--soft);
+}
+.cb-tile-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+.cb-action {
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+  cursor: pointer;
+  text-decoration: none;
+}
+a.cb-action {
+  border-bottom: 1px solid var(--line);
+}
+.cb-action:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: var(--surface-2);
+}
+.cb-action:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.cb-action .spin {
+  animation: refresh-spin 0.9s linear infinite;
+}
+.cb-note {
+  margin: -6px 16px 10px;
+  font-size: 13px;
+}
+.cb-controls {
+  border-top: 1px solid var(--line);
+  padding: 10px 16px;
+}
+.cb-controls .controls {
+  margin: 0;
+}
+.cb-controls .spec-bar {
+  margin: 0;
+}
+.raid-view {
+  margin-top: 16px;
+}

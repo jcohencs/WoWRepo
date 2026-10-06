@@ -171,3 +171,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T090 Potions detected by spell id and icon (logs name them by effect, e.g. "Haste", "Restore Mana") and from buffs, so a potion drunk before the pull counts; flasks/elixirs told apart by lasting the fight
 - [x] T091 Search bar: realm label folded into the placeholder ("Search Nightslayer characters"); no browser dropdown arrow on the name box
 - [x] T092 Talents & guide box at the bottom of the sidebar, following the selected spec/boss and ending level with the last chart; header links removed
+- [x] T093 Character page header is one box: class icon, name and spec/realm; tiles for data age, Refresh and Warcraft Logs; spec and raid pickers in the box's bottom strip

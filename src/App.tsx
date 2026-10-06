@@ -158,15 +158,18 @@ export function App() {
 
       {!guide && query && (
         <main className="content">
-          {shown && (
-            <CharacterHeader report={shown} site={meta?.site ?? 'fresh'} onRefresh={refresh} refreshing={refreshing} refreshNote={refreshNote} />
+          {shown ? (
+            <CharacterHeader report={shown} site={meta?.site ?? 'fresh'} onRefresh={refresh} refreshing={refreshing} refreshNote={refreshNote}>
+              <div className="controls">
+                {shown.specs?.length > 0 && (
+                  <SpecBar className={shown.character.className} specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec ?? ''} onSelect={(s) => setSpec(s ?? undefined)} />
+                )}
+                {raidPicker}
+              </div>
+            </CharacterHeader>
+          ) : (
+            <div className="controls">{raidPicker}</div>
           )}
-          <div className="controls">
-            {shown && shown.specs?.length > 0 && (
-              <SpecBar className={shown.character.className} specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec ?? ''} onSelect={(s) => setSpec(s ?? undefined)} />
-            )}
-            {raidPicker}
-          </div>
 
           {error ? (
             <div className="state">

@@ -1,6 +1,7 @@
 import { REALM_REGION, REALMS, type ApiStatus, type Benchmark, type Comparison, type Leaderboard, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
 import { keyString } from './core/benchmark.js';
 import { buildRow, summarise } from './core/report.js';
+import { lastDailyTime } from './core/schedule.js';
 import { DAY, HOUR, MINUTE, type TtlCache } from './cache.js';
 import { CLASSES, classByName } from './core/classes.js';
 import type { CharacterRef } from './core/input.js';
@@ -61,6 +62,12 @@ const REFRESH_RESERVE = 0.15;
  */
 const SWEEP_RESERVE = Number(process.env.SWEEP_RESERVE) || 0.2;
 const KEEP = 365 * DAY;
+/**
+ * The #1 lists are pulled once a day at 10:00 AM Eastern: Warcraft Logs takes a while to verify
+ * new logs, so pulling more often wouldn't change them.
+ */
+export const LEADERS_HOUR = 10;
+export const LEADERS_ZONE = 'America/New_York';
 
 /**
  * What is written to disk: finished pages, benchmarks, rosters and bookkeeping. Raw Warcraft Logs
@@ -199,8 +206,8 @@ export class Puller {
       this.cache.set('queue', this.queue().filter((j) => jobKey(j) !== jobKey(job)), KEEP);
     }
 
-    // 2. The #1 of each class (a few requests a day): the newest raid daily, plus any raid a visitor
-    //    opened that wasn't saved yet. Runs before the sweep so it never waits behind it.
+    // 2. The #1 of each class, once a day after 10:00 AM Eastern (and a raid a visitor opened that
+    //    was never pulled). Runs before the sweep so it never waits behind it.
     if ((await this.pullLeaders()) === 'limited') return;
 
     // 3. Find who raids on each realm (re-checked daily).
@@ -210,16 +217,19 @@ export class Puller {
     await this.sweep();
   }
 
+  /**
+   * Pulls the #1 lists that are due: every saved raid (and the newest) once a day after 10:00 AM
+   * Eastern, plus any raid a visitor opened that was never pulled.
+   */
   private async pullLeaders(): Promise<'ok' | 'limited'> {
     const raids = this.cachedRaids();
     const wanted = this.cache.peekAny<string[]>('leaders-wanted')?.value ?? [];
-    const ids = [...new Set([...wanted, raids.at(-1)?.id].filter((id): id is string => Boolean(id)))];
-    for (const id of ids) {
-      const raid = raids.find((r) => r.id === id);
+    const since = lastDailyTime(Date.now(), LEADERS_HOUR, LEADERS_ZONE);
+    for (const raid of raids) {
       for (const realm of REALMS) {
-        if (!raid) continue;
         const at = this.cache.fetchedAt(this.live.leadersKey(REALM_REGION, realm.slug, raid.id));
-        if (at != null && Date.now() - at < DAY) continue;
+        const due = at == null ? raid === raids.at(-1) || wanted.includes(raid.id) : at < since;
+        if (!due) continue;
         try {
           await this.live.classLeaders(REALM_REGION, realm.slug, raid);
         } catch (err) {
@@ -475,8 +485,8 @@ export class SnapshotProvider implements Provider {
 
   /**
    * The realm's #1 player of every class in a raid, from Warcraft Logs' realm rankings. The saved
-   * list is shown (refreshed daily by the puller, or in the background when a visitor finds it
-   * stale); a raid nobody has asked for is pulled now if the allowance allows.
+   * list is shown (the puller replaces it once a day at 10:00 AM Eastern); a raid that was never
+   * pulled is pulled now if the allowance allows, or first thing on the next pass.
    */
   async leaders(realm: string, raidId?: string): Promise<Leaderboard> {
     const raids = await this.raids();
@@ -493,10 +503,8 @@ export class SnapshotProvider implements Provider {
       this.leadersLoading ??= this.live.classLeaders(REALM_REGION, realm, raid).finally(() => (this.leadersLoading = null));
       return this.leadersLoading;
     };
-    if (saved) {
-      if (!saved.fresh && this.live.headroom() > REFRESH_RESERVE) void load().catch(() => undefined);
-      return saved.value;
-    }
+    // A saved list is always shown as-is; only the 10:00 AM pull replaces it.
+    if (saved) return saved.value;
     const later = () => {
       // Not now: the next pass pulls it before anything else.
       const wanted = this.cache.peekAny<string[]>('leaders-wanted')?.value ?? [];

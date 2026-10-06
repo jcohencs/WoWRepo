@@ -2,7 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { REALM_REGION, REALMS, type ClassLeader, type Leaderboard, type Raid } from '../../shared/types';
 import { api, type Query } from '../lib/api';
 import { classColor, classIconUrl } from '../lib/classes';
-import { integer, metricLabel, specLabel } from '../lib/format';
+import { ago, integer, metricLabel, specLabel } from '../lib/format';
 import { SpecIcon } from './SpecIcon';
 
 /** Main page: the realm's #1 player of every class in one raid, with their DPS or HPS. */
@@ -40,6 +40,7 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
           <h2 id="top-players-title">#1 on {realm.name}</h2>
           <p className="soft">
             Each class's best player{board?.raid ? ` in ${board.raid.name}` : ''} from Warcraft Logs' {realm.name} rankings, with a healing #1 for hybrid classes.
+            <span className="tp-when"> Updated daily at 10:00 AM Eastern{board?.updatedAt ? ` · last ${ago(board.updatedAt)}` : ''}.</span>
           </p>
         </div>
         {raids.length > 0 && (

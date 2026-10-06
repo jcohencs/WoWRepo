@@ -121,6 +121,27 @@ describe('saved pages + scheduled puller', () => {
     expect(queries.length).toBe(before);
   });
 
+  it('pulls the #1 list once a day at 10:00 AM Eastern, never in between', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.UTC(2026, 9, 6, 15)); // 11:00 AM EDT
+    const { site, puller, queries } = setup();
+    const pulls = () => queries.filter((q) => q.includes('className: "') && q.includes('serverSlug: $realm')).length;
+    await puller.run();
+    const first = pulls();
+    expect(first).toBeGreaterThan(0);
+
+    vi.setSystemTime(Date.UTC(2026, 9, 7, 13, 30)); // 9:30 AM next day: not yet
+    await puller.run();
+    await site.leaders('nightslayer');
+    expect(pulls()).toBe(first);
+
+    vi.setSystemTime(Date.UTC(2026, 9, 7, 14, 5)); // 10:05 AM: due
+    await puller.run();
+    expect(pulls()).toBe(first * 2);
+    await puller.run();
+    expect(pulls()).toBe(first * 2);
+  });
+
   it('a #1 list asked for while the allowance is used up is pulled first on the next pass', async () => {
     const { site, puller, live } = setup();
     await puller.run();

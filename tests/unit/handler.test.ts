@@ -87,21 +87,23 @@ describe('API (demo provider)', () => {
 });
 
 describe('admin pull link', () => {
-  it('is hidden without the right ADMIN_KEY', async () => {
-    const srv = createServer(createApiHandler(new DemoProvider(), { ADMIN_KEY: 'correct-horse-battery' }));
+  const at = async (env: Record<string, string>, qs: string) => {
+    const srv = createServer(createApiHandler(new DemoProvider(), env));
     await new Promise<void>((r) => srv.listen(0, r));
-    const at = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/api/admin/pull-leaders`;
-    expect((await fetch(at)).status).toBe(404);
-    expect((await fetch(`${at}?key=wrong-key-entirely`)).status).toBe(404);
-    expect((await fetch(`${at}?key=correct-horse-battery`)).status).toBe(400); // demo mode has nothing to pull
+    const res = await fetch(`http://127.0.0.1:${(srv.address() as AddressInfo).port}/api/admin/pull-leaders${qs}`);
+    const body = (await res.json()) as { error?: { message: string } };
     srv.close();
+    return { status: res.status, message: body.error?.message ?? '' };
+  };
+
+  it('says exactly what is wrong instead of failing silently', async () => {
+    expect(await at({}, '?key=anything')).toMatchObject({ status: 403, message: expect.stringMatching(/isn't set/) });
+    expect(await at({ ADMIN_KEY: 'short' }, '?key=short')).toMatchObject({ status: 403, message: expect.stringMatching(/shorter than 12/) });
+    expect(await at({ ADMIN_KEY: 'correct-horse-battery' }, '')).toMatchObject({ status: 403, message: expect.stringMatching(/\?key=/) });
+    expect(await at({ ADMIN_KEY: 'correct-horse-battery' }, '?key=wrong-key-entirely')).toMatchObject({ status: 403, message: expect.stringMatching(/doesn't match/) });
   });
 
-  it('stays off when ADMIN_KEY is missing or too short', async () => {
-    const srv = createServer(createApiHandler(new DemoProvider(), { ADMIN_KEY: 'short' }));
-    await new Promise<void>((r) => srv.listen(0, r));
-    const at = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/api/admin/pull-leaders?key=short`;
-    expect((await fetch(at)).status).toBe(404);
-    srv.close();
+  it('accepts the right key (with stray spaces trimmed)', async () => {
+    expect(await at({ ADMIN_KEY: ' correct-horse-battery ' }, '?key=correct-horse-battery')).toMatchObject({ status: 400, message: /demo/i });
   });
 });

@@ -49,5 +49,11 @@ createServer((req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   void api(req, res, () => serveStatic(new URL(req.url ?? '/', 'http://x').pathname, res));
 }).listen(port, () => {
-  console.log(`LogsForever listening on port ${port}`);
+  console.log(`LogsForever listening on port ${port} (version ${(process.env.RENDER_GIT_COMMIT ?? 'local').slice(0, 7)})`);
+  const key = process.env.ADMIN_KEY?.trim();
+  console.log(
+    key && key.length >= 12
+      ? '[logsforever] Admin pull link is on: /api/admin/pull-leaders?key=…'
+      : `[logsforever] Admin pull link is off (${key ? 'ADMIN_KEY is shorter than 12 characters' : 'no ADMIN_KEY set'}).`,
+  );
 });

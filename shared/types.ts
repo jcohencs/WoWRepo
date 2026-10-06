@@ -39,6 +39,8 @@ export interface Meta {
   site: Site;
   demo: boolean;
   raids: Raid[];
+  /** Short commit id of the running version. */
+  version?: string;
 }
 
 export interface Character {

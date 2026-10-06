@@ -58,14 +58,20 @@ function intParam(params: URLSearchParams, key: string, required: boolean): numb
   return n;
 }
 
+/** The deployed commit (Render sets RENDER_GIT_COMMIT), so you can tell which version is live. */
+const VERSION = (process.env.RENDER_GIT_COMMIT ?? process.env.GIT_COMMIT ?? 'local').slice(0, 7);
+
 export type ApiHandler = (req: IncomingMessage, res: ServerResponse, next?: () => void) => Promise<void>;
 
-/** True when `given` matches the ADMIN_KEY setting (compared in constant time). Off without a key. */
-function adminKeyMatches(given: string | null, expected: string | undefined): boolean {
-  if (!expected || expected.length < 12 || !given) return false;
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+/** Why the admin link can't be used, or null when `given` matches ADMIN_KEY (compared in constant time). */
+export function adminKeyProblem(given: string | null, expected: string | undefined): string | null {
+  const key = expected?.trim();
+  if (!key) return "ADMIN_KEY isn't set on the server. Add it in Render → Environment, save, and wait for the service to restart.";
+  if (key.length < 12) return 'ADMIN_KEY on the server is shorter than 12 characters; make it longer.';
+  if (!given) return 'Add your key to the end of the link: ?key=YOUR_KEY';
+  const a = Buffer.from(given.trim());
+  const b = Buffer.from(key);
+  return a.length === b.length && timingSafeEqual(a, b) ? null : "That key doesn't match ADMIN_KEY (it's case-sensitive).";
 }
 
 export function createApiHandler(provider: Provider = providerFromEnv(process.env, { schedule: true }), env: Record<string, string | undefined> = process.env): ApiHandler {
@@ -74,7 +80,8 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
     if (!url.pathname.startsWith('/api/')) return next ? next() : send(res, 404, { error: { code: 'not_found', message: 'Not found' } });
     // The admin link works from a browser address bar, so it takes GET as well; it needs ADMIN_KEY.
     if (url.pathname === '/api/admin/pull-leaders') {
-      if (!adminKeyMatches(url.searchParams.get('key'), env.ADMIN_KEY)) return send(res, 404, { error: { code: 'not_found', message: 'Not found' } });
+      const problem = adminKeyProblem(url.searchParams.get('key'), env.ADMIN_KEY);
+      if (problem) return send(res, 403, { error: { code: 'bad_request', message: problem } });
       if (!provider.pullLeadersNow) return send(res, 400, { error: { code: 'bad_request', message: 'Not available in demo mode.' } });
       try {
         return send(res, 200, await provider.pullLeadersNow());
@@ -88,7 +95,7 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
     try {
       switch (url.pathname) {
         case '/api/meta': {
-          const meta: Meta = { site: provider.site, demo: provider.demo, raids: await provider.raids() };
+          const meta: Meta = { site: provider.site, demo: provider.demo, raids: await provider.raids(), version: VERSION };
           return send(res, 200, meta);
         }
         case '/api/characters': {

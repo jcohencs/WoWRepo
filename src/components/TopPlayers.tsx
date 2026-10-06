@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { REALM_REGION, REALMS, type ClassLeader, type Leaderboard, type Raid } from '../../shared/types';
+import { REALM_REGION, REALMS, type Leaderboard, type Raid } from '../../shared/types';
 import { api, type Query } from '../lib/api';
 import { classColor, classIconUrl } from '../lib/classes';
 import { ago, integer, metricLabel, specLabel } from '../lib/format';
@@ -60,76 +60,77 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
       {error ? (
         <p className="state">{error}</p>
       ) : (
-        <div className="leader-grid" aria-busy={!board}>
-          {board
-            ? board.classes.map(({ className, leaders }) => (
-                <LeaderCard
-                  key={className}
-                  className={className}
-                  leaders={leaders}
-                  pending={board.updatedAt == null}
-                  realm={realm.slug}
-                  onPick={(q) => onPick(q, board.raid?.id)}
-                />
-              ))
-            : Array.from({ length: 9 }, (_, i) => <div key={i} className="leader-card skeleton-block" />)}
-        </div>
+        <LeaderTable board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
       )}
     </section>
   );
 }
 
-function LeaderCard({
-  className,
-  leaders,
-  pending,
-  realm,
-  onPick,
-}: {
-  className: string;
-  leaders: ClassLeader[];
-  pending: boolean;
-  realm: string;
-  onPick: (q: Query) => void;
-}) {
+const ROLES = [
+  { metric: 'dps' as const, label: 'Damage' },
+  { metric: 'hps' as const, label: 'Healing' },
+];
+
+/** One box: a column per class, a row for damage and one for healing, lines between every cell. */
+function LeaderTable({ board, realm, onPick }: { board: Leaderboard | null; realm: string; onPick: (q: Query) => void }) {
+  const classes = board?.classes ?? CLASS_ORDER.map((className) => ({ className, leaders: [] }));
+  const pending = !board || board.updatedAt == null;
   return (
-    <article className="leader-card" style={{ '--class': classColor(className) } as CSSProperties}>
-      <header>
-        <img src={classIconUrl(className)} alt="" width={28} height={28} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
-        <span className="lc-class">{className}</span>
-        <span className="lc-rank">#1</span>
-      </header>
-      {leaders.length === 0 ? (
-        <p className="lc-none soft">{pending ? 'Being pulled from Warcraft Logs…' : 'No ranked kills yet'}</p>
-      ) : (
-        leaders.map((l) => <LeaderRow key={l.metric} leader={l} realm={realm} onPick={onPick} showRole={leaders.length > 1 || l.metric === 'hps'} />)
-      )}
-    </article>
+    <div className="leader-scroll">
+      <div className="leader-table" role="table" aria-label="#1 player of each class" aria-busy={!board}>
+        <div className="lt-row lt-head" role="row">
+          <span className="lt-label" role="columnheader" />
+          {classes.map(({ className }) => (
+            <span key={className} className="lt-class" role="columnheader" style={{ '--class': classColor(className) } as CSSProperties}>
+              <img src={classIconUrl(className)} alt="" width={22} height={22} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+              {className}
+            </span>
+          ))}
+        </div>
+        {ROLES.map((role) => (
+          <div key={role.metric} className="lt-row" role="row">
+            <span className="lt-label" role="rowheader">
+              {role.label}
+            </span>
+            {classes.map(({ className, leaders }) => {
+              const leader = leaders.find((l) => l.metric === role.metric);
+              const style = { '--class': classColor(className) } as CSSProperties;
+              if (!leader) {
+                const why = role.metric === 'hps' && !HEALERS.has(className) ? '' : pending ? 'Pulling…' : '—';
+                return (
+                  <span key={className} className="lt-cell empty" role="cell" style={style}>
+                    {why}
+                  </span>
+                );
+              }
+              return (
+                <button
+                  key={className}
+                  className="lt-cell"
+                  role="cell"
+                  style={style}
+                  onClick={() => onPick({ region: REALM_REGION, realm, name: leader.name })}
+                  title={`${leader.name} (${specLabel(leader.spec)}): in the realm's top 100 ${className}s on ${leader.bosses} of ${leader.bossCount} bosses, #1 on ${leader.firsts}`}
+                >
+                  <span className="lt-name">{leader.name}</span>
+                  <span className="lt-spec">
+                    {leader.spec && <SpecIcon className={className} spec={leader.spec} size={14} />}
+                    {specLabel(leader.spec)}
+                  </span>
+                  <span className="lt-amount">
+                    {integer(leader.perSecond)}
+                    <small>{metricLabel(leader.metric)}</small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function LeaderRow({ leader, realm, onPick, showRole }: { leader: ClassLeader; realm: string; onPick: (q: Query) => void; showRole: boolean }) {
-  const unit = metricLabel(leader.metric);
-  return (
-    <button
-      className="lc-row"
-      onClick={() => onPick({ region: REALM_REGION, realm, name: leader.name })}
-      title={`${leader.name}: in the realm's top 100 ${leader.className}s on ${leader.bosses} of ${leader.bossCount} bosses, #1 on ${leader.firsts}`}
-    >
-      {showRole && <span className="lc-role">{leader.metric === 'hps' ? 'Healing' : 'Damage'}</span>}
-      <span className="lc-name">{leader.name}</span>
-      <span className="lc-spec">
-        {leader.spec && <SpecIcon className={leader.className} spec={leader.spec} size={16} />}
-        {leader.spec ? specLabel(leader.spec) : leader.className}
-      </span>
-      <span className="lc-amount">
-        {integer(leader.perSecond)}
-        <small>{unit}</small>
-      </span>
-      <span className="lc-foot soft">
-        {leader.firsts > 0 ? `#1 on ${leader.firsts}` : `Ranked on ${leader.bosses}`} of {leader.bossCount} {leader.bossCount === 1 ? 'boss' : 'bosses'}
-      </span>
-    </button>
-  );
-}
-
+const CLASS_ORDER = ['Druid', 'Hunter', 'Mage', 'Paladin', 'Priest', 'Rogue', 'Shaman', 'Warlock', 'Warrior'];
+/** Classes with a healing spec (the others have no healing #1). */
+const HEALERS = new Set(['Druid', 'Paladin', 'Priest', 'Shaman']);

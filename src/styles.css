@@ -2929,155 +2929,105 @@ a.cb-action {
   }
 }
 
-/* ---------- Main page: #1 of each class ---------- */
-.leader-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 12px;
+/* ---------- Main page: #1 of each class, one box ---------- */
+.leader-scroll {
+  overflow-x: auto;
 }
-@media (min-width: 1700px) {
-  .leader-grid {
-    grid-template-columns: repeat(9, minmax(0, 1fr));
-  }
-}
-.leader-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  min-height: 190px;
-  padding: 12px 14px 14px;
+.leader-table {
+  min-width: 1100px;
   border: 1px solid var(--line);
-  border-top: 2px solid var(--class, var(--line-strong));
   border-radius: var(--radius);
   background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
 }
-button.leader-card:hover {
-  border-color: var(--line-strong);
-  border-top-color: var(--class);
-  background: var(--surface-2);
+.lt-row {
+  display: grid;
+  grid-template-columns: 96px repeat(9, minmax(0, 1fr));
 }
-.leader-card.empty {
-  cursor: default;
+.lt-row + .lt-row {
+  border-top: 1px solid var(--line);
 }
-.leader-card > header {
+.lt-row > * + * {
+  border-left: 1px solid var(--line);
+}
+.lt-head {
+  background: var(--bg);
+}
+.lt-label {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--soft);
+}
+.lt-class {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  padding-bottom: 10px;
-  margin-bottom: 4px;
-  border-bottom: 1px solid var(--line);
-}
-.leader-card > header img {
-  border: 1px solid var(--class);
-  border-radius: var(--radius);
-}
-.lc-class {
+  padding: 10px 12px;
+  border-top: 2px solid var(--class);
   font-size: 14px;
   font-weight: 700;
   color: var(--class);
 }
-.lc-rank {
-  margin-left: auto;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--parse-gold);
+.lt-class img {
+  border: 1px solid var(--class);
+  border-radius: var(--radius);
 }
-.lc-name {
-  max-width: 100%;
-  font-size: 18px;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.lc-spec {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--soft);
-}
-.lc-amount {
-  margin-top: auto;
-  font-size: 24px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-.lc-amount small {
-  margin-left: 5px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--soft);
-}
-.lc-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  font-size: 13px;
-  font-weight: 600;
-}
-.lc-stars {
-  color: var(--parse-gold);
-}
-.lc-stars .top-star {
-  margin: 0 3px 0 0;
-}
-
-/* #1 cards: one row per role (damage, and healing for hybrids) */
-.leader-card {
-  cursor: default;
-  gap: 0;
-  align-items: stretch;
-}
-.lc-none {
-  margin: 8px 0 0;
-  font-size: 13px;
-}
-.lc-row {
+.lt-cell {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 4px;
-  width: 100%;
-  padding: 8px 6px;
-  margin: 0 -6px;
-  width: calc(100% + 12px);
+  gap: 3px;
+  min-width: 0;
+  padding: 12px;
   border: 0;
-  border-radius: var(--radius);
   background: none;
   color: var(--text);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
-.lc-row + .lc-row {
-  margin-top: 4px;
-  border-top: 1px solid var(--line);
-  border-radius: 0 0 var(--radius) var(--radius);
+.lt-row > .lt-cell + .lt-cell,
+.lt-row > .lt-label + .lt-cell {
+  border-left: 1px solid var(--line);
 }
-.lc-row:hover {
+button.lt-cell:hover {
   background: var(--surface-2);
 }
-.lc-role {
-  font-size: 11px;
+.lt-cell.empty {
+  justify-content: center;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: default;
+}
+.lt-name {
+  max-width: 100%;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lt-spec {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
   color: var(--soft);
 }
-.lc-row .lc-amount {
-  margin-top: 2px;
-  font-size: 22px;
+.lt-amount {
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
-.lc-row .lc-foot {
-  font-size: 12px;
-  font-weight: 500;
+.lt-amount small {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--soft);
 }

@@ -55,11 +55,11 @@ describe('benchmarks', () => {
     expect(rankingCount({ hasMorePages: true, rankings: page(1) })).toBeNull();
   });
 
-  it('asks only for the pages that hold the ladder percentiles', () => {
-    // 1000 parses: p50=rank 500 (page 5), p75=250 (3); p90/p95/p99 are on page 1. The 10th and 25th
-    // percentiles (pages 9 and 8 here) aren't read any more.
-    expect(pagesNeeded(1000).sort((a, b) => a - b)).toEqual([3, 5]);
-    expect(pagesNeeded(20000).sort((a, b) => a - b)).toEqual([2, 10, 20, 50, 100]);
+  it('asks only for the page holding the median besides page 1', () => {
+    // 1000 parses: p50 = rank 500 (page 5); p90/p95/p99 are on page 1. p75 (page 3) isn't read.
+    expect(pagesNeeded(1000)).toEqual([5]);
+    expect(pagesNeeded(20000)).toEqual([100]);
+    expect(pagesNeeded(150)).toEqual([]); // the median is on page 1 too
   });
 
 

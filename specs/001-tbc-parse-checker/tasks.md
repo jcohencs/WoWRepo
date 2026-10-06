@@ -202,3 +202,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T118 Fewer API points: fight logs (both players' tables and fight lookups) saved to disk, trimmed, kept a year (logs never change; the top 1% log is shared); top 1% numbers kept 3 days instead of 1; ladder drops the 10th/25th percentiles (the deepest, most expensive ranking pages)
 - [x] T119 Cheaper first comparison: the first click fetches only damage and casts; the timeline, damage taken and buffs come from `/api/compare-extras` when the charts are scrolled to or "Load profile" is clicked, and are saved into the comparison
 - [x] T120 Round log line says what the round did (waiting lookups, #1 lists pulled or up to date); the realm progress only appears when RAIDER_SWEEP is on
+- [x] T121 Top 1% numbers read one ranking page besides page 1 (the median's); ladder steps on other pages are left out

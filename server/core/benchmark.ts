@@ -44,12 +44,13 @@ export function rankingCount(first: RawRankingPage): number | null {
   return null;
 }
 
-/** Ranking pages needed (besides page 1) to read every ladder percentile, including p50 and p99. */
+/**
+ * Ranking pages needed besides page 1: only the one holding the median (p99 is always on page 1).
+ * Ladder steps on other pages are left out rather than costing another page each.
+ */
 export function pagesNeeded(count: number): number[] {
-  const pages = new Set<number>();
-  for (const p of LADDER) pages.add(locateRank(percentileRank(count, p)).page);
-  pages.delete(1);
-  return [...pages];
+  const page = locateRank(percentileRank(count, PERCENTILES.p50)).page;
+  return page === 1 ? [] : [page];
 }
 
 function toEntry(r: RawRanking): RankingEntry {

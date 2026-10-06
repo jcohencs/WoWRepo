@@ -60,7 +60,9 @@ To pre-pull only benchmarks for one spec: `npm run sync -- --class Warrior --spe
 
 ## Request log
 
-Every Warcraft Logs request is logged in the terminal (and in Render's **Logs** tab):
+Every Warcraft Logs request is logged in the terminal (and in Render's **Logs** tab). Requests are
+sent one at a time, so the `+N pts` on each line is exactly what that request cost (unless something
+else is using the same key at the same moment; the round summary says when that happens):
 
 ```
 [wcl] ok      character Alphac · 412ms +3 pts · 1240/18000 used this hour

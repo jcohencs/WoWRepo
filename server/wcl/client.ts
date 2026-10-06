@@ -134,21 +134,42 @@ export class WclClient {
     return { byKind, total, hourUsed: this.rate ? Math.round(this.rate.pointsSpentThisHour) : null };
   }
 
-  async query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+  /** Whether the hour's total was looked up before the first request. */
+  private primed = false;
+
+  /** Requests run one at a time, so each one's cost is exactly the change in the hour's total. */
+  private chain: Promise<unknown> = Promise.resolve();
+
+  query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
+    const run = this.chain.then(() => this.measured<T>(query, variables));
+    this.chain = run.catch(() => undefined);
+    return run;
+  }
+
+  private async measured<T>(query: string, variables: Record<string, unknown>): Promise<T> {
     const label = describeQuery(query, variables);
     const kind = spendKind(label);
+    // Know the hour's total before the first request, so even that one has an exact cost. Asking
+    // for the total alone costs nothing.
+    if (this.lastSeenPoints == null && !this.primed) {
+      this.primed = true;
+      try {
+        await this.send('{ __typename }', {});
+        if (this.rate) this.lastSeenPoints = this.rate.pointsSpentThisHour;
+      } catch {
+        // Not worth failing the real request over; its cost just won't be shown.
+      }
+    }
+    const before = this.lastSeenPoints;
     const started = Date.now();
     const log = (status: string) => {
       const r = this.rate;
-      // Points added since the previous reply from Warcraft Logs, so requests that run side by side
-      // aren't counted twice. A reply that arrives out of order (lower total) counts as 0.
-      const prev = this.lastSeenPoints;
-      // A total well below the last one means a new hour began (late replies are only a few points behind).
-      const reset = r != null && prev != null && prev - r.pointsSpentThisHour > 50;
-      const spent = r && prev != null ? (reset ? r.pointsSpentThisHour : Math.max(0, r.pointsSpentThisHour - prev)) : null;
-      if (r && (prev == null || reset || r.pointsSpentThisHour > prev)) this.lastSeenPoints = r.pointsSpentThisHour;
+      // Nothing else runs at the same time, so the change in the hour's total is this request's
+      // cost. A lower total than before means a new hour began.
+      const spent = r && before != null ? (r.pointsSpentThisHour >= before ? r.pointsSpentThisHour - before : r.pointsSpentThisHour) : null;
+      if (r) this.lastSeenPoints = r.pointsSpentThisHour;
       if (spent != null) this.spent.set(kind, (this.spent.get(kind) ?? 0) + spent);
-      const cost = spent != null ? ` +${Math.round(spent)} pts` : '';
+      const cost = spent != null ? ` +${Math.round(spent * 10) / 10} pts` : '';
       const budget = r && r.limitPerHour ? ` · ${Math.round(r.pointsSpentThisHour)}/${r.limitPerHour} used this hour` : '';
       if (!logEnabled()) return;
       console.log(`[wcl] ${status.padEnd(7)} ${label} · ${Date.now() - started}ms${cost}${budget}`);

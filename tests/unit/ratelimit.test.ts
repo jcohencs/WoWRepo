@@ -95,7 +95,9 @@ describe('WclClient rate limit', () => {
       return Response.json({ data: { x: 1, rateLimitData: { limitPerHour: 720, pointsSpentThisHour: 715, pointsResetIn: 1200 } } });
     }) as typeof globalThis.fetch;
     const client = new WclClient({ clientId: 'a', clientSecret: 'b', site: 'fresh', fetch });
-    await client.query('{ x }');
+    // The free look-up of the hour's total (made before the first request) already shows it's
+    // nearly spent, so nothing that costs points is sent.
+    await expect(client.query('{ x }')).rejects.toMatchObject({ code: 'rate_limited' });
     expect(client.rateLimit()?.pointsSpentThisHour).toBe(715);
     await expect(client.query('{ x }')).rejects.toMatchObject({ code: 'rate_limited' });
     expect(sent).toBe(1);
@@ -149,18 +151,24 @@ describe('points summary', () => {
 });
 
 describe('points per request', () => {
-  it('counts points since the previous reply, so side-by-side requests are not double counted', async () => {
-    const totals = [100, 110, 108, 116, 4]; // 108 arrives late; 4 is a new hour
+  it('runs requests one at a time and charges each exactly what the hour total moved', async () => {
+    // 100: the free look-up before the first request; then 110, 118, and 4 in a new hour.
+    const totals = [100, 110, 118, 4];
     let i = 0;
+    let inFlight = 0;
+    let maxInFlight = 0;
     const fetch = (async (url: string) => {
       if (String(url).endsWith('/oauth/token')) return Response.json({ access_token: 't', expires_in: 3600 });
-      const spent = totals[i++];
-      return Response.json({ data: { rateLimitData: { limitPerHour: 3600, pointsSpentThisHour: spent, pointsResetIn: 1000 } } });
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 5));
+      inFlight--;
+      return Response.json({ data: { rateLimitData: { limitPerHour: 3600, pointsSpentThisHour: totals[i++], pointsResetIn: 1000 } } });
     }) as typeof globalThis.fetch;
     const client = new WclClient({ clientId: 'a', clientSecret: 'b', site: 'fresh', fetch });
-    for (let n = 0; n < totals.length; n++) await client.query('{ worldData { zones { id } } }');
-    // 100 is the first reply (nothing to compare with), then +10, +0 (late), +6, and 4 in the new hour:
-    // 16 points over 100→116, the same as the hour's total moved, plus the new hour's 4.
-    expect(client.takeSpending().total).toBe(20);
+    // Fired together, as a comparison does with both logs.
+    await Promise.all([1, 2, 3].map(() => client.query('{ worldData { zones { id } } }')));
+    expect(maxInFlight).toBe(1);
+    expect(client.takeSpending().total).toBe(10 + 8 + 4);
   });
 });

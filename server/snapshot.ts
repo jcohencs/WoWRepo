@@ -76,10 +76,10 @@ export const defaultLeadersRaid = (raids: Raid[]): Raid | undefined => raids.fin
 
 /**
  * What is written to disk: finished pages, benchmarks, rosters, bookkeeping and fight logs (trimmed;
- * they never change, and the top 1% player's log is shared by everyone comparing that boss). Raw
- * character rankings and kill lists are only needed while building a page, so they stay in memory.
+ * they never change, and the top 1% player's log is shared by everyone comparing that boss) and
+ * kill lists (the priciest request in a comparison). Raw character rankings stay in memory.
  */
-export const persisted = (key: string) => !/^(char\||kills\||compare\d*\||zones-v2-failed)/.test(key);
+export const persisted = (key: string) => !/^(char\||compare\d*\||zones-v2-failed)/.test(key);
 
 /**
  * Saved raid pages don't keep their own copy of each boss's benchmark (thousands of pages share a

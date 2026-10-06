@@ -1,60 +1,37 @@
 import type { Comparison, SchoolTotal } from '../../../shared/types';
-import { amount, compact, integer, metricLabel, percent } from '../../lib/format';
+import { compact, integer, metricLabel, percent } from '../../lib/format';
 import { LineChart } from './LineChart';
 
 const weekLabel = (ms: number) => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
-/** Your best kill each raid week, against today's typical player and top 1%. Click a week to compare it. */
-export function WeeklyChart({
-  data,
-  week,
-  onWeek,
-}: {
-  data: Comparison;
-  week: number | null;
-  onWeek: (week: number | null) => void;
-}) {
+/**
+ * Which of your kills is compared: your best kill overall, or your best kill in the latest raid
+ * week. Only these two, so a visit costs at most two comparisons.
+ */
+export function KillPicker({ data, week, onWeek }: { data: Comparison; week: number | null; onWeek: (week: number | null) => void }) {
   const weeks = data.weeks ?? [];
-  const b = data.benchmark;
+  const latest = weeks.at(-1);
+  const best = weeks.length ? weeks.reduce((a, b) => (b.perSecond > a.perSecond ? b : a)) : null;
+  const latestIsBest = latest != null && best != null && latest.week === best.week;
   const unit = metricLabel(data.metric);
-  const selected = week == null ? null : weeks.findIndex((w) => w.week === week);
   return (
-    <section className="chart-card weekly">
-      <header>
-        <div>
-          <h3>Your {unit} by week</h3>
-          <p className="soft">Your best kill each raid week. Click a week (or pick one) to compare that kill.</p>
-        </div>
-        <label className="week-pick">
-          <span>Comparing</span>
-          <select value={week ?? ''} onChange={(e) => onWeek(e.target.value ? Number(e.target.value) : null)}>
-            <option value="">Best kill overall</option>
-            {[...weeks].reverse().map((w) => (
-              <option key={w.week} value={w.week}>
-                Week of {weekLabel(w.week)} · {amount(w.perSecond)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </header>
-      {weeks.length < 2 ? (
-        <p className="soft chart-empty">Only one week of kills so far — the trend appears from the second week.</p>
-      ) : (
-        <LineChart
-          ariaLabel={`Your ${unit} by week`}
-          xLabels={weeks.map((w) => weekLabel(w.week))}
-          yFormat={(v) => integer(v)}
-          height={190}
-          selected={selected != null && selected >= 0 ? selected : null}
-          onSelect={(i) => onWeek(weeks[i].week)}
-          selectHint="Click to compare this week"
-          series={[
-            ...(b ? [{ name: 'Top 1% (now)', color: 'var(--ref)', values: weeks.map(() => b.p99), dashed: true }] : []),
-            ...(b ? [{ name: 'Typical player (now)', color: 'var(--muted)', values: weeks.map(() => b.p50), dashed: true }] : []),
-            { name: 'You', color: 'var(--you)', values: weeks.map((w) => w.perSecond), dots: true, area: true },
-          ]}
-        />
-      )}
+    <section className="chart-card kill-picker">
+      <div className="segmented" role="tablist" aria-label="Which kill to compare">
+        <button role="tab" aria-selected={week == null} aria-pressed={week == null} onClick={() => onWeek(null)}>
+          Best kill{best ? ` · ${integer(best.perSecond)} ${unit}` : ''}
+        </button>
+        <button
+          role="tab"
+          aria-selected={week != null}
+          aria-pressed={week != null}
+          disabled={!latest || latestIsBest}
+          onClick={() => latest && onWeek(latest.week)}
+          title={latestIsBest ? 'Your best kill is from the latest week' : undefined}
+        >
+          Latest week{latest ? ` (${weekLabel(latest.week)}) · ${integer(latest.perSecond)} ${unit}` : ''}
+        </button>
+      </div>
+      {latestIsBest && <span className="soft kp-note">Your best kill is from the latest week.</span>}
     </section>
   );
 }

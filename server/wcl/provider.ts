@@ -135,7 +135,8 @@ export const cacheFile = (site: Site, dir?: string) => join(dir || join(resolve(
 const TTL = {
   zones: 7 * DAY,
   character: 2 * HOUR,
-  bestKill: 2 * HOUR,
+  /** A character's kill list for a boss (10 points each time): kept 12 hours and across restarts. */
+  bestKill: 12 * HOUR,
   /** Top 1% numbers move slowly; re-read them every 3 days. */
   benchmark: 3 * DAY,
   /** A fight's log never changes once uploaded. */

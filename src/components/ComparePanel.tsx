@@ -6,7 +6,7 @@ import { percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 import { CastsChart } from './CastsChart';
-import { FightTimeline, TakenChart, WeeklyChart } from './charts/FightCharts';
+import { FightTimeline, KillPicker, TakenChart } from './charts/FightCharts';
 import { ErrorBoundary } from './ErrorBoundary';
 import { HeadToHead } from './HeadToHead';
 
@@ -106,8 +106,8 @@ export function ComparePanel({ query, row, site, demo, onData, wantExtras = fals
           </button>
         </p>
       )}
-      <ErrorBoundary what="the weekly chart" resetKey={data}>
-        <WeeklyChart data={data} week={week} onWeek={setWeek} />
+      <ErrorBoundary what="the kill picker" resetKey={data}>
+        <KillPicker data={data} week={week} onWeek={setWeek} />
       </ErrorBoundary>
 
       <div className="sides">

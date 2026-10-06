@@ -3138,3 +3138,20 @@ button.top-overall:hover {
   display: block;
   margin: 10px auto 6px;
 }
+
+/* Best kill / Latest week */
+.kill-picker {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+}
+.kill-picker .segmented button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.kp-note {
+  font-size: 13px;
+}

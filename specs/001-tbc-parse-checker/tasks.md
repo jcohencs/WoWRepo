@@ -172,4 +172,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T091 Search bar: realm label folded into the placeholder ("Search Nightslayer characters"); no browser dropdown arrow on the name box
 - [x] T092 Talents & guide box at the bottom of the sidebar, following the selected spec/boss and ending level with the last chart; header links removed
 - [x] T093 Character page header is one box: class icon, name and spec/realm; tiles for data age, Refresh and Warcraft Logs; spec and raid pickers in the box's bottom strip
-- [x] T094 Boss numbers: labels "Typical DPS" / "Top 1% DPS" (HPS for healers); every label and value on one line each; cleaner Talents & guide box (centred spec, two equal buttons)
+- [x] T094 Boss numbers: labels "Typical DPS" / "Top 1% DPS" (HPS for healers); every label and value on one line each; Talents & guide box keeps its earlier layout with a line under the class

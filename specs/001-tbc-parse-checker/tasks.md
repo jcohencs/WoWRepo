@@ -158,3 +158,10 @@ description: "Task list for TBC Parse Checker"
 - [x] T080 Output-over-the-fight chart shows a dot at every 15-second mark
 - [x] T081 Explain re-pulls in the log (new vs refreshing, per batch; opened-page refreshes); `RAIDER_REFRESH_HOURS` (default 24); test that a restart re-pulls nobody. Root cause of the churn was the old 50,000-entry cap (fixed in T077)
 - [x] T082 Drop the 2-hour refresh of opened pages; everything follows the daily refresh (pages outside the sweep re-pull in the background when opened after a day). Refresh button on the character header (`POST /api/refresh`, 10-minute cooldown, refused when the allowance is low)
+
+## Phase 24: LogsForever
+
+- [x] T083 Rename the site to LogsForever (header, page title, log tags, README); the logo links to the home page
+- [x] T084 Remove light mode and the theme toggle; remove the "TBC Anniversary" tag from the top bar
+- [x] T085 Squarer corners throughout (3px radius)
+- [x] T086 Classes grid on the home page: class icon and colour, a Talents link (Wowhead TBC calculator) per class, and a Guide link per spec; `/guides/<class>/<spec>` placeholder pages; Talents and Guide links in each character's header

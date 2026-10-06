@@ -28,7 +28,7 @@ export function loadWclEnv(root = resolve(import.meta.dirname, '..')): void {
 
   const id = process.env.WCL_CLIENT_ID;
   const secret = process.env.WCL_CLIENT_SECRET;
-  const tag = '\x1b[33m[parsecheck]\x1b[0m';
+  const tag = '\x1b[33m[logsforever]\x1b[0m';
   if (id && secret) {
     console.log(`${tag} Warcraft Logs key loaded (${process.env.WCL_SITE === 'classic' ? 'TBC Classic' : 'TBC Anniversary'})${file ? ` from ${file}` : ''}.`);
   } else if (!file) {

@@ -8,7 +8,7 @@ import { WclClient, withRateLimit } from '../../server/wcl/client';
 
 const dirs: string[] = [];
 const tmpFile = () => {
-  const dir = mkdtempSync(join(tmpdir(), 'parsecheck-'));
+  const dir = mkdtempSync(join(tmpdir(), 'logsforever-'));
   dirs.push(dir);
   return join(dir, 'cache.json');
 };

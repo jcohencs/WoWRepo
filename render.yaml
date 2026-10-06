@@ -2,6 +2,7 @@
 # Add WCL_CLIENT_ID and WCL_CLIENT_SECRET when Render asks for them.
 services:
   - type: web
+    # Kept as "parsecheck": renaming here would create a new service with an empty disk.
     name: parsecheck
     runtime: node
     # "starter" keeps saved Warcraft Logs data on a disk across restarts.

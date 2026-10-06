@@ -6,7 +6,7 @@ import { forEachEntry, TtlCache } from '../../server/cache';
 
 const dirs: string[] = [];
 const dir = () => {
-  const d = mkdtempSync(join(tmpdir(), 'parsecheck-'));
+  const d = mkdtempSync(join(tmpdir(), 'logsforever-'));
   dirs.push(d);
   return d;
 };

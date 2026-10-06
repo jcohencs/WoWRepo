@@ -128,7 +128,7 @@ describe('saved pages + scheduled puller', () => {
   });
 
   it('does not re-pull anyone after a restart', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'parsecheck-'));
+    const dir = mkdtempSync(join(tmpdir(), 'logsforever-'));
     try {
       const file = join(dir, 'wcl.json');
       const opts = { file, serveStale: false, persist: persisted, pack: packSaved };

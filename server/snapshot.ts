@@ -180,7 +180,7 @@ export class Puller {
         if (this.log) {
           const p = this.progress().map((r) => `${r.realm} ${r.current}/${r.characters}`).join(', ');
           const mins = Math.round(this.intervalMs / MINUTE);
-          console.log(`[parsecheck] Pull finished and saved. Up to date (latest raid): ${p}. Waiting: ${this.queue().length}. Next pull in ${mins} min.`);
+          console.log(`[logsforever] Pull finished and saved. Up to date (latest raid): ${p}. Waiting: ${this.queue().length}. Next pull in ${mins} min.`);
         }
       });
     }
@@ -226,7 +226,7 @@ export class Puller {
         pages = await this.live.realmRankings(REALM_REGION, realm, batch.map((t) => ({ encounterId: t.encounterId, metric: t.metric, page: t.nextPage })));
       } catch (err) {
         if (err instanceof ApiFailure && err.code === 'rate_limited') return 'limited';
-        console.error(`[parsecheck] Finding raiders on ${realm} failed: ${err instanceof Error ? err.message : err}`);
+        console.error(`[logsforever] Finding raiders on ${realm} failed: ${err instanceof Error ? err.message : err}`);
         batch.forEach((t) => (t.done = true)); // skip a boss Warcraft Logs won't rank rather than stall
         continue;
       }
@@ -295,13 +295,13 @@ export class Puller {
           if (this.log) {
             const fresh = chunk.filter((ref) => zoneRaids.some((raid) => this.cache.fetchedAt(`view|${jobKey({ kind: 'zone', ref, raidId: raid.id })}`) == null)).length;
             const why = [fresh && `${fresh} new`, chunk.length - fresh && `${chunk.length - fresh} refreshing (pulled over ${Math.round(SWEEP_REFRESH / HOUR)}h ago)`].filter(Boolean).join(', ');
-            console.log(`[parsecheck] ${realm.name} · ${zoneRaids.map((r) => r.name).join(' / ')} · ${chunk.map((r) => r.name).join(', ')} — ${why}`);
+            console.log(`[logsforever] ${realm.name} · ${zoneRaids.map((r) => r.name).join(' / ')} · ${chunk.map((r) => r.name).join(', ')} — ${why}`);
           }
           try {
             await this.live.prefetchCharacters(chunk, zoneId);
           } catch (err) {
             if (err instanceof ApiFailure && err.code === 'rate_limited') return;
-            console.error(`[parsecheck] Pulling a batch of ${realm.name} characters failed: ${err instanceof Error ? err.message : err}`);
+            console.error(`[logsforever] Pulling a batch of ${realm.name} characters failed: ${err instanceof Error ? err.message : err}`);
             continue;
           }
           for (const ref of chunk)
@@ -327,7 +327,7 @@ export class Puller {
         this.cache.set(`notfound|${key}`, { message: detail, code }, NOT_FOUND_TTL);
       } else {
         // Unexpected failures are logged with Warcraft Logs' own message and retried soon.
-        console.error(`[parsecheck] Pull failed for ${key}: ${detail}`);
+        console.error(`[logsforever] Pull failed for ${key}: ${detail}`);
         this.cache.set(`notfound|${key}`, { message: `Warcraft Logs returned an error for this lookup; it will be retried shortly. (${detail})`, code }, RETRY_AFTER);
       }
       return 'failed';

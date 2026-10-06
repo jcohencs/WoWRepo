@@ -49,5 +49,5 @@ createServer((req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   void api(req, res, () => serveStatic(new URL(req.url ?? '/', 'http://x').pathname, res));
 }).listen(port, () => {
-  console.log(`Parsecheck listening on port ${port}`);
+  console.log(`LogsForever listening on port ${port}`);
 });

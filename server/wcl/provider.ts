@@ -173,10 +173,10 @@ export class WclProvider implements Provider {
         this.cache.set('zones-v2', zones, TTL.zones);
         return zones;
       }
-      console.error('[parsecheck] Warcraft Logs listed no TBC raid zones; using the built-in list for now.');
+      console.error('[logsforever] Warcraft Logs listed no TBC raid zones; using the built-in list for now.');
     } catch (err) {
       if (err instanceof ApiFailure && err.code === 'config') throw err;
-      console.error(`[parsecheck] Could not load the raid list: ${err instanceof Error ? err.message : err}`);
+      console.error(`[logsforever] Could not load the raid list: ${err instanceof Error ? err.message : err}`);
     }
     this.cache.set('zones-v2-failed', true, 10 * MINUTE);
     return TBC_ZONES;

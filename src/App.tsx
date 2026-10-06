@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Meta, Region, ZoneReport } from '../shared/types';
 import { CharacterHeader } from './components/CharacterHeader';
+import { ClassGrid, ClassLinks, GuidePage } from './components/ClassGuides';
+import { guideFromPath } from './lib/classes';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RaidSelect } from './components/RaidSelect';
 import { RaidView } from './components/RaidView';
 import { SpecBar } from './components/SpecBar';
-import { ThemeToggle } from './components/ThemeToggle';
 import { SearchBar } from './components/SearchBar';
 import { api, type Query } from './lib/api';
 
@@ -23,7 +24,7 @@ function readUrl(): { query: Query | null; raid?: string; spec?: string } {
 function writeUrl(q: Query, raid: string, spec: string | null) {
   const p = new URLSearchParams({ region: q.region.toLowerCase(), realm: q.realm, name: q.name, raid });
   if (spec) p.set('spec', spec);
-  history.replaceState(null, '', `?${p}`);
+  history.replaceState(null, '', `/?${p}`);
 }
 
 export function App() {
@@ -37,11 +38,36 @@ export function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [path, setPath] = useState(location.pathname);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshNote, setRefreshNote] = useState<string | null>(null);
 
   useEffect(() => {
     api.meta().then(setMeta, (e: Error) => setMetaError(e.message));
+  }, []);
+
+  /** In-site navigation: guide pages and the home page, without reloading. */
+  const navigate = useCallback((to: string) => {
+    history.pushState(null, '', to);
+    setPath(location.pathname);
+    if (to === '/') {
+      setQuery(null);
+      setReport(null);
+      setError(null);
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
+    const onPop = () => {
+      setPath(location.pathname);
+      const { query: q, raid, spec: sp } = readUrl();
+      setQuery(q);
+      setRaidId(raid);
+      setSpec(sp);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
   }, []);
 
   useEffect(() => {
@@ -79,6 +105,8 @@ export function App() {
   useEffect(() => setRefreshNote(null), [query, raidId, spec]);
 
   const search = useCallback((q: Query) => {
+    if (location.pathname !== '/') history.pushState(null, '', '/');
+    setPath('/');
     setQuery(q);
     setSpec(undefined);
     setAttempt((n) => n + 1);
@@ -87,40 +115,54 @@ export function App() {
   // Keep the header (and spec bar) while another raid or spec for the same character loads.
   const shown = report && query && report.character.name.toLowerCase() === query.name.toLowerCase() && report.character.realm === query.realm ? report : null;
   const activeRaid = raidId ?? shown?.raid.id;
+  const guide = guideFromPath(path);
   const raidPicker = meta ? <RaidSelect raids={meta.raids} active={activeRaid} onSelect={setRaidId} /> : null;
 
   return (
     <div className="shell">
       <header className="masthead">
-        <div className="brand">
+        <a
+          className="brand"
+          href="/"
+          onClick={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+            e.preventDefault();
+            navigate('/');
+          }}
+          aria-label="LogsForever home"
+        >
           <span className="brand-mark" aria-hidden>
             <i />
             <i />
             <i />
           </span>
-          <span className="brand-name">Parsecheck</span>
-        </div>
+          <span className="brand-name">LogsForever</span>
+        </a>
         <SearchBar initial={query} onSearch={search} busy={loading} />
-        {meta && (
+        {meta?.demo && (
           <div className="site-tag">
-            <ThemeToggle />
-            {meta.demo ? <span className="demo-tag">Demo data</span> : null}
-            <span>{meta.site === 'fresh' ? 'TBC Anniversary' : 'TBC Classic'}</span>
+            <span className="demo-tag">Demo data</span>
           </div>
         )}
       </header>
 
       {metaError && <p className="notice error">Could not load raids: {metaError}</p>}
-      {meta?.demo && !report && !query && (
+      {meta?.demo && !report && !query && !guide && (
         <p className="notice">
           You're looking at made-up demo numbers because no Warcraft Logs key is set up. Search any name to try it out, or add your
           key to the <code>.env</code> file to see real logs.
         </p>
       )}
 
-      {query && (
+      {guide && <GuidePage name={guide.name} spec={guide.spec} navigate={navigate} />}
+
+      {!guide && query && (
         <main className="content">
-          {shown && <CharacterHeader report={shown} site={meta?.site ?? 'fresh'} onRefresh={refresh} refreshing={refreshing} refreshNote={refreshNote} />}
+          {shown && (
+            <CharacterHeader report={shown} site={meta?.site ?? 'fresh'} onRefresh={refresh} refreshing={refreshing} refreshNote={refreshNote}>
+              <ClassLinks name={shown.character.className} spec={shown.mainSpec || shown.rows[0]?.spec || ''} navigate={navigate} />
+            </CharacterHeader>
+          )}
           <div className="controls">
             {shown && shown.specs?.length > 0 && (
               <SpecBar className={shown.character.className} specs={shown.specs} active={spec ?? null} mainSpec={shown.mainSpec ?? ''} onSelect={(s) => setSpec(s ?? undefined)} />
@@ -147,7 +189,12 @@ export function App() {
         </main>
       )}
 
-      {!query && <EmptyIntro />}
+      {!guide && !query && (
+        <>
+          <EmptyIntro />
+          <ClassGrid navigate={navigate} />
+        </>
+      )}
 
     </div>
   );

@@ -25,7 +25,7 @@
   --parse-pink: #e268a8;
   --parse-gold: #e5cc80;
 
-  --radius: 8px;
+  --radius: 3px;
   --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
@@ -40,43 +40,6 @@
   color-scheme: dark;
 }
 
-/* Light mode: same roles, values chosen for a white surface. */
-:root[data-theme='light'] {
-  --bg: #f6f6f4;
-  --surface: #ffffff;
-  --surface-2: #eeeeeb;
-  --line: #e2e2de;
-  --line-strong: #cbcbc6;
-  --text: #15171b;
-  --text-2: #3b4149;
-  --soft: #5b626c;
-  --muted: #7b828c;
-  --focus: #2a6fdb;
-
-  --pos: #1b8a3c;
-  --neg: #c4382f;
-
-  --you: #6b7480;
-  --ref: #e06c00;
-
-  /* Warcraft Logs parse colours, darkened to stay readable on white */
-  --parse-grey: #6e6e6e;
-  --parse-green: #1a9c00;
-  --parse-blue: #0062d6;
-  --parse-purple: #8a35d6;
-  --parse-orange: #d96d00;
-  --parse-pink: #c4418a;
-  --parse-gold: #a8892d;
-
-  --slice-1: #2a78d6;
-  --slice-2: #eb6834;
-  --slice-3: #1baf7a;
-  --slice-4: #eda100;
-  --slice-5: #e87ba4;
-  --slice-other: #b4b8be;
-
-  color-scheme: light;
-}
 
 * {
   box-sizing: border-box;
@@ -202,7 +165,7 @@ code {
   color: var(--parse-gold);
   border: 1px solid color-mix(in srgb, var(--parse-gold) 40%, transparent);
   padding: 1px 10px;
-  border-radius: 999px;
+  border-radius: 3px;
 }
 
 /* ---------- Form controls ---------- */
@@ -322,21 +285,6 @@ select option {
   }
 }
 
-.theme-toggle {
-  display: inline-grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid var(--line-strong);
-  background: transparent;
-  color: var(--text-2);
-  cursor: pointer;
-}
-.theme-toggle:hover {
-  color: var(--text);
-  border-color: var(--soft);
-}
 
 .button.ghost {
   background: transparent;
@@ -500,7 +448,7 @@ select option {
   color: var(--text-2);
   background: none;
   border: 0;
-  border-radius: 5px;
+  border-radius: 3px;
   padding: 6px 14px;
   cursor: pointer;
   white-space: nowrap;
@@ -515,10 +463,6 @@ select option {
   box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 
-/* Class colours like Priest white or Rogue yellow vanish on white; darken them in light mode. */
-:root[data-theme='light'] .character h1 {
-  color: color-mix(in srgb, var(--class, var(--text)) 62%, #000);
-}
 
 .spec-icon {
   display: inline-block;
@@ -748,7 +692,7 @@ td {
   margin: 0 0 14px;
   background: var(--line);
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 3px;
   overflow: hidden;
 }
 .mini-summary > div {
@@ -802,7 +746,7 @@ td {
   color: var(--text);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
 }
 .boss-pick:hover:not(:disabled) {
@@ -1115,7 +1059,7 @@ td {
 .icon-blank {
   width: 36px;
   height: 36px;
-  border-radius: 6px;
+  border-radius: 3px;
   border: 1px solid var(--line-strong);
   flex: none;
   background: var(--surface-2);
@@ -1954,7 +1898,7 @@ td {
   gap: 2px;
   padding: 8px 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  border-radius: 3px;
   background: var(--bg);
   font-size: 12px;
   white-space: nowrap;
@@ -2261,7 +2205,7 @@ td {
   margin-left: 12px;
   padding: 3px 10px;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: 3px;
   background: transparent;
   color: var(--text-2);
   font: inherit;
@@ -2292,4 +2236,161 @@ td {
 .refresh-note {
   margin-left: 10px;
   font-size: 13px;
+}
+
+/* ---------- Brand link ---------- */
+a.brand {
+  color: inherit;
+  text-decoration: none;
+}
+a.brand:hover .brand-name {
+  color: var(--text);
+}
+
+/* ---------- Classes: talents and guides ---------- */
+.section-title {
+  margin: 28px 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--soft);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+.class-card {
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--class);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px;
+}
+.class-card header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.class-card h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--class);
+}
+.class-icon {
+  border-radius: var(--radius);
+  flex: none;
+}
+.class-talents,
+.class-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--soft);
+  font-size: 13px;
+  text-decoration: none;
+}
+.class-talents {
+  margin-left: auto;
+}
+.class-talents:hover,
+.class-links a:hover {
+  color: var(--text);
+}
+.class-links {
+  display: inline-flex;
+  gap: 14px;
+}
+.class-card ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.class-card li a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius);
+  color: var(--text-2);
+  text-decoration: none;
+}
+.class-card li a span {
+  flex: 1;
+}
+.class-card li a svg {
+  color: var(--muted);
+}
+.class-card li a:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.class-card .spec-icon {
+  border-radius: 2px;
+}
+
+/* Guide page (placeholder until guides are written) */
+.guide-page {
+  max-width: 900px;
+}
+.back-link {
+  display: inline-block;
+  margin: 8px 0 16px;
+  color: var(--soft);
+  text-decoration: none;
+  font-size: 14px;
+}
+.back-link:hover {
+  color: var(--text);
+}
+.guide-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.guide-head h1 {
+  margin: 0;
+  font-size: 26px;
+  color: var(--class);
+}
+.guide-head p {
+  margin: 2px 0 0;
+}
+.guide-head .spec-icon {
+  border-radius: var(--radius);
+  border: 1px solid var(--class);
+}
+.guide-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0;
+}
+.guide-links .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+}
+.guide-soon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 20px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--soft);
+}
+.guide-soon p {
+  margin: 0;
+}
+a.brand,
+.class-card a,
+.guide-links a,
+.back-link {
+  border-bottom: 0;
 }

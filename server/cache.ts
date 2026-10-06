@@ -79,17 +79,17 @@ export class TtlCache {
         if (legacy) this.scheduleSave();
       } catch (err) {
         // A corrupt cache file is not worth failing over; start empty.
-        console.error(`[parsecheck] Could not read saved data (${err instanceof Error ? err.message : err}); starting empty.`);
+        console.error(`[logsforever] Could not read saved data (${err instanceof Error ? err.message : err}); starting empty.`);
       }
     }
     if (!this.entries.size && o.seed && existsSync(o.seed)) {
       try {
         const data = gunzipSync(readFileSyncSafe(o.seed));
         forEachEntry(bufferReader(data), this.persist, (k, e) => this.restore(k, e));
-        console.log(`[parsecheck] Started from ${o.seed} (${this.entries.size} saved results).`);
+        console.log(`[logsforever] Started from ${o.seed} (${this.entries.size} saved results).`);
         this.scheduleSave();
       } catch (err) {
-        console.error(`[parsecheck] Could not read ${o.seed}: ${err instanceof Error ? err.message : err}`);
+        console.error(`[logsforever] Could not read ${o.seed}: ${err instanceof Error ? err.message : err}`);
       }
     }
   }
@@ -99,7 +99,7 @@ export class TtlCache {
     const fd = openSync(file, 'r');
     try {
       const legacy = forEachEntry(fileReader(fd), this.persist, (k, e) => this.restore(k, e));
-      console.log(`[parsecheck] Loaded ${this.entries.size} saved results from ${file}.`);
+      console.log(`[logsforever] Loaded ${this.entries.size} saved results from ${file}.`);
       return legacy;
     } finally {
       closeSync(fd);

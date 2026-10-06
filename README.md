@@ -1,4 +1,4 @@
-# Parsecheck
+# LogsForever
 
 See how your **TBC** Warcraft Logs parses compare to the **99th percentile of your class and spec**, boss by boss, then open any boss to line your log up against the player sitting at the 99th percentile, ability by ability.
 
@@ -22,7 +22,7 @@ npm run dev            # http://localhost:5173
 
 Create an API client at <https://www.warcraftlogs.com/api/clients> (any redirect URL works; the app uses the client-credentials flow). Your secret stays on the server. The browser only talks to `/api/*`.
 
-When `npm run dev` starts, a `[parsecheck]` line in the terminal tells you whether the key was loaded or what is missing. `.env.txt` also works.
+When `npm run dev` starts, a `[logsforever]` line in the terminal tells you whether the key was loaded or what is missing. `.env.txt` also works.
 
 Only Nightslayer (US TBC Anniversary) is supported for now; add realms to `REALMS` in `shared/types.ts`.
 
@@ -66,7 +66,7 @@ Every Warcraft Logs request is logged in the terminal (and in Render's **Logs** 
 [wcl] ok      character Alphac · 412ms +3 pts · 1240/18000 used this hour
 [wcl] ok      rankings ×9 · 690ms +18 pts · 1258/18000 used this hour
 [wcl] limited log aB3x (breakdown) · 0ms
-[parsecheck] Pull finished. Up to date (latest raid): Nightslayer 412/1530. Waiting: 0.
+[logsforever] Pull finished. Up to date (latest raid): Nightslayer 412/1530. Waiting: 0.
 ```
 
 Set `WCL_LOG=off` to silence the per-request lines. The hourly allowance is read from Warcraft Logs on every request, so a higher tier is used automatically.
@@ -77,7 +77,7 @@ Set `WCL_LOG=off` to silence the per-request lines. The hourly allowance is read
 npm run doctor -- --name Yourcharacter
 ```
 
-Checks each kind of Warcraft Logs request with your key (raid list, finding raiders, a character page, a comparison) and prints ✓ or ✗ with Warcraft Logs' own error message. It doesn't print your key, so the output is safe to share. Failed scheduled pulls are also logged as `[parsecheck] Pull failed for …` lines.
+Checks each kind of Warcraft Logs request with your key (raid list, finding raiders, a character page, a comparison) and prints ✓ or ✗ with Warcraft Logs' own error message. It doesn't print your key, so the output is safe to share. Failed scheduled pulls are also logged as `[logsforever] Pull failed for …` lines.
 
 ## Put it online
 
@@ -94,8 +94,8 @@ The API key must stay on the server, so this needs a host that runs Node (not a 
 **Anywhere else with Docker** (Fly.io, Railway, a VPS):
 
 ```bash
-docker build -t parsecheck .
-docker run -p 8787:8787 -e WCL_CLIENT_ID=… -e WCL_CLIENT_SECRET=… -v parsecheck-data:/data parsecheck
+docker build -t logsforever .
+docker run -p 8787:8787 -e WCL_CLIENT_ID=… -e WCL_CLIENT_SECRET=… -v logsforever-data:/data logsforever
 ```
 
 Keep the key in the host's environment settings, never in a committed file.

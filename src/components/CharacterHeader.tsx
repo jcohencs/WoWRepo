@@ -33,6 +33,14 @@ export function CharacterHeader({ report, site, children, onRefresh, refreshing,
         <a href={characterUrl(site, character.region, character.realm, character.name)} target="_blank" rel="noreferrer">
           View on Warcraft Logs ↗
         </a>
+        {children && (
+          <>
+            <span className="dot" aria-hidden>
+              ·
+            </span>
+            {children}
+          </>
+        )}
         <span className="dot" aria-hidden>
           ·
         </span>
@@ -49,7 +57,6 @@ export function CharacterHeader({ report, site, children, onRefresh, refreshing,
         )}
         {refreshNote && <span className="refresh-note soft">{refreshNote}</span>}
       </p>
-      {children}
     </section>
   );
 }

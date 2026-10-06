@@ -5,7 +5,7 @@ import { loadWclEnv } from './server/env.ts';
 /** Mounts the /api handler inside the Vite dev server so one command runs everything. */
 function api(): Plugin {
   return {
-    name: 'parsecheck-api',
+    name: 'logsforever-api',
     async configureServer(server) {
       const { createApiHandler } = await server.ssrLoadModule('/server/handler.ts');
       server.middlewares.use(createApiHandler());

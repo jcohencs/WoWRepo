@@ -16,7 +16,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; what?: strin
   }
 
   componentDidCatch(error: Error) {
-    console.error('[parsecheck] Display error:', error);
+    console.error('[logsforever] Display error:', error);
   }
 
   render() {

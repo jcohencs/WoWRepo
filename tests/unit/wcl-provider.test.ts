@@ -12,21 +12,22 @@ describe('WclProvider', () => {
     ]);
   });
 
-  it('builds the raid report with exact percentiles and caches benchmarks', async () => {
+  it('builds the raid report from page 1 of the rankings only, and caches benchmarks', async () => {
     const { provider, queries } = fakeWcl(handler);
     const report = await provider.zoneReport(brannoc, 'black-temple');
     expect(report.character.className).toBe('Warrior');
     const [naj, sup] = report.rows;
     expect(naj.spec).toBe('Fury');
-    expect(naj.benchmark).toMatchObject({ sampleSize: 1000, p99: 2990, p50: 2500 });
+    // 1000 parses: p99 (rank 10) is on page 1; the median (rank 500, page 5) isn't read any more.
+    expect(naj.benchmark).toMatchObject({ sampleSize: 1000, p99: 2990, p50: null });
     expect(naj.gap?.absolute).toBe(2700 - 2990);
     expect(sup.best).toBeNull();
     expect(sup.benchmark?.spec).toBe('Fury');
     const benchmarkQueries = queries.filter((q) => q.includes('className:')).length;
-    expect(benchmarkQueries).toBe(2);
+    expect(benchmarkQueries).toBe(1); // one request for page 1 of every boss, no second request
 
     await provider.zoneReport(brannoc, 'black-temple');
-    expect(queries.filter((q) => q.includes('className:')).length).toBe(2);
+    expect(queries.filter((q) => q.includes('className:')).length).toBe(1);
   });
 
   it('shows a chosen spec on every boss and refuses specs the class does not have', async () => {

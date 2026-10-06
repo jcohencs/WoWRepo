@@ -55,11 +55,9 @@ describe('benchmarks', () => {
     expect(rankingCount({ hasMorePages: true, rankings: page(1) })).toBeNull();
   });
 
-  it('asks only for the page holding the median besides page 1', () => {
-    // 1000 parses: p50 = rank 500 (page 5); p90/p95/p99 are on page 1. p75 (page 3) isn't read.
-    expect(pagesNeeded(1000)).toEqual([5]);
-    expect(pagesNeeded(20000)).toEqual([100]);
-    expect(pagesNeeded(150)).toEqual([]); // the median is on page 1 too
+  it('never asks for pages beyond page 1', () => {
+    expect(pagesNeeded(1000)).toEqual([]);
+    expect(pagesNeeded(20000)).toEqual([]);
   });
 
 

@@ -206,3 +206,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T122 Each round logs the points spent since the last round by kind of request, and points used by something else with the same key (another copy of the site, a PC running npm run dev)
 - [x] T123 Per-request "+N pts" counts points since the previous reply, so requests running side by side aren't double counted
 - [x] T124 Comparison offers only "Best kill" and "Latest week" (the weekly chart and full week list are gone), so a visit costs at most two comparisons; kill lists (10 points each) kept 12 hours and saved to disk
+- [x] T125 Top 1% numbers come from ranking page 1 only (no extra pages): the median ("Typical DPS") is shown only when it's on page 1; "Where you sit" becomes a bar against the top 1% mark with "% of the top 1%" when the 50th percentile isn't known

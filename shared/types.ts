@@ -84,7 +84,8 @@ export interface Benchmark {
   metric: Metric;
   /** Number of ranked parses the percentiles were read from. */
   sampleSize: number;
-  p50: number;
+  /** The median; null when it isn't on the first ranking page (only page 1 is read). */
+  p50: number | null;
   p99: number;
   /** The ranking entry sitting at the 99th percentile. */
   reference: RankingEntry;

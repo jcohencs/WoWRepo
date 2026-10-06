@@ -43,9 +43,10 @@ function benchmarkFor(zoneId: number, encounterId: number, spec = SPEC): Benchma
     spec,
     metric: 'dps',
     sampleSize: Math.round(1800 + r() * 5200),
-    p50: Math.round(p99 * (0.64 + r() * 0.08)),
+    // Like the real site, only what's on the first ranking page (the top 100) is known.
+    p50: null,
     p99,
-    ladder: [50, 75, 90, 95, 99].map((pct) => ({ percentile: pct, amount: Math.round(p99 * (0.32 + 0.68 * Math.pow(pct / 99, 1.6))) })),
+    ladder: [90, 95, 99].map((pct) => ({ percentile: pct, amount: Math.round(p99 * (0.32 + 0.68 * Math.pow(pct / 99, 1.6))) })),
     reference: {
       name: ['Thrandok', 'Velgrim', 'Kasmir', 'Orrek', 'Brugal'][encounterId % 5],
       server: ['Dreamscythe', 'Nightslayer', 'Spineshatter', 'Thunderstrike'][encounterId % 4],
@@ -59,9 +60,10 @@ function benchmarkFor(zoneId: number, encounterId: number, spec = SPEC): Benchma
 
 /** Percentile from a position between p50 and p99, roughly matching WCL's curve. */
 function parseFor(best: number, b: Benchmark): number {
+  const p50 = b.p50 ?? b.p99 * 0.68; // the median isn't read any more (only page 1 is), so estimate it
   if (best >= b.p99) return Math.min(100, 99 + (best - b.p99) / (b.p99 * 0.06));
-  if (best >= b.p50) return 50 + ((best - b.p50) / (b.p99 - b.p50)) * 49;
-  return Math.max(1, (best / b.p50) * 50);
+  if (best >= p50) return 50 + ((best - p50) / (b.p99 - p50)) * 49;
+  return Math.max(1, (best / p50) * 50);
 }
 
 const ABILITIES = [

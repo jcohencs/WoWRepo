@@ -136,7 +136,7 @@ export function PerformanceRadar({ data, onLoad }: { data: Comparison | null; on
 }
 
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`;
-const LABELLED = new Set([50, 75, 99]);
+const LABELLED = new Set([50, 75, 90, 95, 99]);
 
 /** Compact percentile ladder for the boss header: where your best kill lands among everyone's. */
 export function MiniLadder({ row, kill }: { row: BossRow; kill?: { amount: number; label: string } | null }) {
@@ -150,7 +150,7 @@ export function MiniLadder({ row, kill }: { row: BossRow; kill?: { amount: numbe
   const pos = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
   const beaten = ladder.filter((l) => you >= l.amount).pop();
   return (
-    <div className="mini-ladder" role="img" aria-label={beaten ? `${what} beats the ${ordinal(beaten.percentile)} percentile` : `${what} is below the 50th percentile`}>
+    <div className="mini-ladder" role="img" aria-label={beaten ? `${what} beats the ${ordinal(beaten.percentile)} percentile` : `${what} is below the ${ordinal(ladder[0].percentile)} percentile`}>
       <div className="ml-track" />
       {ladder.map((l) => (
         <div key={l.percentile} className={`ml-step${you >= l.amount ? ' passed' : ''}`} style={{ left: pos(l.amount) }} title={`${ordinal(l.percentile)} percentile: ${amount(l.amount)}`}>
@@ -158,7 +158,7 @@ export function MiniLadder({ row, kill }: { row: BossRow; kill?: { amount: numbe
         </div>
       ))}
       <div className="ml-you" style={{ left: pos(you) }} title={`${what}: ${amount(you)}`} />
-      <p className="ml-caption soft">{what} · {amount(you)} · {beaten ? `beats the ${ordinal(beaten.percentile)} percentile` : 'below the 50th percentile'}</p>
+      <p className="ml-caption soft">{what} · {amount(you)} · {beaten ? `beats the ${ordinal(beaten.percentile)} percentile` : `below the ${ordinal(ladder[0].percentile)} percentile`}</p>
     </div>
   );
 }

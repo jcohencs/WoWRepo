@@ -3155,3 +3155,27 @@ button.top-overall:hover {
 .kp-note {
   font-size: 13px;
 }
+
+/* "Where you sit" always takes the wide last column, however many number tiles there are. */
+.bs-range {
+  grid-column: -2 / -1;
+}
+.range-wrap {
+  position: relative;
+  padding-top: 14px;
+}
+.range-wrap .range-tick.p99 span {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--soft);
+  white-space: nowrap;
+}
+.range-caption {
+  position: static;
+  margin-top: 6px;
+}

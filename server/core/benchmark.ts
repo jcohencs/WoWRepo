@@ -45,12 +45,12 @@ export function rankingCount(first: RawRankingPage): number | null {
 }
 
 /**
- * Ranking pages needed besides page 1: only the one holding the median (p99 is always on page 1).
- * Ladder steps on other pages are left out rather than costing another page each.
+ * Ranking pages needed besides page 1: none. Page 1 holds the top 1% player and number (for up to
+ * 10,000 ranked parses); the median and lower ladder steps are only shown when they're on page 1
+ * too, rather than costing another page per boss.
  */
-export function pagesNeeded(count: number): number[] {
-  const page = locateRank(percentileRank(count, PERCENTILES.p50)).page;
-  return page === 1 ? [] : [page];
+export function pagesNeeded(_count: number): number[] {
+  return [];
 }
 
 function toEntry(r: RawRanking): RankingEntry {
@@ -75,7 +75,7 @@ export function buildBenchmark(key: BenchmarkKey, count: number | null, pages: M
   };
   const p99 = at(PERCENTILES.p99);
   const p50 = at(PERCENTILES.p50);
-  if (!p99 || !p50) return null;
+  if (!p99) return null;
   const ladder = LADDER.flatMap((p) => {
     const entry = at(p);
     return entry ? [{ percentile: p, amount: entry.amount }] : [];
@@ -83,7 +83,7 @@ export function buildBenchmark(key: BenchmarkKey, count: number | null, pages: M
   return {
     ...key,
     sampleSize: count,
-    p50: p50.amount,
+    p50: p50?.amount ?? null,
     p99: p99.amount,
     reference: toEntry(p99),
     ladder,

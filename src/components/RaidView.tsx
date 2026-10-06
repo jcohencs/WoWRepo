@@ -158,10 +158,12 @@ function BossStats({ row, shown }: { row: BossRow; shown: Comparison | null }) {
           <dt>Your best {unit}</dt>
           <dd>{amount(row.best)}</dd>
         </div>
-        <div>
-          <dt title="The median: half of players do more, half do less">Typical {unit}</dt>
-          <dd className="soft">{amount(b?.p50)}</dd>
-        </div>
+        {b?.p50 != null && (
+          <div>
+            <dt title="The median: half of players do more, half do less">Typical {unit}</dt>
+            <dd className="soft">{amount(b.p50)}</dd>
+          </div>
+        )}
         <div>
           <dt title="99th percentile: better than 99% of logged kills">Top 1% {unit}</dt>
           <dd>
@@ -175,24 +177,37 @@ function BossStats({ row, shown }: { row: BossRow; shown: Comparison | null }) {
         </div>
         <div className="bs-range">
           <dt>Where you sit</dt>
-          <dd>{row.benchmark?.ladder && row.benchmark.ladder.length > 1 && row.best != null ? <MiniLadder row={row} kill={kill} /> : <RangeBar row={row} />}</dd>
+          <dd>
+            {row.benchmark?.ladder?.some((l) => l.percentile === 50) && row.best != null ? <MiniLadder row={row} kill={kill} /> : <RangeBar row={row} kill={kill} />}
+          </dd>
         </div>
       </dl>
     </header>
   );
 }
 
-function RangeBar({ row }: { row: BossRow }) {
+/** Your kill (best, or the week being compared) as a bar against the top 1% mark. */
+function RangeBar({ row, kill }: { row: BossRow; kill?: { amount: number; label: string } | null }) {
   const b = row.benchmark;
+  const you = kill?.amount ?? row.best;
   if (!b) return <div className="range empty" />;
-  const max = Math.max(b.p99, row.best ?? 0) * 1.06;
+  const max = Math.max(b.p99, you ?? 0) * 1.06;
   const pos = (v: number) => `${(v / max) * 100}%`;
   return (
-    <div className="range" role="img" aria-label={row.best != null ? `${amount(row.best)} against top 1% ${amount(b.p99)}` : `Top 1% ${amount(b.p99)}`}>
-      <div className="range-track" />
-      {row.best != null && <div className={`range-fill fill-${parseTier(row.rankPercent)}`} style={{ width: pos(row.best) }} />}
-      <div className="range-tick p50" style={{ left: pos(b.p50) }} title={`Typical player ${amount(b.p50)}`} />
-      <div className="range-tick p99" style={{ left: pos(b.p99) }} title={`Top 1% ${amount(b.p99)}`} />
+    <div className="range-wrap">
+      <div className="range" role="img" aria-label={you != null ? `${amount(you)} against top 1% ${amount(b.p99)}` : `Top 1% ${amount(b.p99)}`}>
+        <div className="range-track" />
+        {you != null && <div className={`range-fill fill-${parseTier(row.rankPercent)}`} style={{ width: pos(you) }} />}
+        {b.p50 != null && <div className="range-tick p50" style={{ left: pos(b.p50) }} title={`Typical player ${amount(b.p50)}`} />}
+        <div className="range-tick p99" style={{ left: pos(b.p99) }} title={`Top 1% ${amount(b.p99)}`}>
+          <span>Top 1%</span>
+        </div>
+      </div>
+      {you != null && (
+        <p className="ml-caption soft range-caption">
+          {kill?.label ?? 'Best kill'} · {amount(you)} · {Math.round((you / b.p99) * 100)}% of the top 1%
+        </p>
+      )}
     </div>
   );
 }

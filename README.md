@@ -66,7 +66,7 @@ Every Warcraft Logs request is logged in the terminal (and in Render's **Logs** 
 [wcl] ok      character Alphac · 412ms +3 pts · 1240/18000 used this hour
 [wcl] ok      rankings ×9 · 690ms +18 pts · 1258/18000 used this hour
 [wcl] limited log aB3x (breakdown) · 0ms
-[logsforever] Pull finished. Up to date (latest raid): Nightslayer 412/1530. Waiting: 0.
+[logsforever] Round finished: #1 lists up to date (next pull after 10:00 AM Eastern). Characters are pulled when searched. Next round in 15 min.
 ```
 
 Set `WCL_LOG=off` to silence the per-request lines. The hourly allowance is read from Warcraft Logs on every request, so a higher tier is used automatically.

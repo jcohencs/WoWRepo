@@ -192,18 +192,30 @@ export class Puller {
   run(): Promise<void> {
     if (!this.running) {
       this.nextRunAt = Date.now() + this.intervalMs;
+      this.round = { queued: 0, leaders: [] };
       this.running = this.pass().finally(() => {
         this.running = null;
         this.cache.flush();
         if (this.log) {
-          const p = this.progress().map((r) => `${r.realm} ${r.current}/${r.characters}`).join(', ');
           const mins = Math.round(this.intervalMs / MINUTE);
-          console.log(`[logsforever] Pull finished and saved. Up to date (latest raid): ${p}. Waiting: ${this.queue().length}. Next pull in ${mins} min.`);
+          const parts = [
+            this.round.queued ? `${this.round.queued} waiting ${this.round.queued === 1 ? 'lookup' : 'lookups'} done` : null,
+            this.round.leaders.length ? `#1 lists pulled for ${this.round.leaders.join(', ')}` : '#1 lists up to date (next pull after 10:00 AM Eastern)',
+            this.queue().length ? `${this.queue().length} still waiting for allowance` : null,
+          ].filter(Boolean);
+          if (this.sweepRealm) {
+            const p = this.progress().map((r) => `${r.realm} ${r.current}/${r.characters}`).join(', ');
+            parts.push(`realm pull: ${p} up to date`);
+          }
+          console.log(`[logsforever] Round finished: ${parts.join('; ')}. Characters are pulled when searched. Next round in ${mins} min.`);
         }
       });
     }
     return this.running;
   }
+
+  /** What the current round did, for its log line. */
+  private round: { queued: number; leaders: string[] } = { queued: 0, leaders: [] };
 
   private async pass(): Promise<void> {
     await this.live.raids().catch(() => undefined); // keeps the raid list current (cached a week)
@@ -214,6 +226,7 @@ export class Puller {
       const job = this.queue()[0];
       const outcome = await this.pull(job);
       if (outcome === 'limited') return;
+      this.round.queued++;
       this.cache.set('queue', this.queue().filter((j) => jobKey(j) !== jobKey(job)), KEEP);
     }
 
@@ -274,6 +287,7 @@ export class Puller {
         if (!due) continue;
         try {
           await this.live.classLeaders(REALM_REGION, realm.slug, raid);
+          this.round.leaders.push(raid.name);
         } catch (err) {
           if (err instanceof ApiFailure && err.code === 'rate_limited') return 'limited';
           console.error(`[logsforever] Pulling the #1 players on ${realm.name} failed: ${err instanceof Error ? err.message : err}`);

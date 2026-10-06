@@ -135,3 +135,15 @@ describe('request log labels', () => {
     expect(describeQuery('query($region: String!, $realm: String!) { worldData { q0: encounter(id: 1) { characterRankings(metric: dps, page: 1, serverRegion: $region, serverSlug: $realm) } } }')).toBe('realm raiders (1 pages)');
   });
 });
+
+describe('points summary', () => {
+  it('groups request labels by kind', async () => {
+    const { spendKind } = await import('../../server/wcl/client');
+    expect(spendKind('log PMc3nHDj8wQq9Nfz (breakdown)')).toBe('log (breakdown)');
+    expect(spendKind('best kills Adb')).toBe('best kills');
+    expect(spendKind('character Adb')).toBe('character');
+    expect(spendKind('rankings ×9')).toBe('rankings');
+    expect(spendKind('#1 of each class (18 boss rankings)')).toBe('#1 of each class');
+    expect(spendKind('realm raiders (6 pages)')).toBe('realm raiders');
+  });
+});

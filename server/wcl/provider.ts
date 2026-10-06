@@ -170,6 +170,11 @@ export class WclProvider implements Provider {
     return [];
   }
 
+  /** Points spent since the last call, by kind of request (for the round log line). */
+  takeSpending() {
+    return this.client.takeSpending();
+  }
+
   status() {
     const r = this.client.rateLimit();
     return {

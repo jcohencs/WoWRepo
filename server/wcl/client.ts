@@ -33,6 +33,16 @@ export function describeQuery(query: string, variables: Record<string, unknown> 
   return 'request';
 }
 
+/** Groups request labels by kind ("log (breakdown)", "best kills", …) for the points summary. */
+export function spendKind(label: string): string {
+  return label
+    .replace(/^log \S+$/, 'log')
+    .replace(/^log \S+ /, 'log ')
+    .replace(/^(character|best kills) .+$/, '$1')
+    .replace(/ ×\d+$/, '')
+    .replace(/ \(\d+ [^)]*\)$/, '');
+}
+
 /** Request log on by default; WCL_LOG=off silences it (tests are quiet unless WCL_LOG=on). */
 const logEnabled = () => (process.env.WCL_LOG ? process.env.WCL_LOG !== 'off' : !process.env.VITEST);
 
@@ -110,15 +120,29 @@ export class WclClient {
     );
   }
 
+  /** Points this server spent since `takeSpending()` was last called, by kind of request. */
+  private spent = new Map<string, number>();
+
+  /** Returns and resets the points spent by kind of request, and the hour's total as Warcraft Logs reports it. */
+  takeSpending(): { byKind: [string, number][]; total: number; hourUsed: number | null } {
+    const byKind = [...this.spent.entries()].sort((a, b) => b[1] - a[1]);
+    const total = byKind.reduce((n, [, v]) => n + v, 0);
+    this.spent = new Map();
+    return { byKind, total, hourUsed: this.rate ? Math.round(this.rate.pointsSpentThisHour) : null };
+  }
+
   async query<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
     const label = describeQuery(query, variables);
+    const kind = spendKind(label);
     const started = Date.now();
     const before = this.rate?.pointsSpentThisHour;
     const log = (status: string) => {
-      if (!logEnabled()) return;
       const r = this.rate;
-      const cost = r && before != null && r.pointsSpentThisHour >= before ? ` +${Math.round(r.pointsSpentThisHour - before)} pts` : '';
+      const spent = r && before != null && r.pointsSpentThisHour >= before ? r.pointsSpentThisHour - before : null;
+      if (spent != null) this.spent.set(kind, (this.spent.get(kind) ?? 0) + spent);
+      const cost = spent != null ? ` +${Math.round(spent)} pts` : '';
       const budget = r && r.limitPerHour ? ` · ${Math.round(r.pointsSpentThisHour)}/${r.limitPerHour} used this hour` : '';
+      if (!logEnabled()) return;
       console.log(`[wcl] ${status.padEnd(7)} ${label} · ${Date.now() - started}ms${cost}${budget}`);
     };
     try {

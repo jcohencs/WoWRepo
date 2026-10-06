@@ -203,3 +203,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T119 Cheaper first comparison: the first click fetches only damage and casts; the timeline, damage taken and buffs come from `/api/compare-extras` when the charts are scrolled to or "Load profile" is clicked, and are saved into the comparison
 - [x] T120 Round log line says what the round did (waiting lookups, #1 lists pulled or up to date); the realm progress only appears when RAIDER_SWEEP is on
 - [x] T121 Top 1% numbers read one ranking page besides page 1 (the median's); ladder steps on other pages are left out
+- [x] T122 Each round logs the points spent since the last round by kind of request, and points used by something else with the same key (another copy of the site, a PC running npm run dev)

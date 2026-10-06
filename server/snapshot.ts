@@ -208,10 +208,31 @@ export class Puller {
             parts.push(`realm pull: ${p} up to date`);
           }
           console.log(`[logsforever] Round finished: ${parts.join('; ')}. Characters are pulled when searched. Next round in ${mins} min.`);
+          console.log(`[logsforever] ${this.spendingLine()}`);
         }
       });
     }
     return this.running;
+  }
+
+  private lastHourUsed: number | null = null;
+
+  /**
+   * Points spent since the last round, by kind of request, and how much of the hour's total came
+   * from somewhere else using the same key (another copy of the site, `npm run dev` on a PC…).
+   */
+  private spendingLine(): string {
+    const s = this.live.takeSpending();
+    const mine = Math.round(s.total);
+    const kinds = s.byKind.map(([k, v]) => `${k} ${Math.round(v)}`).join(', ');
+    let other = '';
+    if (s.hourUsed != null && this.lastHourUsed != null && s.hourUsed >= this.lastHourUsed) {
+      const elsewhere = s.hourUsed - this.lastHourUsed - mine;
+      if (elsewhere > 5) other = ` ${elsewhere} more points were used by something else with the same Warcraft Logs key (another copy of the site or npm run dev on a PC?).`;
+    }
+    this.lastHourUsed = s.hourUsed;
+    const used = s.hourUsed != null ? ` Hour so far: ${s.hourUsed} points.` : '';
+    return `Points since last round: ${mine}${kinds ? ` (${kinds})` : ''}.${other}${used}`;
   }
 
   /** What the current round did, for its log line. */

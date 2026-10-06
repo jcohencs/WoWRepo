@@ -217,6 +217,27 @@ export class Puller {
     await this.sweep();
   }
 
+  /** Pulls the newest raid's #1 list right now, ignoring the 10:00 AM schedule (the admin link). */
+  async pullLeadersNow(): Promise<{ raid: string | null; classesWithLeaders: number; message: string }> {
+    await this.live.raids().catch(() => undefined);
+    const raid = this.cachedRaids().at(-1);
+    if (!raid) return { raid: null, classesWithLeaders: 0, message: 'No raids found.' };
+    let filled = 0;
+    for (const realm of REALMS) {
+      try {
+        const board = await this.live.classLeaders(REALM_REGION, realm.slug, raid);
+        filled += board.classes.filter((c) => c.leaders.length > 0).length;
+      } catch (err) {
+        if (err instanceof ApiFailure && err.code === 'rate_limited') {
+          return { raid: raid.name, classesWithLeaders: filled, message: 'Warcraft Logs allowance is used up for this hour; try again after it resets.' };
+        }
+        throw err;
+      }
+    }
+    this.cache.flush();
+    return { raid: raid.name, classesWithLeaders: filled, message: `Pulled the #1 list for ${raid.name}.` };
+  }
+
   /**
    * Pulls the #1 lists that are due: every saved raid (and the newest) once a day after 10:00 AM
    * Eastern, plus any raid a visitor opened that was never pulled.
@@ -518,6 +539,11 @@ export class SnapshotProvider implements Provider {
       if (err instanceof ApiFailure && err.code === 'rate_limited') return later();
       throw err;
     }
+  }
+
+  /** Admin link: pull the newest raid's #1 list now. */
+  pullLeadersNow() {
+    return this.puller.pullLeadersNow();
   }
 
   /** Fills each boss row's benchmark back in from the shared saved benchmarks (see `packSaved`). */

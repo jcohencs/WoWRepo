@@ -29,6 +29,9 @@ services:
         sync: false
       - key: WCL_CLIENT_SECRET
         sync: false
+      # Secret for the manual "pull the #1 list now" link (/api/admin/pull-leaders?key=…). 12+ characters.
+      - key: ADMIN_KEY
+        sync: false
     disk:
       name: wcl-cache
       mountPath: /var/data

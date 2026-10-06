@@ -119,3 +119,14 @@ server/demo/         fixture provider for demo mode
 server/handler.ts    /api routes (mounted into Vite in dev, into server/index.ts in prod)
 src/                 React UI, hand-written CSS
 ```
+
+## Pull the #1 list by hand
+
+The #1 of each class is pulled once a day at 10:00 AM Eastern. To pull it right now, set an
+`ADMIN_KEY` (12+ characters, keep it secret) in Render → Environment, then open:
+
+```
+https://<your-site>.onrender.com/api/admin/pull-leaders?key=<your ADMIN_KEY>
+```
+
+It answers with what it pulled. Without the right key the link behaves as if it doesn't exist.

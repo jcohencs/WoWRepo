@@ -85,3 +85,23 @@ describe('API (demo provider)', () => {
     expect(body.error.code).toBe('not_found');
   });
 });
+
+describe('admin pull link', () => {
+  it('is hidden without the right ADMIN_KEY', async () => {
+    const srv = createServer(createApiHandler(new DemoProvider(), { ADMIN_KEY: 'correct-horse-battery' }));
+    await new Promise<void>((r) => srv.listen(0, r));
+    const at = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/api/admin/pull-leaders`;
+    expect((await fetch(at)).status).toBe(404);
+    expect((await fetch(`${at}?key=wrong-key-entirely`)).status).toBe(404);
+    expect((await fetch(`${at}?key=correct-horse-battery`)).status).toBe(400); // demo mode has nothing to pull
+    srv.close();
+  });
+
+  it('stays off when ADMIN_KEY is missing or too short', async () => {
+    const srv = createServer(createApiHandler(new DemoProvider(), { ADMIN_KEY: 'short' }));
+    await new Promise<void>((r) => srv.listen(0, r));
+    const at = `http://127.0.0.1:${(srv.address() as AddressInfo).port}/api/admin/pull-leaders?key=short`;
+    expect((await fetch(at)).status).toBe(404);
+    srv.close();
+  });
+});

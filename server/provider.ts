@@ -12,6 +12,8 @@ export interface Provider {
   compare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison>;
   /** The realm's #1 player of each class in a raid (main page). */
   leaders?(realm: string, raidId?: string): Promise<Leaderboard>;
+  /** Pulls the newest raid's #1 list now, outside the 10:00 AM schedule (admin link). */
+  pullLeadersNow?(): Promise<{ raid: string | null; classesWithLeaders: number; message: string }>;
   /** Pulls the character's raid page again now (the page's Refresh button). */
   refresh(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;
 }

@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { REALMS, type Meta, type Site } from '../shared/types.js';
 import { MINUTE, TtlCache } from './cache.js';
@@ -59,10 +60,28 @@ function intParam(params: URLSearchParams, key: string, required: boolean): numb
 
 export type ApiHandler = (req: IncomingMessage, res: ServerResponse, next?: () => void) => Promise<void>;
 
-export function createApiHandler(provider: Provider = providerFromEnv(process.env, { schedule: true })): ApiHandler {
+/** True when `given` matches the ADMIN_KEY setting (compared in constant time). Off without a key. */
+function adminKeyMatches(given: string | null, expected: string | undefined): boolean {
+  if (!expected || expected.length < 12 || !given) return false;
+  const a = Buffer.from(given);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export function createApiHandler(provider: Provider = providerFromEnv(process.env, { schedule: true }), env: Record<string, string | undefined> = process.env): ApiHandler {
   return async (req, res, next) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (!url.pathname.startsWith('/api/')) return next ? next() : send(res, 404, { error: { code: 'not_found', message: 'Not found' } });
+    // The admin link works from a browser address bar, so it takes GET as well; it needs ADMIN_KEY.
+    if (url.pathname === '/api/admin/pull-leaders') {
+      if (!adminKeyMatches(url.searchParams.get('key'), env.ADMIN_KEY)) return send(res, 404, { error: { code: 'not_found', message: 'Not found' } });
+      if (!provider.pullLeadersNow) return send(res, 400, { error: { code: 'bad_request', message: 'Not available in demo mode.' } });
+      try {
+        return send(res, 200, await provider.pullLeadersNow());
+      } catch (err) {
+        return send(res, 502, { error: { code: 'upstream', message: err instanceof Error ? err.message : String(err) } });
+      }
+    }
     const write = url.pathname === '/api/refresh';
     if (req.method !== (write ? 'POST' : 'GET')) return send(res, 405, { error: { code: 'bad_request', message: write ? 'POST only' : 'GET only' } });
     const p = url.searchParams;

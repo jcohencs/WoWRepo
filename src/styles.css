@@ -2705,3 +2705,12 @@ a.cb-action {
 .bs-range .mini-ladder {
   margin-top: 2px;
 }
+
+/* Talents & guide box: only as tall as its content. */
+.spec-links {
+  flex: none;
+}
+.spec-links-body {
+  flex: none;
+  justify-content: flex-start;
+}

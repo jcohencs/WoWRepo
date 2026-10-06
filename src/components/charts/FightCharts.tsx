@@ -36,11 +36,11 @@ export function KillPicker({ data, week, onWeek }: { data: Comparison; week: num
   );
 }
 
-/** Running total of damage over the fight, you vs the top 1% player. */
+/** Running total of damage over the fight, you vs the #1. */
 export function FightTimeline({ data }: { data: Comparison }) {
   const sides = [
     { side: data.you, name: 'You', color: 'var(--you)' },
-    ...(data.ref ? [{ side: data.ref, name: 'Top 1%', color: 'var(--ref)' }] : []),
+    ...(data.ref ? [{ side: data.ref, name: '#1', color: 'var(--ref)' }] : []),
   ].filter((s) => s.side.timeline);
   if (!sides.length) return null;
   const stepMs = sides[0].side.timeline!.stepMs;
@@ -72,7 +72,7 @@ export function FightTimeline({ data }: { data: Comparison }) {
   );
 }
 
-/** Damage taken per second by school, you vs the top 1% player. */
+/** Damage taken per second by school, you vs the #1. */
 export function TakenChart({ data }: { data: Comparison }) {
   const you = data.you.taken ?? [];
   const ref = data.ref?.taken ?? [];
@@ -87,11 +87,11 @@ export function TakenChart({ data }: { data: Comparison }) {
           <h3>Damage taken by type</h3>
           <p className="soft">Per second, by damage school. Less is usually better.</p>
         </div>
-        {data.ref && <Legend items={[{ name: 'You', color: 'var(--you)' }, { name: 'Top 1%', color: 'var(--ref)' }]} />}
+        {data.ref && <Legend items={[{ name: 'You', color: 'var(--you)' }, { name: '#1', color: 'var(--ref)' }]} />}
       </header>
       <div className="vbars" role="img" aria-label="Damage taken per second by school">
         {schools.map((s) => (
-          <div className="vbar-group" key={s} title={`${s}: you ${integer(get(you, s))}/s${data.ref ? `, top 1% ${integer(get(ref, s))}/s` : ''}`}>
+          <div className="vbar-group" key={s} title={`${s}: you ${integer(get(you, s))}/s${data.ref ? `, #1 ${integer(get(ref, s))}/s` : ''}`}>
             <div className="vbar-pair">
               <span className="vbar you" style={{ height: `${(get(you, s) / max) * 100}%` }}>
                 <em>{integer(get(you, s))}</em>
@@ -110,7 +110,7 @@ export function TakenChart({ data }: { data: Comparison }) {
   );
 }
 
-/** Flask/elixir and food uptime, potions and time active, you vs the top 1% player. */
+/** Flask/elixir and food uptime, potions and time active, you vs the #1. */
 export function PrepChart({ data, compact = false }: { data: Comparison | null; compact?: boolean }) {
   if (!data) return null;
   const rows: { label: string; you: number | null; ref: number | null; kind: 'pct' | 'count' }[] = [
@@ -128,7 +128,7 @@ export function PrepChart({ data, compact = false }: { data: Comparison | null; 
       {compact ? (
         <header className="side-card-head">
           <p className="sidebar-title">Prep &amp; uptime</p>
-          {data.ref && <Legend items={[{ name: 'You', color: 'var(--you)' }, { name: 'Top 1%', color: 'var(--ref)' }]} />}
+          {data.ref && <Legend items={[{ name: 'You', color: 'var(--you)' }, { name: '#1', color: 'var(--ref)' }]} />}
         </header>
       ) : (
         <header>
@@ -136,11 +136,11 @@ export function PrepChart({ data, compact = false }: { data: Comparison | null; 
             <h3>Preparation and uptime</h3>
             <p className="soft">Share of the fight each buff was up, and potions drunk.</p>
           </div>
-          {data.ref && <Legend items={[{ name: 'You', color: 'var(--you)' }, { name: 'Top 1%', color: 'var(--ref)' }]} />}
+          {data.ref && <Legend items={[{ name: 'You', color: 'var(--you)' }, { name: '#1', color: 'var(--ref)' }]} />}
         </header>
       )}
       {rows.map((r) => (
-        <div className="casts-row prep-row" key={r.label} title={`${r.label}: you ${fmt(r.you, r.kind)}${data.ref ? `, top 1% ${fmt(r.ref, r.kind)}` : ''}`}>
+        <div className="casts-row prep-row" key={r.label} title={`${r.label}: you ${fmt(r.you, r.kind)}${data.ref ? `, #1 ${fmt(r.ref, r.kind)}` : ''}`}>
           <span className="casts-name">
             <span>{r.label}</span>
           </span>

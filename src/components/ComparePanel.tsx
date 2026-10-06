@@ -113,10 +113,10 @@ export function ComparePanel({ query, row, site, demo, onData, wantExtras = fals
       <div className="sides">
         <Side label="You" side={data.you} site={site} demo={demo} />
         {data.ref ? (
-          <Side label="Top 1% player" side={data.ref} site={site} demo={demo} top />
+          <Side label="Nightslayer #1" side={data.ref} site={site} demo={demo} top />
         ) : (
           <div className="side none">
-            <span className="soft">No top 1% {specLabel(data.spec)} log for this boss yet — showing your own breakdown.</span>
+            <span className="soft">No other Nightslayer {specLabel(data.spec)} is ranked on this boss yet — showing your own breakdown.</span>
           </div>
         )}
       </div>
@@ -143,7 +143,7 @@ export function ComparePanel({ query, row, site, demo, onData, wantExtras = fals
             {hasRef && (
               <div className="legend" aria-hidden>
                 <span className="legend-you">You</span>
-                <span className="legend-ref">Top 1%</span>
+                <span className="legend-ref">#1</span>
               </div>
             )}
           </div>
@@ -155,7 +155,7 @@ export function ComparePanel({ query, row, site, demo, onData, wantExtras = fals
               <div className="casts-row ab-head" role="row">
                 <span role="columnheader">Ability</span>
                 <span role="columnheader">Share of total {noun}</span>
-                <span role="columnheader" className="num" title={hasRef ? 'Uses per minute: you · top 1%' : 'Uses per minute'}>
+                <span role="columnheader" className="num" title={hasRef ? 'Uses per minute: you · #1' : 'Uses per minute'}>
                   Per min
                 </span>
               </div>
@@ -189,7 +189,7 @@ function CompareSkeleton() {
         <div className="side skeleton-block" />
         <div className="side skeleton-block" />
       </div>
-      <p className="soft loading-note">Loading your log and the top 1% log — the first time can take a few seconds…</p>
+      <p className="soft loading-note">Loading your log and the #1's log — the first time can take a few seconds…</p>
     </div>
   );
 }
@@ -216,7 +216,7 @@ function Side({ label, side, site, demo, top }: { label: string; side: FightSide
 function differenceTip(delta: number): string {
   const pts = Math.abs(delta * 100);
   if (pts < 0.3) return 'about the same';
-  return `${pts.toFixed(1)}% ${delta > 0 ? 'more for you' : 'more for the top 1% player'}`;
+  return `${pts.toFixed(1)}% ${delta > 0 ? 'more for you' : 'more for the #1'}`;
 }
 
 function AbilityRow({
@@ -239,7 +239,7 @@ function AbilityRow({
   const tip = !hasRef
     ? `${a.name}: ${percent(a.you?.share ?? 0)} of your ${noun}, used ${cpm(a.you?.cpm)} times per minute`
     : hasShare
-      ? `${a.name}: you ${percent(a.you?.share ?? 0)}, top 1% ${percent(a.ref?.share ?? 0)} (${differenceTip(a.shareDelta)})`
+      ? `${a.name}: you ${percent(a.you?.share ?? 0)}, #1 ${percent(a.ref?.share ?? 0)} (${differenceTip(a.shareDelta)})`
       : `${a.name}: used ${cpm(a.you?.cpm)} vs ${cpm(a.ref?.cpm)} times per minute`;
   return (
     <div className="casts-row" role="row" title={tip}>

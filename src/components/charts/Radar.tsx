@@ -4,7 +4,7 @@ import { amount, integer, metricLabel, percent } from '../../lib/format';
 
 interface Axis {
   label: string;
-  /** You relative to the top 1% player: 1 = the same, above 1 = better. */
+  /** You relative to the #1: 1 = the same, above 1 = better. */
   ratio: number;
   detail: string;
 }
@@ -50,14 +50,14 @@ function axesFor(data: Comparison): Axis[] {
   return axes;
 }
 
-const MAX = 1.5; // the outer ring is 50% better than the top 1% player
+const MAX = 1.5; // the outer ring is 50% better than the #1
 const W = 300;
 const H = 236;
 const CX = W / 2;
 const CY = H / 2 + 4;
 const R = 80;
 
-/** You against the top 1% player on each stat at once. Their line is the middle ring; outside it is better. */
+/** You against the #1 on each stat at once. Their line is the middle ring; outside it is better. */
 export function PerformanceRadar({ data, onLoad }: { data: Comparison | null; onLoad?: () => void }) {
   if (!data) return null;
   const axes = axesFor(data);
@@ -71,7 +71,7 @@ export function PerformanceRadar({ data, onLoad }: { data: Comparison | null; on
           </button>
         ) : (
           <p className="soft radar-empty">
-            {!data.ref ? 'Shows once there is a top 1% log to compare with.' : needsExtras(data) ? 'Loading…' : 'Not enough data on this kill to compare yet.'}
+            {!data.ref ? 'Shows once another Nightslayer player of your spec is ranked here.' : needsExtras(data) ? 'Loading…' : 'Not enough data on this kill to compare yet.'}
           </p>
         )}
       </section>
@@ -90,7 +90,7 @@ export function PerformanceRadar({ data, onLoad }: { data: Comparison | null; on
   return (
     <section className="radar-card">
       <p className="sidebar-title">Performance profile</p>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={axes.map((a) => `${a.label}: ${percent(a.ratio, 0)} of top 1%`).join('; ')}>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={axes.map((a) => `${a.label}: ${percent(a.ratio, 0)} of the #1`).join('; ')}>
         {[0.5, 1, 1.5].map((ring) => (
           <polygon key={ring} points={poly(() => ring)} className={`radar-ring${ring === 1 ? ' mid' : ''}`} />
         ))}
@@ -103,7 +103,7 @@ export function PerformanceRadar({ data, onLoad }: { data: Comparison | null; on
           const [x, y] = point(i, a.ratio);
           return (
             <circle key={a.label} cx={x} cy={y} r={3.5} className="radar-dot">
-              <title>{`${a.label}: ${a.detail} — ${percent(a.ratio, 0)} of the top 1% player`}</title>
+              <title>{`${a.label}: ${a.detail} — ${percent(a.ratio, 0)} of the #1`}</title>
             </circle>
           );
         })}
@@ -128,7 +128,7 @@ export function PerformanceRadar({ data, onLoad }: { data: Comparison | null; on
         </span>
         <span>
           <i className="dashed" />
-          Top 1%
+          #1
         </span>
       </div>
     </section>

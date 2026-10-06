@@ -1,4 +1,4 @@
-import type { Benchmark, Comparison, FightSide, Leaderboard, SideExtras, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
+import type { Benchmark, Comparison, FightSide, Leaderboard, RankingEntry, SideExtras, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
 import { join, resolve } from 'node:path';
 import { DAY, HOUR, MINUTE, TtlCache } from '../cache.js';
 import {
@@ -9,6 +9,7 @@ import {
   type BenchmarkKey,
   type RawRanking,
   type RawRankingPage,
+  toEntry,
 } from '../core/benchmark.js';
 import { CLASSES, classById, metricFor, metricForSpec, specLabel, type ClassInfo } from '../core/classes.js';
 import { compareAbilities, type SideTables, type TableEntry } from '../core/compare.js';
@@ -149,18 +150,12 @@ export const REFRESH_HEADROOM = 0.35;
 
 export class WclProvider implements Provider {
   readonly demo = false;
-  private readonly refreshing = new Set<string>();
 
   constructor(
     private readonly client: WclClient,
     readonly site: Site,
     private readonly cache: TtlCache = new TtlCache(),
   ) {}
-
-  /** Background refreshes only use the allowance while plenty is left for new lookups. */
-  private canRefresh(): boolean {
-    return this.cache.serveStale && this.client.headroom() > REFRESH_HEADROOM;
-  }
 
   headroom(): number {
     return this.client.headroom();
@@ -285,7 +280,7 @@ export class WclProvider implements Provider {
     });
     const keyOf = (p: (typeof plan)[number]): BenchmarkKey => ({ encounterId: p.encounter.id, className: cls.name, spec: p.spec, metric: p.metric });
 
-    const benchmarks = await this.getBenchmarks(plan.map(keyOf));
+    const benchmarks = await this.getBenchmarks(plan.map(keyOf), ref);
     const rows = plan.map((p) => buildRow(p.encounter, p.spec, p.metric, p.best, benchmarks.get(keyString(keyOf(p))) ?? null));
 
 
@@ -425,7 +420,42 @@ export class WclProvider implements Provider {
     }));
     const board: Leaderboard = { realm, raid: { id: raid.id, name: raid.name }, classes, updatedAt: Date.now() };
     this.cache.set(this.leadersKey(region, realm, raid.id), board, DAY);
+
+    // The same rankings give the realm's best two of every spec on every boss: what everyone on the
+    // realm is compared with, with no further requests.
+    const best: Record<string, RankingEntry[]> = { ...(this.cache.peekAny<Record<string, RankingEntry[]>>(this.realmBestKey(region, realm))?.value ?? {}) };
+    const fresh = new Map<string, RankingEntry[]>();
+    items.forEach((it, k) => {
+      for (const r of pages[k] ?? []) {
+        if (!r?.name || !r.spec || !r.report?.code) continue;
+        const key = keyString({ encounterId: it.encounterId, className: it.className, spec: r.spec, metric: it.metric });
+        const list = fresh.get(key) ?? [];
+        if (list.length < 2 && !list.some((e) => e.name === r.name)) list.push(toEntry(r));
+        fresh.set(key, list.sort((a, b) => b.amount - a.amount));
+      }
+    });
+    // Replace this raid's bosses wholesale so a spec nobody plays any more doesn't linger.
+    const raidBosses = new Set(raid.encounters.map((e) => e.id));
+    for (const key of Object.keys(best)) if (raidBosses.has(Number(key.split('|')[0]))) delete best[key];
+    for (const [key, list] of fresh) best[key] = list;
+    this.cache.set(this.realmBestKey(region, realm), best, 365 * DAY);
     return board;
+  }
+
+  realmBestKey(region: string, realm: string) {
+    return `realmbest1|${region}|${realm}`;
+  }
+
+  /**
+   * What a character is compared with on one boss: the realm's #1 of their class and spec, from
+   * the saved daily #1 pull (no request). If they are the #1 themselves, the #2. Null when nobody
+   * of that spec is ranked on the realm for that boss yet.
+   */
+  realmBenchmark(region: string, realm: string, key: BenchmarkKey, self?: string): Benchmark | null {
+    const list = this.cache.peekAny<Record<string, RankingEntry[]>>(this.realmBestKey(region, realm))?.value?.[keyString(key)] ?? [];
+    const top = list.find((e) => e.name.toLowerCase() !== self?.toLowerCase());
+    if (!top) return null;
+    return { ...key, sampleSize: 0, p50: null, p99: top.amount, reference: top, ladder: [] };
   }
 
   private async fetchCharacter(ref: CharacterRef, zoneId: number, spec?: string): Promise<CharacterResponse> {
@@ -469,33 +499,9 @@ export class WclProvider implements Provider {
     });
   }
 
-  /**
-   * Saved benchmarks are used as-is (stale ones are refreshed in the background when the allowance
-   * allows); only benchmarks never pulled before are fetched before returning.
-   */
-  private async getBenchmarks(keys: BenchmarkKey[]): Promise<Map<string, Benchmark | null>> {
-    const result = new Map<string, Benchmark | null>();
-    const missing = new Map<string, BenchmarkKey>();
-    const stale = new Map<string, BenchmarkKey>();
-    for (const k of keys) {
-      const id = keyString(k);
-      if (!SAFE_NAME.test(k.className) || !SAFE_NAME.test(k.spec)) continue;
-      const saved = this.cache.peekAny<Benchmark | null>(`bench|${id}`);
-      // The scheduled puller (serveStale off) always re-pulls stale benchmarks before saving a page.
-      if (!saved || (!saved.fresh && !this.cache.serveStale)) missing.set(id, k);
-      else {
-        result.set(id, saved.value);
-        if (!saved.fresh && !this.refreshing.has(id)) stale.set(id, k);
-      }
-    }
-    if (stale.size && this.canRefresh()) {
-      for (const id of stale.keys()) this.refreshing.add(id);
-      void this.fetchBenchmarks(stale)
-        .catch(() => undefined)
-        .finally(() => stale.forEach((_, id) => this.refreshing.delete(id)));
-    }
-    if (missing.size) for (const [id, v] of await this.fetchBenchmarks(missing)) result.set(id, v);
-    return result;
+  /** The comparison reference for each boss: the realm's #1 of the spec, from saved data (no requests). */
+  private async getBenchmarks(keys: BenchmarkKey[], ref: CharacterRef): Promise<Map<string, Benchmark | null>> {
+    return new Map(keys.map((k) => [keyString(k), this.realmBenchmark(ref.region, ref.realm, k, ref.name)]));
   }
 
   /** Two batched queries: page 1 for every key, then the pages holding p50/p99. */
@@ -663,7 +669,7 @@ export class WclProvider implements Provider {
       const kill = { name: history.name, server: history.server, cls: history.cls, code: chosen.code, fight: chosen.fight };
 
       const key = { encounterId, className: kill.cls.name, spec, metric };
-      const benchmark = (await this.getBenchmarks([key])).get(keyString(key)) ?? null;
+      const benchmark = (await this.getBenchmarks([key], ref)).get(keyString(key)) ?? null;
       const dataType = metric === 'hps' ? 'Healing' : 'DamageDone';
 
       // Both sides load in parallel; each is two small queries, cached per report.

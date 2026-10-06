@@ -231,7 +231,7 @@ function EmptyIntro() {
         <h1>
           Welcome to <span>LogsForever</span>
         </h1>
-        <p>See detailed visual breakdowns comparing your logs with the top 1% of your class.</p>
+        <p>See detailed visual breakdowns comparing your logs with the #1 of your class and spec on Nightslayer.</p>
       </div>
       <ol className="welcome-steps">
         <li>
@@ -242,12 +242,12 @@ function EmptyIntro() {
         <li>
           <span className="ws-num">2</span>
           <strong>See every boss</strong>
-          <span>Your best kill next to a typical player and the top 1% of your spec.</span>
+          <span>Your best kill next to the Nightslayer #1 of your spec.</span>
         </li>
         <li>
           <span className="ws-num">3</span>
           <strong>Click a boss</strong>
-          <span>See which abilities a top 1% player gets more out of than you do.</span>
+          <span>See which abilities the #1 gets more out of than you do.</span>
         </li>
       </ol>
     </section>

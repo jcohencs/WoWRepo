@@ -53,7 +53,7 @@ export function pagesNeeded(_count: number): number[] {
   return [];
 }
 
-function toEntry(r: RawRanking): RankingEntry {
+export function toEntry(r: RawRanking): RankingEntry {
   return {
     name: r.name,
     server: r.server?.name ?? '',

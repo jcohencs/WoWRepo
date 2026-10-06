@@ -1,5 +1,4 @@
-import { REALM_REGION, REALMS, type ApiStatus, type Benchmark, type Comparison, type Leaderboard, type SideExtras, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
-import { keyString } from './core/benchmark.js';
+import { REALM_REGION, REALMS, type ApiStatus, type Comparison, type Leaderboard, type SideExtras, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
 import { buildRow, summarise } from './core/report.js';
 import { lastDailyTime } from './core/schedule.js';
 import { DAY, HOUR, MINUTE, type TtlCache } from './cache.js';
@@ -648,10 +647,10 @@ export class SnapshotProvider implements Provider {
     const className = report.character?.className;
     if (!className || !Array.isArray(report.rows)) return page;
     const rows = report.rows.map((r) => {
-      const saved = this.cache.peekAny<Benchmark | null>(`bench|${keyString({ encounterId: r.encounter.id, className, spec: r.spec, metric: r.metric })}`);
-      if (!saved) return r;
+      // The realm's #1 of this spec on this boss (from the daily #1 pull), or #2 if this is the #1.
+      const bench = this.live.realmBenchmark(job.ref.region, job.ref.realm, { encounterId: r.encounter.id, className, spec: r.spec, metric: r.metric }, report.character.name);
       const best = { encounterId: r.encounter.id, spec: r.spec, kills: r.kills, best: r.best, rankPercent: r.rankPercent };
-      return buildRow(r.encounter, r.spec, r.metric, best, saved.value);
+      return buildRow(r.encounter, r.spec, r.metric, best, bench);
     });
     return { ...report, rows, summary: summarise(rows) } as T;
   }

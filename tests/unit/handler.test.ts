@@ -52,7 +52,7 @@ describe('API (demo provider)', () => {
     ]);
   });
 
-  it('returns a zone report with p99 benchmarks', async () => {
+  it('returns a zone report compared with the Nightslayer #1', async () => {
     const { status, body } = await get('/api/character?region=us&realm=dreamscythe&name=brannoc&raid=black-temple');
     expect(status).toBe(200);
     const report = body as ZoneReport;
@@ -61,7 +61,7 @@ describe('API (demo provider)', () => {
     expect(report.rows).toHaveLength(9);
     for (const row of report.rows) {
       expect(row.benchmark!.p99).toBeGreaterThan(0);
-      expect(row.benchmark!.sampleSize).toBeGreaterThan(0);
+      expect(row.benchmark!.reference.server).toBe('Nightslayer');
     }
   });
 

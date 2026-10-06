@@ -97,7 +97,14 @@ export function handler(query: string, variables: Record<string, unknown>) {
     const names = variables.realm === 'nightslayer' ? ['Brannoc', 'Morwenna'] : [];
     const worldData: Record<string, unknown> = {};
     for (const m of query.matchAll(/(q\d+): encounter/g)) {
-      worldData[m[1]] = { characterRankings: { page: 1, hasMorePages: false, rankings: names.map((name) => ({ ...ranking(1), name })) } };
+      // Best first: Brannoc then Morwenna, both Fury, in different logs.
+      worldData[m[1]] = {
+        characterRankings: {
+          page: 1,
+          hasMorePages: false,
+          rankings: names.map((name, i) => ({ ...ranking(1), name, amount: 2999 - i * 100, spec: 'Fury', report: { code: `REALM${i}`, fightID: 7 } })),
+        },
+      };
     }
     return { worldData };
   }
@@ -109,10 +116,11 @@ export function handler(query: string, variables: Record<string, unknown>) {
     return { worldData };
   }
   if (query.includes('players: table')) {
-    const name = variables.code === 'MINE' ? 'Brannoc' : 'P10';
+    // Every player the fakes rank appears in every log.
+    const players = ['Brannoc', 'Morwenna', 'Newcomer', 'P10'].map((name, i) => ({ name, id: 5 + i, total: 300000 - i * 10000, activeTime: 114000 }));
     return {
       reportData: {
-        report: { fights: [{ id: variables.fight, startTime: 0, endTime: 120000 }], players: table([{ name, id: 5, total: 300000, activeTime: 114000 }]) },
+        report: { fights: [{ id: variables.fight, startTime: 0, endTime: 120000 }], players: table(players) },
       },
     };
   }

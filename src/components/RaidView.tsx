@@ -80,7 +80,7 @@ export function RaidView({ report, query, site, demo, navigate }: Props) {
                     {killed && <span className={`fill-${tier}`} style={{ width: `${Math.max(r.rankPercent ?? 0, 2)}%` }} />}
                   </span>
                   <span className={`bp-gap ${r.gap ? (r.gap.absolute >= 0 ? 'pos' : 'neg') : 'soft'}`}>
-                    {killed ? (r.gap ? gapText(r.gap.percent) : 'no top 1% yet') : 'not killed yet'}
+                    {killed ? (r.gap ? gapText(r.gap.percent) : 'no #1 yet') : 'not killed yet'}
                   </span>
                 </button>
               </li>
@@ -165,14 +165,14 @@ function BossStats({ row, shown }: { row: BossRow; shown: Comparison | null }) {
           </div>
         )}
         <div>
-          <dt title="99th percentile: better than 99% of logged kills">Top 1% {unit}</dt>
+          <dt title="The best on Nightslayer for your spec on this boss (the #2 if you're the #1)">#1 {unit}</dt>
           <dd>
             {amount(b?.p99)}
-            {b && <small>from {integer(b.sampleSize)} logs</small>}
+            {b && <small>{b.sampleSize > 0 ? `from ${integer(b.sampleSize)} logs` : b.reference.name}</small>}
           </dd>
         </div>
         <div>
-          <dt>You vs top 1%</dt>
+          <dt>You vs #1</dt>
           <dd className={row.gap ? (row.gap.absolute >= 0 ? 'pos' : 'neg') : 'soft'}>{row.gap ? gapText(row.gap.percent) : '—'}</dd>
         </div>
         <div className="bs-range">
@@ -186,7 +186,7 @@ function BossStats({ row, shown }: { row: BossRow; shown: Comparison | null }) {
   );
 }
 
-/** Your kill (best, or the week being compared) as a bar against the top 1% mark. */
+/** Your kill (best, or the week being compared) as a bar against the #1 mark. */
 function RangeBar({ row, kill }: { row: BossRow; kill?: { amount: number; label: string } | null }) {
   const b = row.benchmark;
   const you = kill?.amount ?? row.best;
@@ -195,17 +195,17 @@ function RangeBar({ row, kill }: { row: BossRow; kill?: { amount: number; label:
   const pos = (v: number) => `${(v / max) * 100}%`;
   return (
     <div className="range-wrap">
-      <div className="range" role="img" aria-label={you != null ? `${amount(you)} against top 1% ${amount(b.p99)}` : `Top 1% ${amount(b.p99)}`}>
+      <div className="range" role="img" aria-label={you != null ? `${amount(you)} against #1 ${amount(b.p99)}` : `#1 ${amount(b.p99)}`}>
         <div className="range-track" />
         {you != null && <div className={`range-fill fill-${parseTier(row.rankPercent)}`} style={{ width: pos(you) }} />}
         {b.p50 != null && <div className="range-tick p50" style={{ left: pos(b.p50) }} title={`Typical player ${amount(b.p50)}`} />}
-        <div className="range-tick p99" style={{ left: pos(b.p99) }} title={`Top 1% ${amount(b.p99)}`}>
-          <span>Top 1%</span>
+        <div className="range-tick p99" style={{ left: pos(b.p99) }} title={`#1 ${amount(b.p99)}`}>
+          <span>#1</span>
         </div>
       </div>
       {you != null && (
         <p className="ml-caption soft range-caption">
-          {kill?.label ?? 'Best kill'} · {amount(you)} · {Math.round((you / b.p99) * 100)}% of the top 1%
+          {kill?.label ?? 'Best kill'} · {amount(you)} · {Math.round((you / b.p99) * 100)}% of the #1
         </p>
       )}
     </div>

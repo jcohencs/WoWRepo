@@ -30,18 +30,19 @@ describe('saved pages + scheduled puller', () => {
 
     const report = await site.zoneReport(newcomer, raid); // no queue: fetched now
     expect(report.character.className).toBe('Warrior');
-    expect(report.rows[0].benchmark?.p99).toBe(2990);
+    expect(report.rows[0].benchmark?.p99).toBe(2899); // the realm's #2 (the fake answers as Brannoc, the #1)
     expect(queries.length).toBeGreaterThan(before);
 
     const after = queries.length;
     const again = await site.zoneReport(newcomer, raid);
     expect(queries.length).toBe(after); // saved copy, no API call
-    expect(again.rows[0].benchmark?.p99).toBe(2990);
+    expect(again.rows[0].benchmark?.p99).toBe(2899);
     expect(again.rows).toEqual(report.rows);
   });
 
   it('saves raid pages without a copy of each benchmark, and puts them back on read', async () => {
-    const { site, cache } = setup();
+    const { site, cache, puller } = setup();
+    await puller.run(); // the #1 pull saves the realm's best per spec
     const report = await site.zoneReport(newcomer, raid);
     const saved = cache.peekAny<{ rows: { benchmark: unknown }[] }>(`view|zone|US|nightslayer|Newcomer|${raid}`)!.value;
     expect(saved.rows.every((r) => r.benchmark === null)).toBe(true);
@@ -306,7 +307,7 @@ describe('saved pages + scheduled puller', () => {
     const { site, puller } = setup();
     await puller.run();
     const c = await site.compare(brannoc, 601, 'Fury');
-    expect(c.ref?.name).toBe('P10');
+    expect(c.ref?.name).toBe('Morwenna'); // the realm's #1 Fury Warrior is Brannoc himself, so the #2
   });
 
   it('reports how much of the realm is left to pull', async () => {

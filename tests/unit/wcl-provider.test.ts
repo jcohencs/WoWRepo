@@ -12,22 +12,27 @@ describe('WclProvider', () => {
     ]);
   });
 
-  it('builds the raid report from page 1 of the rankings only, and caches benchmarks', async () => {
+  it('compares with the realm\'s #1 of the spec from the saved #1 pull, with no ranking requests', async () => {
     const { provider, queries } = fakeWcl(handler);
-    const report = await provider.zoneReport(brannoc, 'black-temple');
+    const raid = (await provider.raids()).find((r) => r.id === 'black-temple')!;
+    await provider.classLeaders('US', 'nightslayer', raid); // the daily #1 pull (saves the realm's best per spec)
+    const before = queries.length;
+    const report = await provider.zoneReport({ ...brannoc, realm: 'nightslayer' }, 'black-temple');
     expect(report.character.className).toBe('Warrior');
     const [naj, sup] = report.rows;
     expect(naj.spec).toBe('Fury');
-    // 1000 parses: p99 (rank 10) is on page 1; the median (rank 500, page 5) isn't read any more.
-    expect(naj.benchmark).toMatchObject({ sampleSize: 1000, p99: 2990, p50: null });
-    expect(naj.gap?.absolute).toBe(2700 - 2990);
+    // Brannoc is the realm's #1 Fury Warrior, so he's compared with the #2 (Morwenna).
+    expect(naj.benchmark).toMatchObject({ p99: 2899, p50: null, reference: { name: 'Morwenna', reportCode: 'REALM1' } });
+    expect(naj.gap?.absolute).toBe(2700 - 2899);
     expect(sup.best).toBeNull();
     expect(sup.benchmark?.spec).toBe('Fury');
-    const benchmarkQueries = queries.filter((q) => q.includes('className:')).length;
-    expect(benchmarkQueries).toBe(1); // one request for page 1 of every boss, no second request
+    expect(queries.slice(before).filter((q) => q.includes('characterRankings'))).toHaveLength(0);
+  });
 
-    await provider.zoneReport(brannoc, 'black-temple');
-    expect(queries.filter((q) => q.includes('className:')).length).toBe(1);
+  it('has no reference before the realm\'s #1 list was pulled', async () => {
+    const { provider } = fakeWcl(handler);
+    const report = await provider.zoneReport(brannoc, 'black-temple');
+    expect(report.rows.every((r) => r.benchmark === null)).toBe(true);
   });
 
   it('shows a chosen spec on every boss and refuses specs the class does not have', async () => {
@@ -83,18 +88,20 @@ describe('WclProvider', () => {
 
   it('opens a comparison: best kill, then both logs in parallel, all saved', async () => {
     const { provider, queries } = fakeWcl(handler);
-    await provider.zoneReport(brannoc, 'black-temple');
+    const me = { ...brannoc, realm: 'nightslayer' };
+    await provider.classLeaders('US', 'nightslayer', (await provider.raids()).find((r) => r.id === 'black-temple')!);
+    await provider.zoneReport(me, 'black-temple');
     const before = queries.length;
-    const c = await provider.compare(brannoc, 601, 'Fury');
+    const c = await provider.compare(me, 601, 'Fury');
     const used = queries.slice(before);
     expect(used.filter((q) => q.includes('encounterRankings'))).toHaveLength(1);
     expect(used).toHaveLength(5); // best kill + 2 per side
     expect(c.you.name).toBe('Brannoc');
-    expect(c.ref?.name).toBe('P10');
+    expect(c.ref?.name).toBe('Morwenna'); // the realm's #2, since Brannoc is the #1
     expect(c.you.activeTime).toBeCloseTo(0.95);
     expect(c.abilities.map((a) => a.name)).toEqual(['Melee', 'Bloodthirst']);
 
-    await provider.compare(brannoc, 601, 'Fury');
+    await provider.compare(me, 601, 'Fury');
     expect(queries.length).toBe(before + 5);
   });
 

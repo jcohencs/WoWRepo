@@ -19,7 +19,7 @@ export interface Slice {
 }
 
 /**
- * The top abilities by the top 1% player's share, in a fixed order and colour shared by both
+ * The top abilities by the #1's share, in a fixed order and colour shared by both
  * charts, plus one grey "Other" slice for everything else. A pie stays readable at ≤ 6 slices.
  */
 export function buildSlices(abilities: AbilityLine[]): Slice[] {
@@ -43,14 +43,14 @@ export function AbilityPies({ abilities, noun, hasRef = true }: { abilities: Abi
     <div className="pies">
       <div className="pie-pair">
         <Donut label="You" slices={slices} pick={(s) => s.you} active={active} onHover={setActive} kind="you" />
-        {hasRef && <Donut label="Top 1%" slices={slices} pick={(s) => s.ref} active={active} onHover={setActive} kind="ref" />}
+        {hasRef && <Donut label="#1" slices={slices} pick={(s) => s.ref} active={active} onHover={setActive} kind="ref" />}
       </div>
       <table className="pie-legend">
         <thead>
           <tr>
             <th>Share of total {noun}</th>
             <th className="num">You</th>
-            {hasRef && <th className="num">Top 1%</th>}
+            {hasRef && <th className="num">#1</th>}
             {hasRef && <th className="num">Difference</th>}
           </tr>
         </thead>

@@ -11,7 +11,7 @@ interface Stat {
 }
 
 /**
- * Meters for the headline numbers: the track is the top 1% player's value and the fill is yours,
+ * Meters for the headline numbers: the track is the #1's value and the fill is yours,
  * so "84% of theirs" is visible at a glance.
  */
 export function HeadToHead({ data }: { data: Comparison }) {
@@ -30,10 +30,10 @@ export function HeadToHead({ data }: { data: Comparison }) {
   return (
     <div className="h2h">
       <div className="h2h-head">
-        <h3>You vs the top 1%</h3>
+        <h3>You vs the #1</h3>
         <div className="legend" aria-hidden>
           <span className="legend-you">You</span>
-          <span className="legend-ref">Top 1%</span>
+          <span className="legend-ref">#1</span>
         </div>
       </div>
       {stats.map((s) => {
@@ -47,7 +47,7 @@ export function HeadToHead({ data }: { data: Comparison }) {
             : `${Math.round((ratio - 1) * 100)}% slower`
           : `${pct}% of theirs`;
         return (
-          <div className="h2h-row" key={s.label} title={`${s.label}: you ${s.format(s.you)}, top 1% ${s.format(s.top)}`}>
+          <div className="h2h-row" key={s.label} title={`${s.label}: you ${s.format(s.you)}, #1 ${s.format(s.top)}`}>
             <span className="h2h-label">{s.label}</span>
             <div className="h2h-bars">
               <span className="h2h-bar you" style={{ width: `${(s.you / max) * 100}%` }} />
@@ -65,7 +65,7 @@ export function HeadToHead({ data }: { data: Comparison }) {
   );
 }
 
-/** Headline numbers for your kill when there is no top 1% log to compare with. */
+/** Headline numbers for your kill when there is no #1 log to compare with. */
 function YourKill({ data, noun }: { data: Comparison; noun: string }) {
   const tiles = [
     { label: metricLabel(data.metric), value: amount(data.you.perSecond) },

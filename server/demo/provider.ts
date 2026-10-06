@@ -42,14 +42,14 @@ function benchmarkFor(zoneId: number, encounterId: number, spec = SPEC): Benchma
     className: CLASS,
     spec,
     metric: 'dps',
-    sampleSize: Math.round(1800 + r() * 5200),
+    sampleSize: 0, // like the real site: the Nightslayer #1 of the spec, not a ranking sample
     // Like the real site, only what's on the first ranking page (the top 100) is known.
     p50: null,
     p99,
     ladder: [90, 95, 99].map((pct) => ({ percentile: pct, amount: Math.round(p99 * (0.32 + 0.68 * Math.pow(pct / 99, 1.6))) })),
     reference: {
       name: ['Thrandok', 'Velgrim', 'Kasmir', 'Orrek', 'Brugal'][encounterId % 5],
-      server: ['Dreamscythe', 'Nightslayer', 'Spineshatter', 'Thunderstrike'][encounterId % 4],
+      server: 'Nightslayer',
       amount: p99,
       durationMs: Math.round((95 + r() * 260) * 1000),
       reportCode: 'demo',

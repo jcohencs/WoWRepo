@@ -2,7 +2,7 @@ import type { AbilityLine } from '../../shared/types';
 import { abilityIcon } from '../lib/links';
 
 /**
- * Paired bars of how often each ability is used per minute, you vs the top 1% player.
+ * Paired bars of how often each ability is used per minute, you vs the #1.
  * Missed casts on core abilities are the most common reason for a gap.
  */
 export function CastsChart({ abilities, hasRef = true, bare = false }: { abilities: AbilityLine[]; hasRef?: boolean; bare?: boolean }) {
@@ -19,7 +19,7 @@ export function CastsChart({ abilities, hasRef = true, bare = false }: { abiliti
         {hasRef && !bare && (
           <span className="legend" aria-hidden>
             <span className="legend-you">You</span>
-            <span className="legend-ref">Top 1%</span>
+            <span className="legend-ref">#1</span>
           </span>
         )}
       </figcaption>
@@ -29,7 +29,7 @@ export function CastsChart({ abilities, hasRef = true, bare = false }: { abiliti
         const diff = you - top;
         const icon = abilityIcon(a.icon);
         return (
-          <div className="casts-row" key={a.id} title={hasRef ? `${a.name}: you ${you.toFixed(1)}, top 1% ${top.toFixed(1)} per minute` : `${a.name}: ${you.toFixed(1)} per minute`}>
+          <div className="casts-row" key={a.id} title={hasRef ? `${a.name}: you ${you.toFixed(1)}, #1 ${top.toFixed(1)} per minute` : `${a.name}: ${you.toFixed(1)} per minute`}>
             <span className="casts-name">
               {icon ? <img src={icon} alt="" width={24} height={24} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} /> : <span className="icon-blank sm" />}
               <span>{a.name}</span>

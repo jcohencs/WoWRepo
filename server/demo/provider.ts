@@ -1,4 +1,5 @@
 import { CLASSES } from '../core/classes.js';
+import { classRoles, TANK_SPECS } from '../core/leaders.js';
 import { REALMS, type Benchmark, type Comparison, type Leaderboard, type Raid, type ZoneReport } from '../../shared/types.js';
 import { compareAbilities, type SideTables } from '../core/compare.js';
 import { weekStart } from '../core/fight.js';
@@ -110,18 +111,17 @@ export class DemoProvider implements Provider {
     let n = 0;
     const classes = Object.values(CLASSES).map((c) => ({
       className: c.name,
-      leaders: (['dps', 'hps'] as const)
-        .filter((m) => m === 'dps' || c.healers.length > 0)
-        .map((metric) => {
-          const pool = c.specs.filter((sp) => sp !== 'Guardian' && !(sp === 'Protection' && metric === 'dps') && (metric === 'hps') === c.healers.includes(sp));
-          const spec = pool[Math.floor(r() * pool.length)];
+      leaders: classRoles(c.name).map(({ role, metric, spec: tankSpec }) => {
+          const pool = c.specs.filter((sp) => sp !== 'Guardian' && sp !== TANK_SPECS[c.name] && (metric === 'hps') === c.healers.includes(sp));
+          const spec = tankSpec ?? pool[Math.floor(r() * pool.length)];
           const bossCount = raid.encounters.length;
           return {
             className: c.name,
+            role,
             name: names[n++ % names.length],
             spec,
             metric,
-            perSecond: metric === 'hps' ? 1300 + r() * 600 : 1700 + r() * 900,
+            perSecond: role === 'healing' ? 1300 + r() * 600 : role === 'tank' ? 900 + r() * 500 : 1700 + r() * 900,
             bosses: Math.max(1, bossCount - Math.floor(r() * 2)),
             firsts: Math.floor(r() * (bossCount + 1)),
             bossCount,

@@ -3023,3 +3023,7 @@ button.lb-row:hover {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+.leader-col {
+  display: grid;
+  gap: 16px;
+}

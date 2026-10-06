@@ -192,9 +192,12 @@ export interface ApiError {
 export const REALMS: readonly { name: string; slug: string }[] = [{ name: 'Nightslayer', slug: 'nightslayer' }];
 export const REALM_REGION: Region = 'US';
 
-/** The realm's best player of one class and role (DPS or healing) in a raid, from Warcraft Logs' realm rankings. */
+export type Role = 'damage' | 'healing' | 'tank';
+
+/** The realm's best player of one class and role (damage, healing or tanking) in a raid, from Warcraft Logs' realm rankings. */
 export interface ClassLeader {
   className: string;
+  role: Role;
   name: string;
   /** The spec they're ranked as most often. */
   spec: string;
@@ -213,7 +216,7 @@ export interface ClassLeader {
 export interface Leaderboard {
   realm: string;
   raid: { id: string; name: string } | null;
-  /** One entry per class, in class order: the DPS #1, and the healing #1 for hybrid classes. */
+  /** One entry per class, in class order: the damage #1, plus the healing and tanking #1 where the class has those specs. */
   classes: { className: string; leaders: ClassLeader[] }[];
   /** When Warcraft Logs was last asked; null if never. */
   updatedAt: number | null;

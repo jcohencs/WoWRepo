@@ -13,7 +13,7 @@ import {
 import { CLASSES, classById, metricFor, metricForSpec, specLabel, type ClassInfo } from '../core/classes.js';
 import { compareAbilities, type TableEntry } from '../core/compare.js';
 import { raceFrom } from '../core/race.js';
-import { leaderFromRankings, roleMetrics } from '../core/leaders.js';
+import { classRoles, leaderFromRankings } from '../core/leaders.js';
 import { bestPerWeek, preparation, takenBySchool, timelineFromGraph, type Kill } from '../core/fight.js';
 import type { CharacterRef } from '../core/input.js';
 import { normaliseRaidId, raidsFromZones } from '../core/raids.js';
@@ -361,7 +361,7 @@ export class WclProvider implements Provider {
   }
 
   leadersKey(region: string, realm: string, raidId: string) {
-    return `leaders2|${region}|${realm}|${raidId}`;
+    return `leaders3|${region}|${realm}|${raidId}`;
   }
 
   /**
@@ -371,7 +371,7 @@ export class WclProvider implements Provider {
    */
   async classLeaders(region: string, realm: string, raid: Raid): Promise<Leaderboard> {
     const items = Object.values(CLASSES).flatMap((cls) =>
-      roleMetrics(cls.name).flatMap((metric) => raid.encounters.map((e) => ({ className: cls.name, metric, encounterId: e.id }))),
+      classRoles(cls.name).flatMap((r) => raid.encounters.map((e) => ({ className: cls.name, ...r, encounterId: e.id }))),
     );
     const pages: RawRanking[][] = [];
     const BATCH = 18;
@@ -381,7 +381,7 @@ export class WclProvider implements Provider {
         `query($region: String!, $realm: String!) { worldData { ${chunk
           .map(
             (it, j) =>
-              `q${j}: encounter(id: ${it.encounterId}) { characterRankings(className: "${it.className}", metric: ${it.metric}, page: 1, serverRegion: $region, serverSlug: $realm) }`,
+              `q${j}: encounter(id: ${it.encounterId}) { characterRankings(className: "${it.className}"${it.spec ? `, specName: "${it.spec}"` : ''}, metric: ${it.metric}, page: 1, serverRegion: $region, serverSlug: $realm) }`,
           )
           .join('\n')} } }`,
         { region, realm },
@@ -390,10 +390,10 @@ export class WclProvider implements Provider {
     }
     const classes = Object.values(CLASSES).map((cls) => ({
       className: cls.name,
-      leaders: roleMetrics(cls.name)
-        .map((metric) => {
-          const bosses = items.map((it, k) => ({ it, k })).filter(({ it }) => it.className === cls.name && it.metric === metric).map(({ k }) => pages[k]);
-          return leaderFromRankings(cls.name, metric, bosses);
+      leaders: classRoles(cls.name)
+        .map(({ role, metric }) => {
+          const bosses = items.map((it, k) => ({ it, k })).filter(({ it }) => it.className === cls.name && it.role === role).map(({ k }) => pages[k]);
+          return leaderFromRankings(cls.name, metric, bosses, role);
         })
         .filter((l): l is NonNullable<typeof l> => l != null),
     }));

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RawRanking } from '../../server/core/benchmark';
-import { leaderFromRankings, roleMetrics } from '../../server/core/leaders';
+import { classRoles, leaderFromRankings } from '../../server/core/leaders';
 
 const r = (name: string, amount: number, spec = 'Fury') => ({ name, amount, spec, duration: 1, report: { code: 'x', fightID: 1 } }) as RawRanking;
 
@@ -19,9 +19,19 @@ describe('leaderFromRankings', () => {
     expect(leaderFromRankings('Mage', 'dps', [[], []])).toBeNull();
   });
 
-  it('lists a healing #1 only for hybrid classes', () => {
-    expect(roleMetrics('Priest')).toEqual(['dps', 'hps']);
-    expect(roleMetrics('Druid')).toEqual(['dps', 'hps']);
-    expect(roleMetrics('Warrior')).toEqual(['dps']);
+  it('gives each class its lists: damage, healing for hybrids, tanking for tank classes', () => {
+    const roles = (c: string) => classRoles(c).map((r) => `${r.role}:${r.metric}${r.spec ? `:${r.spec}` : ''}`);
+    expect(roles('Priest')).toEqual(['damage:dps', 'healing:hps']);
+    expect(roles('Druid')).toEqual(['damage:dps', 'healing:hps', 'tank:dps:Guardian']);
+    expect(roles('Warrior')).toEqual(['damage:dps', 'tank:dps:Protection']);
+    expect(roles('Paladin')).toEqual(['damage:dps', 'healing:hps', 'tank:dps:Protection']);
+    expect(roles('Mage')).toEqual(['damage:dps']);
+  });
+
+  it('keeps tanks out of the damage list', () => {
+    const leader = leaderFromRankings('Warrior', 'dps', [[r('Tanky', 3000, 'Protection'), r('Alphac', 2500)]], 'damage');
+    expect(leader?.name).toBe('Alphac');
+    const tank = leaderFromRankings('Warrior', 'dps', [[r('Tanky', 3000, 'Protection')]], 'tank');
+    expect(tank).toMatchObject({ name: 'Tanky', role: 'tank' });
   });
 });

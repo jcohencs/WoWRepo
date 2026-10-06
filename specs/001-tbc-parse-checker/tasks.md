@@ -192,3 +192,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T108 #1 lists cover every released raid (daily at 10:00 AM, and the admin link pulls them all); clicking a #1 player opens their page on the raid selected in that section
 - [x] T109 #1 section is a single box: a column per class, a Damage row and a Healing row, lines between every cell
 - [x] T110 #1 section split into a Damage box and a Healing box; one row per class with the class icon on the left, then class and player, spec, and DPS/HPS on the right
+- [x] T111 Tanking #1 (Protection Warrior, Protection Paladin, Guardian Druid; ranked by DPS like Warcraft Logs ranks TBC tanks) in its own box under Healing; tanks left out of the damage list; saved lists re-pulled once for the new role

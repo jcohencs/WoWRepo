@@ -39,7 +39,7 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
         <div>
           <h2 id="top-players-title">#1 on {realm.name}</h2>
           <p className="soft">
-            Each class's best player{board?.raid ? ` in ${board.raid.name}` : ''} from Warcraft Logs' {realm.name} rankings, with a healing #1 for hybrid classes.
+            Each class's best damage dealer, healer and tank{board?.raid ? ` in ${board.raid.name}` : ''} from Warcraft Logs' {realm.name} rankings.
             <span className="tp-when"> Updated daily at 10:00 AM Eastern{board?.updatedAt ? ` · last ${ago(board.updatedAt)}` : ''}.</span>
           </p>
         </div>
@@ -61,9 +61,11 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
         <p className="state">{error}</p>
       ) : (
         <div className="leader-boxes">
-          {ROLES.map((role) => (
-            <LeaderBox key={role.metric} role={role} board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
-          ))}
+          <LeaderBox role={ROLES[0]} board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
+          <div className="leader-col">
+            <LeaderBox role={ROLES[1]} board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
+            <LeaderBox role={ROLES[2]} board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
+          </div>
         </div>
       )}
     </section>
@@ -71,8 +73,9 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
 }
 
 const ROLES = [
-  { metric: 'dps' as const, label: 'Damage' },
-  { metric: 'hps' as const, label: 'Healing' },
+  { role: 'damage' as const, metric: 'dps' as const, label: 'Damage', classes: null },
+  { role: 'healing' as const, metric: 'hps' as const, label: 'Healing', classes: new Set(['Druid', 'Paladin', 'Priest', 'Shaman']) },
+  { role: 'tank' as const, metric: 'dps' as const, label: 'Tanking', classes: new Set(['Druid', 'Paladin', 'Warrior']) },
 ];
 
 /** One box per role: a row per class with its icon on the left, the player in the middle and their DPS/HPS on the right. */
@@ -88,7 +91,7 @@ function LeaderBox({
   onPick: (q: Query) => void;
 }) {
   const classes = (board?.classes ?? CLASS_ORDER.map((className) => ({ className, leaders: [] }))).filter(
-    ({ className }) => role.metric === 'dps' || HEALERS.has(className),
+    ({ className }) => !role.classes || role.classes.has(className),
   );
   const pending = !board || board.updatedAt == null;
   return (
@@ -99,7 +102,8 @@ function LeaderBox({
       </header>
       <ol>
         {classes.map(({ className, leaders }) => {
-          const leader = leaders.find((l) => l.metric === role.metric);
+          // Lists saved before tanking was added have no role; their entries are damage or healing.
+          const leader = leaders.find((l) => (l.role ?? (l.metric === 'hps' ? 'healing' : 'damage')) === role.role);
           const style = { '--class': classColor(className) } as CSSProperties;
           const icon = (
             <img className="lb-icon" src={classIconUrl(className)} alt="" width={36} height={36} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
@@ -141,5 +145,3 @@ function LeaderBox({
 }
 
 const CLASS_ORDER = ['Druid', 'Hunter', 'Mage', 'Paladin', 'Priest', 'Rogue', 'Shaman', 'Warlock', 'Warrior'];
-/** Classes with a healing spec (the others have no healing #1). */
-const HEALERS = new Set(['Druid', 'Paladin', 'Priest', 'Shaman']);

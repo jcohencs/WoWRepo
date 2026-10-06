@@ -113,9 +113,13 @@ describe('saved pages + scheduled puller', () => {
     await puller.run(); // the puller fetches the newest raid's list
     const board = await site.leaders('nightslayer');
     expect(board.classes).toHaveLength(9);
-    expect(board.classes.find((c) => c.className === 'Warrior')?.leaders.map((l) => [l.name, l.metric])).toEqual([['Brannoc', 'dps']]);
-    expect(board.classes.find((c) => c.className === 'Priest')?.leaders.map((l) => l.metric)).toEqual(['dps', 'hps']);
+    expect(board.classes.find((c) => c.className === 'Warrior')?.leaders.map((l) => [l.name, l.role])).toEqual([
+      ['Brannoc', 'damage'],
+      ['Brannoc', 'tank'],
+    ]);
+    expect(board.classes.find((c) => c.className === 'Priest')?.leaders.map((l) => l.role)).toEqual(['damage', 'healing']);
     expect(queries.some((q) => q.includes('className: "Priest", metric: hps'))).toBe(true);
+    expect(queries.some((q) => q.includes('className: "Warrior", specName: "Protection", metric: dps'))).toBe(true);
     const before = queries.length;
     await site.leaders('nightslayer');
     expect(queries.length).toBe(before);

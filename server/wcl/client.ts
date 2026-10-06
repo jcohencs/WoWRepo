@@ -120,6 +120,9 @@ export class WclClient {
     );
   }
 
+  /** The hour's points total in the latest reply. */
+  private lastSeenPoints: number | null = null;
+
   /** Points this server spent since `takeSpending()` was last called, by kind of request. */
   private spent = new Map<string, number>();
 
@@ -135,10 +138,15 @@ export class WclClient {
     const label = describeQuery(query, variables);
     const kind = spendKind(label);
     const started = Date.now();
-    const before = this.rate?.pointsSpentThisHour;
     const log = (status: string) => {
       const r = this.rate;
-      const spent = r && before != null && r.pointsSpentThisHour >= before ? r.pointsSpentThisHour - before : null;
+      // Points added since the previous reply from Warcraft Logs, so requests that run side by side
+      // aren't counted twice. A reply that arrives out of order (lower total) counts as 0.
+      const prev = this.lastSeenPoints;
+      // A total well below the last one means a new hour began (late replies are only a few points behind).
+      const reset = r != null && prev != null && prev - r.pointsSpentThisHour > 50;
+      const spent = r && prev != null ? (reset ? r.pointsSpentThisHour : Math.max(0, r.pointsSpentThisHour - prev)) : null;
+      if (r && (prev == null || reset || r.pointsSpentThisHour > prev)) this.lastSeenPoints = r.pointsSpentThisHour;
       if (spent != null) this.spent.set(kind, (this.spent.get(kind) ?? 0) + spent);
       const cost = spent != null ? ` +${Math.round(spent)} pts` : '';
       const budget = r && r.limitPerHour ? ` · ${Math.round(r.pointsSpentThisHour)}/${r.limitPerHour} used this hour` : '';

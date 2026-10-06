@@ -147,3 +147,20 @@ describe('points summary', () => {
     expect(spendKind('realm raiders (6 pages)')).toBe('realm raiders');
   });
 });
+
+describe('points per request', () => {
+  it('counts points since the previous reply, so side-by-side requests are not double counted', async () => {
+    const totals = [100, 110, 108, 116, 4]; // 108 arrives late; 4 is a new hour
+    let i = 0;
+    const fetch = (async (url: string) => {
+      if (String(url).endsWith('/oauth/token')) return Response.json({ access_token: 't', expires_in: 3600 });
+      const spent = totals[i++];
+      return Response.json({ data: { rateLimitData: { limitPerHour: 3600, pointsSpentThisHour: spent, pointsResetIn: 1000 } } });
+    }) as typeof globalThis.fetch;
+    const client = new WclClient({ clientId: 'a', clientSecret: 'b', site: 'fresh', fetch });
+    for (let n = 0; n < totals.length; n++) await client.query('{ worldData { zones { id } } }');
+    // 100 is the first reply (nothing to compare with), then +10, +0 (late), +6, and 4 in the new hour:
+    // 16 points over 100→116, the same as the hour's total moved, plus the new hour's 4.
+    expect(client.takeSpending().total).toBe(20);
+  });
+});

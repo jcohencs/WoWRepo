@@ -275,6 +275,15 @@ describe('saved pages + scheduled puller', () => {
     expect(typeof upgraded.updatedAt).toBe('number');
   });
 
+  it('keeps fight logs on disk, trimmed, so they are never fetched twice', async () => {
+    const { site, cache } = setup();
+    await site.compare(newcomer, 601, 'Fury');
+    const saved = [...cache.withPrefix<{ amounts: object[] }>('tables2|')];
+    expect(saved.length).toBeGreaterThan(0);
+    for (const [, t] of saved) for (const e of t.amounts) expect(Object.keys(e).sort()).toEqual(expect.arrayContaining(['guid', 'name', 'total']));
+    expect([...cache.withPrefix('side|')].length).toBeGreaterThan(0); // withPrefix only lists what goes to disk
+  });
+
   it('pulls a comparison on first click', async () => {
     const { site, puller } = setup();
     await puller.run();

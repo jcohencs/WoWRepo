@@ -141,7 +141,7 @@ export function MiniLadder({ row, kill }: { row: BossRow; kill?: { amount: numbe
   const pos = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
   const beaten = ladder.filter((l) => you >= l.amount).pop();
   return (
-    <div className="mini-ladder" role="img" aria-label={beaten ? `${what} beats the ${ordinal(beaten.percentile)} percentile` : `${what} is below the 10th percentile`}>
+    <div className="mini-ladder" role="img" aria-label={beaten ? `${what} beats the ${ordinal(beaten.percentile)} percentile` : `${what} is below the 50th percentile`}>
       <div className="ml-track" />
       {ladder.map((l) => (
         <div key={l.percentile} className={`ml-step${you >= l.amount ? ' passed' : ''}`} style={{ left: pos(l.amount) }} title={`${ordinal(l.percentile)} percentile: ${amount(l.amount)}`}>
@@ -149,7 +149,7 @@ export function MiniLadder({ row, kill }: { row: BossRow; kill?: { amount: numbe
         </div>
       ))}
       <div className="ml-you" style={{ left: pos(you) }} title={`${what}: ${amount(you)}`} />
-      <p className="ml-caption soft">{what} · {amount(you)} · {beaten ? `beats the ${ordinal(beaten.percentile)} percentile` : 'below the 10th percentile'}</p>
+      <p className="ml-caption soft">{what} · {amount(you)} · {beaten ? `beats the ${ordinal(beaten.percentile)} percentile` : 'below the 50th percentile'}</p>
     </div>
   );
 }

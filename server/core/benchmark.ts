@@ -27,8 +27,11 @@ export interface BenchmarkKey {
 
 export const PERCENTILES = { p50: 50, p99: 99 } as const;
 
-/** Percentiles shown on the "where you rank" ladder; each is read from its exact ranking position. */
-export const LADDER = [10, 25, 50, 75, 90, 95, 99] as const;
+/**
+ * Percentiles shown on the "where you sit" ladder; each is read from its exact ranking position.
+ * The 10th and 25th are left out: they sit deepest in the rankings, so each cost an extra page.
+ */
+export const LADDER = [50, 75, 90, 95, 99] as const;
 
 export function keyString(k: BenchmarkKey): string {
   return `${k.encounterId}|${k.className}|${k.spec}|${k.metric}`;

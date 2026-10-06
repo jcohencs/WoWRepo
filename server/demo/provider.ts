@@ -45,7 +45,7 @@ function benchmarkFor(zoneId: number, encounterId: number, spec = SPEC): Benchma
     sampleSize: Math.round(1800 + r() * 5200),
     p50: Math.round(p99 * (0.64 + r() * 0.08)),
     p99,
-    ladder: [10, 25, 50, 75, 90, 95, 99].map((pct) => ({ percentile: pct, amount: Math.round(p99 * (0.32 + 0.68 * Math.pow(pct / 99, 1.6))) })),
+    ladder: [50, 75, 90, 95, 99].map((pct) => ({ percentile: pct, amount: Math.round(p99 * (0.32 + 0.68 * Math.pow(pct / 99, 1.6))) })),
     reference: {
       name: ['Thrandok', 'Velgrim', 'Kasmir', 'Orrek', 'Brugal'][encounterId % 5],
       server: ['Dreamscythe', 'Nightslayer', 'Spineshatter', 'Thunderstrike'][encounterId % 4],

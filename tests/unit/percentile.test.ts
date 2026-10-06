@@ -56,9 +56,10 @@ describe('benchmarks', () => {
   });
 
   it('asks only for the pages that hold the ladder percentiles', () => {
-    // 1000 parses: p10=rank 900 (page 9), p25=750 (8), p50=500 (5), p75=250 (3); p90/p95/p99 are on page 1.
-    expect(pagesNeeded(1000).sort((a, b) => a - b)).toEqual([3, 5, 8, 9]);
-    expect(pagesNeeded(20000).sort((a, b) => a - b)).toEqual([2, 10, 20, 50, 100, 150, 180]);
+    // 1000 parses: p50=rank 500 (page 5), p75=250 (3); p90/p95/p99 are on page 1. The 10th and 25th
+    // percentiles (pages 9 and 8 here) aren't read any more.
+    expect(pagesNeeded(1000).sort((a, b) => a - b)).toEqual([3, 5]);
+    expect(pagesNeeded(20000).sort((a, b) => a - b)).toEqual([2, 10, 20, 50, 100]);
   });
 
 

@@ -136,8 +136,10 @@ const TTL = {
   zones: 7 * DAY,
   character: 2 * HOUR,
   bestKill: 2 * HOUR,
-  benchmark: DAY,
-  report: 30 * DAY,
+  /** Top 1% numbers move slowly; re-read them every 3 days. */
+  benchmark: 3 * DAY,
+  /** A fight's log never changes once uploaded. */
+  report: 365 * DAY,
   compare: 6 * HOUR,
 };
 
@@ -592,8 +594,10 @@ export class WclProvider implements Provider {
       }
       if (!r) throw new ApiFailure('upstream', `Report ${s.code} is not available.`);
       const durationMs = s.endTime - s.startTime;
-      const amounts = r.amounts?.data?.entries ?? [];
-      const casts = r.casts?.data?.entries ?? [];
+      // Keep only what the comparison uses, so saved logs stay small.
+      const slim = (e: TableEntry) => ({ guid: e.guid, name: e.name, total: e.total, ...(e.abilityIcon ? { abilityIcon: e.abilityIcon } : {}) });
+      const amounts = (r.amounts?.data?.entries ?? []).map(slim);
+      const casts = (r.casts?.data?.entries ?? []).map(slim);
       const total = amounts.reduce((sum, e) => sum + (e.total || 0), 0);
       const safe = <T,>(f: () => T): T | undefined => {
         try {

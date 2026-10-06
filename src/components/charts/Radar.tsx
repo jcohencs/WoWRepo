@@ -131,24 +131,26 @@ const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({
 const LABELLED = new Set([50, 75, 99]);
 
 /** Compact percentile ladder for the boss header: where your best kill lands among everyone's. */
-export function MiniLadder({ row }: { row: BossRow }) {
+export function MiniLadder({ row, kill }: { row: BossRow; kill?: { amount: number; label: string } | null }) {
   const ladder = row.benchmark?.ladder ?? [];
-  const you = row.best;
+  // The kill being compared below (best overall or a chosen week); the best kill until that loads.
+  const you = kill?.amount ?? row.best;
+  const what = kill?.label ?? 'Best kill';
   if (ladder.length < 2 || you == null) return null;
   const lo = Math.min(ladder[0].amount, you) * 0.97;
   const hi = Math.max(ladder[ladder.length - 1].amount, you) * 1.02;
   const pos = (v: number) => `${((v - lo) / (hi - lo)) * 100}%`;
   const beaten = ladder.filter((l) => you >= l.amount).pop();
   return (
-    <div className="mini-ladder" role="img" aria-label={beaten ? `Your best beats the ${ordinal(beaten.percentile)} percentile` : 'Your best is below the 10th percentile'}>
+    <div className="mini-ladder" role="img" aria-label={beaten ? `${what} beats the ${ordinal(beaten.percentile)} percentile` : `${what} is below the 10th percentile`}>
       <div className="ml-track" />
       {ladder.map((l) => (
         <div key={l.percentile} className={`ml-step${you >= l.amount ? ' passed' : ''}`} style={{ left: pos(l.amount) }} title={`${ordinal(l.percentile)} percentile: ${amount(l.amount)}`}>
           {LABELLED.has(l.percentile) && <span>{ordinal(l.percentile)}</span>}
         </div>
       ))}
-      <div className="ml-you" style={{ left: pos(you) }} title={`Your best: ${amount(you)}`} />
-      <p className="ml-caption soft">{beaten ? `Beats the ${ordinal(beaten.percentile)} percentile` : 'Below the 10th percentile'}</p>
+      <div className="ml-you" style={{ left: pos(you) }} title={`${what}: ${amount(you)}`} />
+      <p className="ml-caption soft">{what} · {amount(you)} · {beaten ? `beats the ${ordinal(beaten.percentile)} percentile` : 'below the 10th percentile'}</p>
     </div>
   );
 }

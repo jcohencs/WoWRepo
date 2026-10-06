@@ -105,7 +105,7 @@ export function RaidView({ report, query, site, demo, navigate }: Props) {
       <section className="boss-main">
         {row ? (
           <>
-            <BossStats row={row} />
+            <BossStats row={row} shown={shown} />
             <ErrorBoundary what="this breakdown" resetKey={`${row.encounter.id}|${row.spec}`}>
               <ComparePanel key={`${row.encounter.id}|${row.spec}|${report.updatedAt}`} query={query} row={row} site={site} demo={demo} onData={setShown} />
             </ErrorBoundary>
@@ -119,7 +119,15 @@ export function RaidView({ report, query, site, demo, navigate }: Props) {
 }
 
 /** The selected boss's headline numbers: what used to be its row in the boss table. */
-function BossStats({ row }: { row: BossRow }) {
+function BossStats({ row, shown }: { row: BossRow; shown: Comparison | null }) {
+  // "Where you sit" follows the log being compared: the best kill, or the week picked below.
+  const kill =
+    shown && shown.encounter.id === row.encounter.id && shown.spec === row.spec
+      ? {
+          amount: shown.you.perSecond,
+          label: shown.week ? `Week of ${new Date(shown.week).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : 'Best kill',
+        }
+      : null;
   const b = row.benchmark;
   const unit = metricLabel(row.metric);
   return (
@@ -156,7 +164,7 @@ function BossStats({ row }: { row: BossRow }) {
         </div>
         <div className="bs-range">
           <dt>Where you sit</dt>
-          <dd>{row.benchmark?.ladder && row.benchmark.ladder.length > 1 && row.best != null ? <MiniLadder row={row} /> : <RangeBar row={row} />}</dd>
+          <dd>{row.benchmark?.ladder && row.benchmark.ladder.length > 1 && row.best != null ? <MiniLadder row={row} kill={kill} /> : <RangeBar row={row} />}</dd>
         </div>
       </dl>
     </header>

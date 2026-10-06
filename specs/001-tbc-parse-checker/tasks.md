@@ -174,3 +174,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T093 Character page header is one box: class icon, name and spec/realm; tiles for data age, Refresh and Warcraft Logs; spec and raid pickers in the box's bottom strip
 - [x] T094 Boss numbers: labels "Typical DPS" / "Top 1% DPS" (HPS for healers); every label and value on one line each; Talents & guide box keeps its earlier layout with a line under the class
 - [x] T095 Talents & guide box is only as tall as its content (no longer stretched to the last chart)
+- [x] T096 "Where you sit" follows the kill being compared (best kill or the chosen week), with its DPS in the caption; darker background, box and line colours

@@ -175,3 +175,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T094 Boss numbers: labels "Typical DPS" / "Top 1% DPS" (HPS for healers); every label and value on one line each; Talents & guide box keeps its earlier layout with a line under the class
 - [x] T095 Talents & guide box is only as tall as its content (no longer stretched to the last chart)
 - [x] T096 "Where you sit" follows the kill being compared (best kill or the chosen week), with its DPS in the caption; darker background, box and line colours
+- [x] T097 Sidebar summary keeps only Avg parse and Killed; a gold ★ marks a top 1% parse (99+) in the boss list and the boss numbers

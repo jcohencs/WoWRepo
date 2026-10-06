@@ -2714,3 +2714,11 @@ a.cb-action {
   flex: none;
   justify-content: flex-start;
 }
+
+/* Top 1% parse star */
+.top-star {
+  margin-left: 4px;
+  color: var(--parse-gold);
+  font-size: 0.85em;
+  vertical-align: 0.05em;
+}

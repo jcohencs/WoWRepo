@@ -45,17 +45,6 @@ export function RaidView({ report, query, site, demo, navigate }: Props) {
             <dd className={`parse-${parseTier(s.averageParse)}`}>{parse(s.averageParse)}</dd>
           </div>
           <div>
-            <dt>Top 1% on</dt>
-            <dd>
-              {s.bossesAtP99}
-              <small> / {s.bossesKilled}</small>
-            </dd>
-          </div>
-          <div>
-            <dt>Usual gap</dt>
-            <dd className={s.medianGapPercent == null ? undefined : s.medianGapPercent >= 0 ? 'pos' : 'neg'}>{gapText(s.medianGapPercent)}</dd>
-          </div>
-          <div>
             <dt>Killed</dt>
             <dd>
               {s.bossesKilled}
@@ -79,7 +68,10 @@ export function RaidView({ report, query, site, demo, navigate }: Props) {
                   title={killed ? `${r.encounter.name}: parse ${parse(r.rankPercent)}` : `${r.encounter.name}: not killed yet`}
                 >
                   <span className="bp-name">{r.encounter.name}</span>
-                  <span className={`bp-parse parse-${tier}`}>{killed ? parse(r.rankPercent) : '—'}</span>
+                  <span className={`bp-parse parse-${tier}`}>
+                    {killed ? parse(r.rankPercent) : '—'}
+                    {killed && <TopStar rank={r.rankPercent} />}
+                  </span>
                   <span className="bp-bar">
                     {killed && <span className={`fill-${tier}`} style={{ width: `${Math.max(r.rankPercent ?? 0, 2)}%` }} />}
                   </span>
@@ -118,6 +110,16 @@ export function RaidView({ report, query, site, demo, navigate }: Props) {
   );
 }
 
+/** A star for a top 1% parse (99 or higher). */
+function TopStar({ rank }: { rank: number | null }) {
+  if (rank == null || rank < 99) return null;
+  return (
+    <span className="top-star" title="Top 1% parse" aria-label="top 1%">
+      ★
+    </span>
+  );
+}
+
 /** The selected boss's headline numbers: what used to be its row in the boss table. */
 function BossStats({ row, shown }: { row: BossRow; shown: Comparison | null }) {
   // "Where you sit" follows the log being compared: the best kill, or the week picked below.
@@ -141,7 +143,10 @@ function BossStats({ row, shown }: { row: BossRow; shown: Comparison | null }) {
       <dl className="bs-tiles">
         <div>
           <dt>Parse</dt>
-          <dd className={`parse-${parseTier(row.rankPercent)}`}>{parse(row.rankPercent)}</dd>
+          <dd className={`parse-${parseTier(row.rankPercent)}`}>
+            {parse(row.rankPercent)}
+            <TopStar rank={row.rankPercent} />
+          </dd>
         </div>
         <div>
           <dt>Your best {unit}</dt>

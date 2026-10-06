@@ -217,30 +217,35 @@ export class Puller {
     await this.sweep();
   }
 
-  /** Pulls the newest raid's #1 list right now, ignoring the 10:00 AM schedule (the admin link). */
-  async pullLeadersNow(): Promise<{ raid: string | null; classesWithLeaders: number; message: string }> {
+  /** Pulls every released raid's #1 list right now, ignoring the 10:00 AM schedule (the admin link). */
+  async pullLeadersNow(): Promise<{ raids: string[]; classesWithLeaders: number; message: string }> {
     await this.live.raids().catch(() => undefined);
-    const raid = this.cachedRaids().at(-1);
-    if (!raid) return { raid: null, classesWithLeaders: 0, message: 'No raids found.' };
+    const raids = this.cachedRaids();
+    if (!raids.length) return { raids: [], classesWithLeaders: 0, message: 'No raids found.' };
+    const done: string[] = [];
     let filled = 0;
-    for (const realm of REALMS) {
-      try {
-        const board = await this.live.classLeaders(REALM_REGION, realm.slug, raid);
-        filled += board.classes.filter((c) => c.leaders.length > 0).length;
-      } catch (err) {
-        if (err instanceof ApiFailure && err.code === 'rate_limited') {
-          return { raid: raid.name, classesWithLeaders: filled, message: 'Warcraft Logs allowance is used up for this hour; try again after it resets.' };
+    for (const raid of raids) {
+      for (const realm of REALMS) {
+        try {
+          const board = await this.live.classLeaders(REALM_REGION, realm.slug, raid);
+          filled += board.classes.filter((c) => c.leaders.length > 0).length;
+        } catch (err) {
+          if (err instanceof ApiFailure && err.code === 'rate_limited') {
+            this.cache.flush();
+            return { raids: done, classesWithLeaders: filled, message: `Warcraft Logs allowance ran out after ${done.length} of ${raids.length} raids; the rest are pulled on the next pass.` };
+          }
+          throw err;
         }
-        throw err;
       }
+      done.push(raid.name);
     }
     this.cache.flush();
-    return { raid: raid.name, classesWithLeaders: filled, message: `Pulled the #1 list for ${raid.name}.` };
+    return { raids: done, classesWithLeaders: filled, message: `Pulled the #1 lists for ${done.join(', ')}.` };
   }
 
   /**
-   * Pulls the #1 lists that are due: every saved raid (and the newest) once a day after 10:00 AM
-   * Eastern, plus any raid a visitor opened that was never pulled.
+   * Pulls the #1 lists that are due: every released raid once a day after 10:00 AM Eastern (and
+   * any that was never pulled, straight away).
    */
   private async pullLeaders(): Promise<'ok' | 'limited'> {
     const raids = this.cachedRaids();
@@ -249,7 +254,7 @@ export class Puller {
     for (const raid of raids) {
       for (const realm of REALMS) {
         const at = this.cache.fetchedAt(this.live.leadersKey(REALM_REGION, realm.slug, raid.id));
-        const due = at == null ? raid === raids.at(-1) || wanted.includes(raid.id) : at < since;
+        const due = at == null || at < since || wanted.includes(raid.id);
         if (!due) continue;
         try {
           await this.live.classLeaders(REALM_REGION, realm.slug, raid);

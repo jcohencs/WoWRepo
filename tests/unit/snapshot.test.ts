@@ -150,16 +150,15 @@ describe('saved pages + scheduled puller', () => {
     const before = queries.filter((q) => q.includes('serverSlug: $realm') && q.includes('className: "')).length;
     vi.setSystemTime(Date.UTC(2026, 9, 6, 18)); // 2 PM, long after today's 10 AM pull
     const result = await site.pullLeadersNow();
-    expect(result.raid).toBe('Black Temple');
+    expect(result.raids).toEqual(['Mount Hyjal', 'Black Temple']);
     expect(result.classesWithLeaders).toBeGreaterThan(0);
     expect(queries.filter((q) => q.includes('serverSlug: $realm') && q.includes('className: "')).length).toBeGreaterThan(before);
   });
 
-  it('a #1 list asked for while the allowance is used up is pulled first on the next pass', async () => {
+  it('a #1 list asked for while the allowance is used up is pulled on the next pass', async () => {
     const { site, puller, live } = setup();
-    await puller.run();
     const spy = vi.spyOn(live, 'headroom').mockReturnValue(0);
-    const waiting = await site.leaders('nightslayer', 'mount-hyjal');
+    const waiting = await site.leaders('nightslayer', 'mount-hyjal'); // nothing pulled yet
     expect(waiting.updatedAt).toBeNull();
     spy.mockRestore();
     await puller.run();

@@ -122,7 +122,7 @@ src/                 React UI, hand-written CSS
 
 ## Pull the #1 list by hand
 
-The #1 of each class is pulled once a day at 10:00 AM Eastern. To pull it right now, set an
+The #1 of each class is pulled once a day at 10:00 AM Eastern. To pull it right now (every released raid), set an
 `ADMIN_KEY` (12+ characters, keep it secret) in Render → Environment, then open:
 
 ```

@@ -189,3 +189,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T105 #1 list: pulled right after the queue each pass (not held back by the sweep's reserve); a raid a visitor opens while the allowance is used up is remembered and pulled first next pass; the page re-checks every minute while it says "Being pulled"; log label "#1 of each class (N boss rankings)"
 - [x] T106 #1 lists are pulled once a day at 10:00 AM Eastern (daylight saving handled), never on visits; a raid never pulled is pulled once on first view
 - [x] T107 Manual #1 pull: `/api/admin/pull-leaders?key=…`, enabled by an `ADMIN_KEY` setting (12+ characters, constant-time check, 404 otherwise)
+- [x] T108 #1 lists cover every released raid (daily at 10:00 AM, and the admin link pulls them all); clicking a #1 player opens their page on the raid selected in that section

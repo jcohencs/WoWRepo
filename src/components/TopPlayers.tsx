@@ -6,7 +6,7 @@ import { ago, integer, metricLabel, specLabel } from '../lib/format';
 import { SpecIcon } from './SpecIcon';
 
 /** Main page: the realm's #1 player of every class in one raid, with their DPS or HPS. */
-export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query) => void }) {
+export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query, raidId?: string) => void }) {
   const realm = REALMS[0];
   const [raidId, setRaidId] = useState<string | undefined>(undefined);
   const [board, setBoard] = useState<Leaderboard | null>(null);
@@ -63,7 +63,14 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
         <div className="leader-grid" aria-busy={!board}>
           {board
             ? board.classes.map(({ className, leaders }) => (
-                <LeaderCard key={className} className={className} leaders={leaders} pending={board.updatedAt == null} realm={realm.slug} onPick={onPick} />
+                <LeaderCard
+                  key={className}
+                  className={className}
+                  leaders={leaders}
+                  pending={board.updatedAt == null}
+                  realm={realm.slug}
+                  onPick={(q) => onPick(q, board.raid?.id)}
+                />
               ))
             : Array.from({ length: 9 }, (_, i) => <div key={i} className="leader-card skeleton-block" />)}
         </div>

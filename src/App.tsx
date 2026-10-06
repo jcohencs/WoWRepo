@@ -113,6 +113,15 @@ export function App() {
     setAttempt((n) => n + 1);
   }, []);
 
+  /** Opens a character on a given raid (from the #1 cards). */
+  const openOnRaid = useCallback(
+    (q: Query, raid?: string) => {
+      if (raid) setRaidId(raid);
+      search(q);
+    },
+    [search],
+  );
+
   // Keep the header (and spec bar) while another raid or spec for the same character loads.
   const shown = report && query && report.character.name.toLowerCase() === query.name.toLowerCase() && report.character.realm === query.realm ? report : null;
   const activeRaid = raidId ?? shown?.raid.id;
@@ -194,7 +203,7 @@ export function App() {
       {!guide && !query && (
         <>
           <EmptyIntro />
-          <TopPlayers raids={meta?.raids ?? []} onPick={search} />
+          <TopPlayers raids={meta?.raids ?? []} onPick={openOnRaid} />
           <ClassGrid navigate={navigate} />
         </>
       )}

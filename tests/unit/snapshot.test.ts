@@ -12,10 +12,10 @@ const brannoc = { region: 'US' as const, realm: 'nightslayer', name: 'Brannoc' }
 const newcomer = { region: 'US' as const, realm: 'nightslayer', name: 'Newcomer' };
 const raid = 'black-temple';
 
-function setup() {
+function setup(opts: { sweep?: boolean } = {}) {
   const cache = new TtlCache({ serveStale: false, persist: persisted, pack: packSaved });
   const { provider: live, queries } = fakeWcl(handler, cache);
-  const puller = new Puller(live, cache);
+  const puller = new Puller(live, cache, undefined, false, { sweep: opts.sweep ?? false });
   const site = new SnapshotProvider(live, cache, puller);
   return { cache, live, queries, puller, site };
 }
@@ -68,23 +68,31 @@ describe('saved pages + scheduled puller', () => {
     expect(queries.length).toBe(before);
   });
 
-  it('keeps opened pages for a day, then shows the saved copy while pulling a newer one', async () => {
+  it('a searched character is pulled again once their page is an hour old; sooner, the saved page is shown', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
+    const { site, queries } = setup();
+    const first = await site.zoneReport(newcomer, raid); // first search: pulled now
+    const pulls = () => queries.filter((q) => q.includes('zoneRankings')).length;
+    const before = pulls();
+
+    vi.setSystemTime(Date.now() + 30 * MINUTE);
+    expect((await site.zoneReport(newcomer, raid)).updatedAt).toBe(first.updatedAt);
+    expect(pulls()).toBe(before);
+
+    vi.setSystemTime(Date.now() + HOUR);
+    const again = await site.zoneReport(newcomer, raid); // searched again: their latest kills
+    expect(pulls()).toBe(before + 1);
+    expect(again.updatedAt).toBeGreaterThan(first.updatedAt);
+  });
+
+  it('does not pull the whole realm on its own: only the #1 list, and characters people search', async () => {
     const { site, puller, queries } = setup();
     await puller.run();
-    const first = await site.zoneReport(newcomer, raid);
-    const pulls = () => queries.filter((q) => q.includes('zoneRankings')).length;
-
-    vi.setSystemTime(Date.now() + 3 * HOUR);
-    const before = pulls();
-    await puller.run();
-    expect((await site.zoneReport(newcomer, raid)).updatedAt).toBe(first.updatedAt);
-    expect(pulls()).toBe(before); // no 2-hour refresh any more
-
-    vi.setSystemTime(Date.now() + 22 * HOUR);
-    expect((await site.zoneReport(newcomer, raid)).updatedAt).toBe(first.updatedAt); // old copy, no waiting
-    await vi.waitFor(() => expect(pulls()).toBe(before + 1)); // newer one pulled for next time
-    await vi.waitFor(async () => expect((await site.zoneReport(newcomer, raid)).updatedAt).toBeGreaterThan(first.updatedAt));
+    expect(queries.some((q) => q.includes('c0: character('))).toBe(false); // no batch character pulls
+    expect(queries.some((q) => q.includes('serverSlug: $realm') && !q.includes('className: "'))).toBe(false); // no raider discovery
+    expect(queries.some((q) => q.includes('className: "'))).toBe(true); // #1 list
+    await site.zoneReport(newcomer, raid);
+    expect(await site.characterNames('nightslayer')).toContain('Newcomer'); // searched names are suggested
   });
 
   it('Refresh re-pulls the raid page and drops saved comparisons, but not twice within minutes', async () => {
@@ -207,8 +215,8 @@ describe('saved pages + scheduled puller', () => {
     expect(puller.queue().map((j) => j.ref.name)).toEqual(['Brannoc']);
   });
 
-  it('finds everyone who raids on the realms and pulls their pages ahead of time', async () => {
-    const { site, puller, queries } = setup();
+  it('with RAIDER_SWEEP on, finds everyone who raids on the realms and pulls their pages ahead of time', async () => {
+    const { site, puller, queries } = setup({ sweep: true });
     await puller.run();
     expect(puller.roster('nightslayer').names).toEqual(['Brannoc', 'Morwenna']);
     expect(await site.characterNames('nightslayer')).toEqual(['Brannoc', 'Morwenna']);
@@ -275,7 +283,7 @@ describe('saved pages + scheduled puller', () => {
   });
 
   it('reports how much of the realm is left to pull', async () => {
-    const { puller } = setup();
+    const { puller } = setup({ sweep: true });
     expect(puller.remaining().discovering).toBe(true);
     await puller.run();
     expect(puller.remaining()).toMatchObject({ discovering: false, characters: 0 });

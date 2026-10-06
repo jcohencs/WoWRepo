@@ -52,6 +52,8 @@ interface Roster {
 const NOT_FOUND_TTL = 6 * HOUR;
 /** How long before an unexpected failure is retried. */
 const RETRY_AFTER = 15 * MINUTE;
+/** A searched character's raid page is pulled again once it's older than this. */
+const SEARCH_REFRESH = HOUR;
 /** A visitor's Refresh only re-pulls a page older than this, so the button can't drain the allowance. */
 export const REFRESH_COOLDOWN = 10 * MINUTE;
 /** Keep this much of the hourly allowance for first-time lookups; Refresh is refused below it. */
@@ -101,12 +103,18 @@ export class Puller {
   private running: Promise<void> | null = null;
   private nextRunAt = Date.now();
 
+  /** Pull every raider on the realm ahead of time (off unless RAIDER_SWEEP=on; `npm run prefill` turns it on). */
+  readonly sweepRealm: boolean;
+
   constructor(
     private readonly live: WclProvider,
     private readonly cache: TtlCache,
     readonly intervalMs = 15 * MINUTE,
     private readonly log = false,
-  ) {}
+    opts: { sweep?: boolean } = {},
+  ) {
+    this.sweepRealm = opts.sweep ?? process.env.RAIDER_SWEEP === 'on';
+  }
 
   start(): void {
     if (this.timer) return;
@@ -210,8 +218,12 @@ export class Puller {
     }
 
     // 2. The #1 of each class, once a day after 10:00 AM Eastern (and a raid a visitor opened that
-    //    was never pulled). Runs before the sweep so it never waits behind it.
+    //    was never pulled).
     if ((await this.pullLeaders()) === 'limited') return;
+
+    // Characters are pulled when someone searches them. Pulling the whole realm ahead of time is
+    // optional (RAIDER_SWEEP=on): it uses most of the hourly allowance.
+    if (!this.sweepRealm) return;
 
     // 3. Find who raids on each realm (re-checked daily).
     for (const realm of REALMS) if ((await this.discover(realm.slug)) === 'limited') return;
@@ -444,8 +456,17 @@ export class SnapshotProvider implements Provider {
   }
 
   /** Names known on a realm, for the search box suggestions. */
+  private namesMemo = new Map<string, { at: number; names: string[] }>();
+
+  /** Everyone the site knows on the realm: names found by earlier realm pulls and everyone searched. */
   async characterNames(realm: string): Promise<string[]> {
-    return this.puller.roster(realm).names;
+    const memo = this.namesMemo.get(realm);
+    if (memo && Date.now() - memo.at < 5 * MINUTE) return memo.names;
+    const names = new Set(this.puller.roster(realm).names);
+    for (const [key] of this.cache.withPrefix<unknown>(`view|zone|${REALM_REGION}|${realm}|`)) names.add(key.split('|')[4]);
+    const list = [...names].filter(Boolean).sort((a, b) => a.localeCompare(b));
+    this.namesMemo.set(realm, { at: Date.now(), names: list });
+    return list;
   }
 
   async zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport> {
@@ -465,9 +486,19 @@ export class SnapshotProvider implements Provider {
     const key = jobKey(job);
     const saved = this.cache.peekAny<T>(`view|${key}`);
     if (saved) {
-      // Pages outside the realm sweep (comparisons, other specs) follow the same daily refresh:
-      // the saved copy is shown now and a newer one is pulled for next time.
-      if (Date.now() - saved.fetchedAt > SWEEP_REFRESH && this.live.headroom() > REFRESH_RESERVE) void this.puller.pullNow(job);
+      const age = Date.now() - saved.fetchedAt;
+      if (job.kind === 'zone' && age > SEARCH_REFRESH && this.live.headroom() > REFRESH_RESERVE) {
+        // Someone searched this character: get their latest kills (one quick request), and fall
+        // back to the saved page if Warcraft Logs can't answer right now.
+        this.cache.deletePrefix(`char|${refKey(job.ref)}|`);
+        if ((await this.puller.pullNow(job)) === 'ok') {
+          const fresh = this.cache.peekAny<T>(`view|${key}`);
+          if (fresh) return this.withBenchmarks(upgradePage(fresh.value, fresh.fetchedAt, job), job);
+        }
+      } else if (age > SWEEP_REFRESH && this.live.headroom() > REFRESH_RESERVE) {
+        // Comparisons: shown now, a newer one pulled for next time.
+        void this.puller.pullNow(job);
+      }
       return this.withBenchmarks(upgradePage(saved.value, saved.fetchedAt, job), job);
     }
     const failed = this.cache.peek<{ message: string; code: ApiFailure['code'] } | null>(`notfound|${key}`);

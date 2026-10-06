@@ -25,7 +25,7 @@ if (!setup) {
   process.exit(1);
 }
 const { live, cache } = setup;
-const puller = new Puller(live, cache);
+const puller = new Puller(live, cache, undefined, false, { sweep: true });
 const started = Date.now();
 const startLeft = puller.remaining();
 

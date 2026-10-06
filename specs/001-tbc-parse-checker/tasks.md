@@ -169,3 +169,5 @@ description: "Task list for TBC Parse Checker"
 - [x] T088 Breakdown columns are two boxes of equal height (tabs inside the right box); output-over-the-fight and damage taken share a row
 - [x] T089 Prep & uptime moved to a small box under the performance profile
 - [x] T090 Potions detected by spell id and icon (logs name them by effect, e.g. "Haste", "Restore Mana") and from buffs, so a potion drunk before the pull counts; flasks/elixirs told apart by lasting the fight
+- [x] T091 Search bar: realm label folded into the placeholder ("Search Nightslayer characters"); no browser dropdown arrow on the name box
+- [x] T092 Talents & guide box at the bottom of the sidebar, following the selected spec/boss and ending level with the last chart; header links removed

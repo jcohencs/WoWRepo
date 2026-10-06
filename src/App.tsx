@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Meta, Region, ZoneReport } from '../shared/types';
 import { CharacterHeader } from './components/CharacterHeader';
-import { ClassGrid, ClassLinks, GuidePage } from './components/ClassGuides';
+import { ClassGrid, GuidePage } from './components/ClassGuides';
 import { guideFromPath } from './lib/classes';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { RaidSelect } from './components/RaidSelect';
@@ -159,9 +159,7 @@ export function App() {
       {!guide && query && (
         <main className="content">
           {shown && (
-            <CharacterHeader report={shown} site={meta?.site ?? 'fresh'} onRefresh={refresh} refreshing={refreshing} refreshNote={refreshNote}>
-              <ClassLinks name={shown.character.className} spec={shown.mainSpec || shown.rows[0]?.spec || ''} navigate={navigate} />
-            </CharacterHeader>
+            <CharacterHeader report={shown} site={meta?.site ?? 'fresh'} onRefresh={refresh} refreshing={refreshing} refreshNote={refreshNote} />
           )}
           <div className="controls">
             {shown && shown.specs?.length > 0 && (
@@ -180,7 +178,7 @@ export function App() {
           ) : shown ? (
             <ErrorBoundary what="this raid" resetKey={shown}>
               <div className={loading || refreshing ? 'is-stale' : undefined}>
-                <RaidView report={shown} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} />
+                <RaidView report={shown} query={query} site={meta?.site ?? 'fresh'} demo={meta?.demo ?? false} navigate={navigate} />
               </div>
             </ErrorBoundary>
           ) : (

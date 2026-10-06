@@ -2476,3 +2476,91 @@ a.brand,
 .prep-card .casts-bars {
   padding-right: 38px;
 }
+
+/* Name suggestions still drop down, but without the browser's arrow in the box. */
+.search input::-webkit-calendar-picker-indicator,
+.search input::-webkit-list-button {
+  display: none !important;
+  opacity: 0;
+}
+
+/* ---------- Talents & guide box: fills the sidebar down to the bottom of the page's last chart ---------- */
+.raid-view {
+  align-items: stretch;
+}
+.sidebar-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.spec-links {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid var(--class);
+}
+.spec-links-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 2px 0;
+}
+.spec-links-who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.spec-links-who .spec-icon {
+  border: 1px solid var(--class);
+  border-radius: var(--radius);
+  vertical-align: middle;
+}
+.spec-links-who strong {
+  display: block;
+  font-size: 18px;
+  color: var(--class);
+}
+.spec-links-who span {
+  font-size: 13px;
+  color: var(--soft);
+}
+.spec-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text-2);
+}
+a.spec-link {
+  border-bottom: 1px solid var(--line-strong);
+}
+.spec-link:hover {
+  border-color: var(--class);
+  color: var(--text);
+}
+.spec-link span {
+  flex: 1;
+  min-width: 0;
+}
+.spec-link b {
+  display: block;
+  font-size: 14px;
+  color: var(--text);
+}
+.spec-link small {
+  display: block;
+  font-size: 12px;
+  color: var(--soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.spec-link i {
+  font-style: normal;
+  color: var(--soft);
+}

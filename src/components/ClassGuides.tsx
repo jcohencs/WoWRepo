@@ -111,16 +111,38 @@ export function GuidePage({ name, spec, navigate }: { name: string; spec: string
   );
 }
 
-/** Talents and guide links for a character's class and spec, shown in their header. */
-export function ClassLinks({ name, spec, navigate }: { name: string; spec: string; navigate: Navigate }) {
+/** Sidebar box: talents and guide for the spec being looked at; follows the spec bar and boss. */
+export function SpecLinksCard({ name, spec, navigate }: { name: string; spec: string; navigate: Navigate }) {
+  if (!spec) return null;
+  const guide = guidePath(name, spec);
   return (
-    <span className="class-links">
-      <a href={talentsUrl(name)} target="_blank" rel="noreferrer" title={`${name} talent calculator (Wowhead)`}>
-        <TalentsIcon /> Talents ↗
-      </a>
-      <a href={guidePath(name, spec)} onClick={inSite(navigate, guidePath(name, spec))} title={`${guideTitle(name, spec)} guide`}>
-        <GuideIcon /> Guide
-      </a>
-    </span>
+    <section className="side-card spec-links" style={{ '--class': classColor(name) } as CSSProperties} aria-label={`${guideTitle(name, spec)} talents and guide`}>
+      <p className="sidebar-title">Talents &amp; guide</p>
+      <div className="spec-links-body">
+        <div className="spec-links-who">
+          <SpecIcon className={name} spec={spec} size={40} />
+          <div>
+            <strong>{specLabel(spec)}</strong>
+            <span>{name}</span>
+          </div>
+        </div>
+        <a className="spec-link" href={talentsUrl(name)} target="_blank" rel="noreferrer">
+          <TalentsIcon />
+          <span>
+            <b>Talents</b>
+            <small>Wowhead talent calculator</small>
+          </span>
+          <i aria-hidden>↗</i>
+        </a>
+        <a className="spec-link" href={guide} onClick={inSite(navigate, guide)}>
+          <GuideIcon />
+          <span>
+            <b>Guide</b>
+            <small>{guideTitle(name, spec)}</small>
+          </span>
+          <i aria-hidden>→</i>
+        </a>
+      </div>
+    </section>
   );
 }

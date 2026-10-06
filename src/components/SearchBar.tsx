@@ -50,8 +50,8 @@ export function SearchBar({ initial, busy, onSearch }: Props) {
 
   return (
     <form className="search" onSubmit={submit} role="search">
-      <span className="search-realm" title="Realm">
-        {REALMS.length > 1 ? (
+      {REALMS.length > 1 && (
+        <span className="search-realm" title="Realm">
           <select value={realm} onChange={(e) => setRealm(e.target.value)} aria-label="Realm">
             {REALMS.map((r) => (
               <option key={r.slug} value={r.slug}>
@@ -59,16 +59,14 @@ export function SearchBar({ initial, busy, onSearch }: Props) {
               </option>
             ))}
           </select>
-        ) : (
-          REALMS[0].name
-        )}
-      </span>
+        </span>
+      )}
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
         onPaste={onPaste}
-        placeholder="Character name"
-        aria-label="Character name"
+        placeholder={REALMS.length > 1 ? 'Character name' : `Search ${REALMS[0].name} characters`}
+        aria-label={`Character name on ${REALMS.find((r) => r.slug === realm)?.name ?? realm}`}
         autoComplete="off"
         spellCheck={false}
         list="character-names"

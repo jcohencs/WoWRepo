@@ -4,6 +4,7 @@ import type { Query } from '../lib/api';
 import { amount, gapText, integer, metricLabel, parse, parseTier, specLabel } from '../lib/format';
 import { PrepChart } from './charts/FightCharts';
 import { MiniLadder, PerformanceRadar } from './charts/Radar';
+import { SpecLinksCard } from './ClassGuides';
 import { ComparePanel } from './ComparePanel';
 import { ErrorBoundary } from './ErrorBoundary';
 
@@ -12,13 +13,14 @@ interface Props {
   query: Query;
   site: Site;
   demo: boolean;
+  navigate: (path: string) => void;
 }
 
 /**
  * The raid page: a slim sidebar (summary + every boss with its parse bar, which doubles as the
  * "parse by boss" chart) and a main area showing the selected boss's numbers and full breakdown.
  */
-export function RaidView({ report, query, site, demo }: Props) {
+export function RaidView({ report, query, site, demo, navigate }: Props) {
   const firstKill = report.rows.find((r) => r.best != null)?.encounter.id ?? null;
   const [selected, setSelected] = useState<number | null>(firstKill);
 
@@ -97,6 +99,7 @@ export function RaidView({ report, query, site, demo }: Props) {
         <ErrorBoundary what="preparation" resetKey={shown}>
           <PrepChart data={shown} compact />
         </ErrorBoundary>
+        <SpecLinksCard name={report.character.className} spec={row?.spec ?? report.spec ?? report.mainSpec ?? ''} navigate={navigate} />
       </aside>
 
       <section className="boss-main">

@@ -146,6 +146,22 @@ describe('saved pages + scheduled puller', () => {
     expect(pulls()).toBe(first * 2);
   });
 
+  it('a #1 lookup Warcraft Logs rejects is skipped; the rest of the list is still saved', async () => {
+    const cache = new TtlCache({ serveStale: false, persist: persisted, pack: packSaved });
+    const { provider: live } = fakeWcl((query, variables) => {
+      if (query.includes('specName: "Guardian"')) throw new Error('Unknown spec Guardian');
+      return handler(query, variables);
+    }, cache);
+    const puller = new Puller(live, cache);
+    const site = new SnapshotProvider(live, cache, puller);
+    await puller.run();
+    const board = await site.leaders('nightslayer');
+    expect(board.updatedAt).not.toBeNull();
+    const druid = board.classes.find((c) => c.className === 'Druid')!.leaders.map((l) => l.role);
+    expect(druid).toEqual(['damage', 'healing']); // no tank, but the rest is there
+    expect(board.classes.find((c) => c.className === 'Warrior')!.leaders.map((l) => l.role)).toEqual(['damage', 'tank']);
+  });
+
   it('the admin pull gets the #1 list right away, whatever the time', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(Date.UTC(2026, 9, 6, 15));
@@ -154,7 +170,7 @@ describe('saved pages + scheduled puller', () => {
     const before = queries.filter((q) => q.includes('serverSlug: $realm') && q.includes('className: "')).length;
     vi.setSystemTime(Date.UTC(2026, 9, 6, 18)); // 2 PM, long after today's 10 AM pull
     const result = await site.pullLeadersNow();
-    expect(result.raids).toEqual(['Mount Hyjal', 'Black Temple']);
+    expect(result.raids).toEqual(['Black Temple', 'Mount Hyjal']); // newest first
     expect(result.classesWithLeaders).toBeGreaterThan(0);
     expect(queries.filter((q) => q.includes('serverSlug: $realm') && q.includes('className: "')).length).toBeGreaterThan(before);
   });

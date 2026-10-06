@@ -373,21 +373,39 @@ export class WclProvider implements Provider {
     const items = Object.values(CLASSES).flatMap((cls) =>
       classRoles(cls.name).flatMap((r) => raid.encounters.map((e) => ({ className: cls.name, ...r, encounterId: e.id }))),
     );
+    type Item = (typeof items)[number];
+    const field = (it: Item, j: number) =>
+      `q${j}: encounter(id: ${it.encounterId}) { characterRankings(className: "${it.className}"${it.spec ? `, specName: "${it.spec}"` : ''}, metric: ${it.metric}, page: 1, serverRegion: $region, serverSlug: $realm) }`;
+    const ask = (chunk: Item[]) =>
+      this.client.query<{ worldData: Record<string, { characterRankings: RawRankingPage } | null> }>(
+        `query($region: String!, $realm: String!) { worldData { ${chunk.map(field).join('\n')} } }`,
+        { region, realm },
+      );
     const pages: RawRanking[][] = [];
+    const skipped = new Set<string>();
     const BATCH = 18;
     for (let i = 0; i < items.length; i += BATCH) {
       const chunk = items.slice(i, i + BATCH);
-      const data = await this.client.query<{ worldData: Record<string, { characterRankings: RawRankingPage } | null> }>(
-        `query($region: String!, $realm: String!) { worldData { ${chunk
-          .map(
-            (it, j) =>
-              `q${j}: encounter(id: ${it.encounterId}) { characterRankings(className: "${it.className}"${it.spec ? `, specName: "${it.spec}"` : ''}, metric: ${it.metric}, page: 1, serverRegion: $region, serverSlug: $realm) }`,
-          )
-          .join('\n')} } }`,
-        { region, realm },
-      );
-      chunk.forEach((_, j) => pages.push(data.worldData[`q${j}`]?.characterRankings?.rankings ?? []));
+      try {
+        const data = await ask(chunk);
+        chunk.forEach((_, j) => pages.push(data.worldData[`q${j}`]?.characterRankings?.rankings ?? []));
+      } catch (err) {
+        if (err instanceof ApiFailure && err.code === 'rate_limited') throw err;
+        // One rejected lookup fails the whole batch: ask one at a time and skip only what Warcraft Logs rejects.
+        console.warn(`[logsforever] A #1 batch for ${raid.name} was rejected (${err instanceof Error ? err.message : err}); retrying one by one.`);
+        for (const it of chunk) {
+          try {
+            const data = await ask([it]);
+            pages.push(data.worldData.q0?.characterRankings?.rankings ?? []);
+          } catch (one) {
+            if (one instanceof ApiFailure && one.code === 'rate_limited') throw one;
+            skipped.add(`${it.spec ? `${it.spec} ` : ''}${it.className} ${it.metric}`);
+            pages.push([]);
+          }
+        }
+      }
     }
+    if (skipped.size) console.warn(`[logsforever] Warcraft Logs rejected these #1 lookups for ${raid.name}: ${[...skipped].join(', ')}.`);
     const classes = Object.values(CLASSES).map((cls) => ({
       className: cls.name,
       leaders: classRoles(cls.name)

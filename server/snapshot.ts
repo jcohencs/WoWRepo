@@ -224,7 +224,7 @@ export class Puller {
     if (!raids.length) return { raids: [], classesWithLeaders: 0, message: 'No raids found.' };
     const done: string[] = [];
     let filled = 0;
-    for (const raid of raids) {
+    for (const raid of [...raids].reverse()) {
       for (const realm of REALMS) {
         try {
           const board = await this.live.classLeaders(REALM_REGION, realm.slug, raid);
@@ -251,7 +251,8 @@ export class Puller {
     const raids = this.cachedRaids();
     const wanted = this.cache.peekAny<string[]>('leaders-wanted')?.value ?? [];
     const since = lastDailyTime(Date.now(), LEADERS_HOUR, LEADERS_ZONE);
-    for (const raid of raids) {
+    // Newest raid first: it's the one the main page shows.
+    for (const raid of [...raids].reverse()) {
       for (const realm of REALMS) {
         const at = this.cache.fetchedAt(this.live.leadersKey(REALM_REGION, realm.slug, raid.id));
         const due = at == null || at < since || wanted.includes(raid.id);

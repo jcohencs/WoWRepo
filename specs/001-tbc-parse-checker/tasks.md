@@ -166,3 +166,6 @@ description: "Task list for TBC Parse Checker"
 - [x] T085 Squarer corners throughout (3px radius)
 - [x] T086 Classes grid on the home page: class icon and colour, a Talents link (Wowhead TBC calculator) per class, and a Guide link per spec; `/guides/<class>/<spec>` placeholder pages; Talents and Guide links in each character's header
 - [x] T087 Performance profile in its own box under the boss list; "You" / "Top 1% player" boxes use the same columns and gap as the breakdown below, with space beneath them and the "Open log" link pushed right
+- [x] T088 Breakdown columns are two boxes of equal height (tabs inside the right box); output-over-the-fight and damage taken share a row
+- [x] T089 Prep & uptime moved to a small box under the performance profile
+- [x] T090 Potions detected by spell id and icon (logs name them by effect, e.g. "Haste", "Restore Mana") and from buffs, so a potion drunk before the pull counts; flasks/elixirs told apart by lasting the fight

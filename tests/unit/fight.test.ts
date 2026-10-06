@@ -57,4 +57,23 @@ describe('preparation', () => {
     expect(p).toEqual({ flask: 0.9, food: 1, potions: 2 });
     expect(preparation([], [], 100_000)).toEqual({ flask: null, food: null, potions: 0 });
   });
+
+  it('finds potions logged under their effect name, including one drunk before the pull', () => {
+    const p = preparation(
+      [
+        // Pre-pull Haste Potion: the buff is there, but there is no cast inside the fight.
+        { name: 'Haste', guid: 28507, abilityIcon: 'inv_potion_108.jpg', totalUptime: 15_000, totalUses: 1 },
+        // A flask has a potion icon too, but lasts the whole fight.
+        { name: 'Relentless Assault', guid: 28520, abilityIcon: 'inv_potion_117.jpg', totalUptime: 180_000, totalUses: 1 },
+        { name: 'Well Fed', guid: 33256, abilityIcon: 'spell_misc_food.jpg', totalUptime: 180_000 },
+      ],
+      [
+        { name: 'Restore Mana', guid: 28499, abilityIcon: 'inv_potion_137.jpg', total: 1 },
+        { name: 'Haste', guid: 28507, abilityIcon: 'inv_potion_108.jpg', total: 1 }, // the same potion's buff isn't counted twice
+        { name: 'Bloodthirst', guid: 30335, abilityIcon: 'spell_nature_bloodlust.jpg', total: 20 },
+      ],
+      180_000,
+    );
+    expect(p).toEqual({ flask: 1, food: 1, potions: 2 });
+  });
 });

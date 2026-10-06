@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { BossRow, Comparison, Site, ZoneReport } from '../../shared/types';
 import type { Query } from '../lib/api';
 import { amount, gapText, integer, metricLabel, parse, parseTier, specLabel } from '../lib/format';
+import { PrepChart } from './charts/FightCharts';
 import { MiniLadder, PerformanceRadar } from './charts/Radar';
 import { ComparePanel } from './ComparePanel';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -92,6 +93,9 @@ export function RaidView({ report, query, site, demo }: Props) {
 
         <ErrorBoundary what="the performance profile" resetKey={shown}>
           <PerformanceRadar data={shown} />
+        </ErrorBoundary>
+        <ErrorBoundary what="preparation" resetKey={shown}>
+          <PrepChart data={shown} compact />
         </ErrorBoundary>
       </aside>
 

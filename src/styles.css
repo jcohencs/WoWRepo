@@ -2404,3 +2404,75 @@ a.brand,
 .back-link {
   border-bottom: 0;
 }
+
+/* ---------- Breakdown: both columns are boxes of the same height ---------- */
+.compare-cols .cc-col:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.compare-cols .cc-col:first-child > .h2h {
+  margin: 0;
+}
+.compare-cols .cc-col:first-child > .pies {
+  flex: 1;
+  margin: 0;
+  align-content: start;
+}
+/* The tabs sit inside the right-hand box, so its top lines up with the left column's. */
+.compare-cols .cc-col:last-child {
+  padding: 12px 16px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.compare-cols .cc-col:last-child > .casts {
+  padding: 4px 0 0;
+  border: 0;
+  background: none;
+}
+
+/* Fight timeline (wide) next to damage taken */
+.chart-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+/* ---------- Small sidebar boxes (preparation) ---------- */
+.side-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px;
+}
+.side-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.side-card-head .sidebar-title {
+  margin: 0 0 0 4px;
+}
+.side-card-head .chart-legend {
+  font-size: 12px;
+  gap: 10px;
+}
+.prep-card .prep-row {
+  grid-template-columns: 92px minmax(0, 1fr) !important;
+  gap: 8px;
+  padding: 5px 4px;
+}
+.prep-card .casts-name {
+  font-size: 13px;
+}
+.prep-card .cb {
+  height: 9px;
+}
+.prep-card .cb em {
+  font-size: 11px;
+}
+/* Leave room after the longest bar for its value label. */
+.prep-card .casts-bars {
+  padding-right: 38px;
+}

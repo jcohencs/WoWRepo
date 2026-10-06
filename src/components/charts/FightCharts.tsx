@@ -74,7 +74,7 @@ export function FightTimeline({ data }: { data: Comparison }) {
   });
   const noun = data.metric === 'hps' ? 'healing' : 'damage';
   return (
-    <section className="chart-card span-2">
+    <section className="chart-card">
       <header>
         <div>
           <h3>Output over the fight</h3>
@@ -134,7 +134,8 @@ export function TakenChart({ data }: { data: Comparison }) {
 }
 
 /** Flask/elixir and food uptime, potions and time active, you vs the top 1% player. */
-export function PrepChart({ data }: { data: Comparison }) {
+export function PrepChart({ data, compact = false }: { data: Comparison | null; compact?: boolean }) {
+  if (!data) return null;
   const rows: { label: string; you: number | null; ref: number | null; kind: 'pct' | 'count' }[] = [
     { label: 'Flask / elixirs', you: data.you.prep?.flask ?? null, ref: data.ref?.prep?.flask ?? null, kind: 'pct' },
     { label: 'Food buff', you: data.you.prep?.food ?? null, ref: data.ref?.prep?.food ?? null, kind: 'pct' },
@@ -146,14 +147,21 @@ export function PrepChart({ data }: { data: Comparison }) {
   const fmt = (v: number | null, kind: 'pct' | 'count') => (v == null ? 'none' : kind === 'pct' ? percent(v, 0) : integer(v));
   const width = (v: number | null, kind: 'pct' | 'count') => `${v == null ? 0 : kind === 'pct' ? v * 100 : (v / maxCount) * 100}%`;
   return (
-    <section className="chart-card">
-      <header>
-        <div>
-          <h3>Preparation and uptime</h3>
-          <p className="soft">Share of the fight each buff was up, and potions drunk.</p>
-        </div>
-        {data.ref && <Legend items={[{ name: 'You', color: 'var(--you)' }, { name: 'Top 1%', color: 'var(--ref)' }]} />}
-      </header>
+    <section className={compact ? 'side-card prep-card' : 'chart-card'}>
+      {compact ? (
+        <header className="side-card-head">
+          <p className="sidebar-title">Prep &amp; uptime</p>
+          {data.ref && <Legend items={[{ name: 'You', color: 'var(--you)' }, { name: 'Top 1%', color: 'var(--ref)' }]} />}
+        </header>
+      ) : (
+        <header>
+          <div>
+            <h3>Preparation and uptime</h3>
+            <p className="soft">Share of the fight each buff was up, and potions drunk.</p>
+          </div>
+          {data.ref && <Legend items={[{ name: 'You', color: 'var(--you)' }, { name: 'Top 1%', color: 'var(--ref)' }]} />}
+        </header>
+      )}
       {rows.map((r) => (
         <div className="casts-row prep-row" key={r.label} title={`${r.label}: you ${fmt(r.you, r.kind)}${data.ref ? `, top 1% ${fmt(r.ref, r.kind)}` : ''}`}>
           <span className="casts-name">

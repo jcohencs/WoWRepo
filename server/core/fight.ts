@@ -95,19 +95,70 @@ export function takenBySchool(entries: { type?: number | string; total: number }
   return SCHOOL_ORDER.filter((s) => totals.get(s)).map((school) => ({ school, perSecond: totals.get(school)! / seconds }));
 }
 
-/** Flask/elixir and food uptime from the buffs table, and potions from the casts table. */
-export function preparation(
-  buffs: { name: string; totalUptime?: number }[],
-  casts: { name: string; total: number }[],
-  totalTime: number,
-): Preparation {
-  const uptime = (re: RegExp) => {
-    const best = Math.max(0, ...buffs.filter((b) => re.test(b.name)).map((b) => b.totalUptime ?? 0));
+/**
+ * TBC potion spells. Logs record them under the effect's name ("Haste", "Restore Mana"), not the
+ * item's, so they are matched by id and icon as well as by name.
+ */
+const POTION_IDS = new Set([
+  28507, // Haste Potion → "Haste"
+  28508, // Destruction Potion
+  28499, // Super Mana Potion → "Restore Mana"
+  28495, // Super Healing Potion → "Healing Potion"
+  28494, // Insane Strength Potion
+  28506, // Heroic Potion
+  28515, // Ironshield Potion → "Ironshield"
+  38929, // Fel Mana Potion
+  45051, // Mad Alchemist's Potion
+  28511, 28512, 28513, 28536, 28537, // Major Fire / Frost / Nature / Arcane / Shadow Protection
+]);
+const POTION_ICON = /inv_potion|inv_alchemy_.*potion/i;
+const FLASK_OR_ELIXIR = /flask|elixir/i;
+
+interface Aura {
+  name: string;
+  guid?: number;
+  abilityIcon?: string;
+  totalUptime?: number;
+  totalUses?: number;
+  bands?: unknown[];
+}
+interface Cast {
+  name: string;
+  guid?: number;
+  abilityIcon?: string;
+  total: number;
+}
+
+const looksLikePotion = (a: { name: string; guid?: number; abilityIcon?: string }) =>
+  (a.guid != null && POTION_IDS.has(a.guid)) || /potion/i.test(a.name) || POTION_ICON.test(a.abilityIcon ?? '');
+
+/**
+ * Flask/elixir and food uptime from the buffs table, and potions used. Potions are counted from
+ * the casts table (mana and healing potions) and from buffs (Haste, Destruction… including one
+ * drunk just before the pull, which has no cast inside the fight), once per spell.
+ */
+export function preparation(buffs: Aura[], casts: Cast[], totalTime: number): Preparation {
+  // Flask and elixir buffs share the potion icons, but last the whole fight; potion buffs last seconds.
+  const isFlask = (b: Aura) =>
+    FLASK_OR_ELIXIR.test(b.name) ||
+    (!looksLikePotion({ ...b, abilityIcon: '' }) && POTION_ICON.test(b.abilityIcon ?? '') && (b.totalUptime ?? 0) > Math.min(totalTime * 0.6, 120_000));
+  const uptime = (list: Aura[]) => {
+    const best = Math.max(0, ...list.map((b) => b.totalUptime ?? 0));
     return totalTime > 0 && best > 0 ? Math.min(1, best / totalTime) : null;
   };
+
+  const uses = new Map<string, number>();
+  const add = (key: string, n: number) => uses.set(key, Math.max(uses.get(key) ?? 0, n));
+  for (const c of casts) if (looksLikePotion(c) && c.total > 0) add(String(c.guid ?? c.name), c.total);
+  for (const b of buffs) {
+    if (isFlask(b) || !looksLikePotion(b)) continue;
+    const n = Math.max(b.totalUses ?? 0, Array.isArray(b.bands) ? b.bands.length : 0, (b.totalUptime ?? 0) > 0 ? 1 : 0);
+    if (n > 0) add(String(b.guid ?? b.name), n);
+  }
+
   return {
-    flask: uptime(/^(flask of|elixir of)/i),
-    food: uptime(/well fed/i),
-    potions: casts.filter((c) => /potion/i.test(c.name)).reduce((n, c) => n + (c.total || 0), 0),
+    flask: uptime(buffs.filter(isFlask)),
+    food: uptime(buffs.filter((b) => /well fed/i.test(b.name))),
+    potions: [...uses.values()].reduce((a, b) => a + b, 0),
   };
 }

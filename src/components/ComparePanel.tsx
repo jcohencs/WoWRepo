@@ -5,7 +5,7 @@ import { percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
 import { CastsChart } from './CastsChart';
-import { FightTimeline, PrepChart, TakenChart, WeeklyChart } from './charts/FightCharts';
+import { FightTimeline, TakenChart, WeeklyChart } from './charts/FightCharts';
 import { ErrorBoundary } from './ErrorBoundary';
 import { HeadToHead } from './HeadToHead';
 
@@ -147,9 +147,6 @@ export function ComparePanel({ query, row, site, demo, onData }: Props) {
         </ErrorBoundary>
         <ErrorBoundary what="damage taken" resetKey={data}>
           <TakenChart data={data} />
-        </ErrorBoundary>
-        <ErrorBoundary what="preparation" resetKey={data}>
-          <PrepChart data={data} />
         </ErrorBoundary>
       </div>
     </div>

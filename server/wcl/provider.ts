@@ -56,8 +56,17 @@ interface EncounterRanks {
   }[];
 }
 
+interface BuffAura {
+  name: string;
+  guid?: number;
+  abilityIcon?: string;
+  totalUptime?: number;
+  totalUses?: number;
+  bands?: unknown[];
+}
+
 interface BuffTable {
-  data?: { totalTime?: number; auras?: { name: string; totalUptime?: number }[]; entries?: { name: string; totalUptime?: number }[] };
+  data?: { totalTime?: number; auras?: BuffAura[]; entries?: BuffAura[] };
 }
 
 interface ReportTable {

@@ -2761,3 +2761,215 @@ a.cb-action {
 .masthead {
   grid-template-columns: auto minmax(0, 520px) 1fr;
 }
+
+/* ---------- Main page sections ---------- */
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 24px;
+  flex-wrap: wrap;
+  margin: 32px 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.section-head h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+.section-head p {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.raid-select.compact {
+  width: auto;
+}
+.raid-select.compact select {
+  width: 220px;
+}
+
+/* Top 1% players */
+.tp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.tp-class {
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--class, var(--line-strong));
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px;
+  min-height: 120px;
+}
+.tp-class > header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.tp-class > header img {
+  border: 1px solid var(--class);
+  border-radius: var(--radius);
+}
+.tp-class h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--class);
+}
+.tp-spec {
+  padding: 8px 0 6px;
+}
+.tp-spec + .tp-spec {
+  border-top: 1px solid var(--line);
+}
+.tp-spec-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.tp-spec-name .soft {
+  margin-left: auto;
+  font-weight: 500;
+}
+.tp-spec ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tp-spec li button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.tp-spec li button:hover {
+  background: var(--surface-2);
+}
+.tp-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tp-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--parse-gold);
+  font-variant-numeric: tabular-nums;
+}
+.tp-count .top-star {
+  margin: 0 3px 0 0;
+}
+.tp-none {
+  margin: 0;
+  padding: 2px 6px;
+  font-size: 13px;
+}
+.tp-more {
+  margin: 2px 0 0 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--soft);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tp-more:hover {
+  color: var(--text);
+}
+
+/* Classes: square tiles */
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+.class-tile {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--class);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: center;
+}
+.class-tile .class-icon {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--class);
+  border-radius: var(--radius);
+}
+.class-tile h3 {
+  margin: 0;
+  font-size: 17px;
+  color: var(--class);
+}
+.class-tile-specs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 8px;
+}
+.class-tile-specs a {
+  display: block;
+  border: 0;
+}
+.class-tile-specs .spec-icon {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  vertical-align: middle;
+}
+.class-tile-specs a:hover .spec-icon {
+  border-color: var(--class);
+}
+.class-tile-specs span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.class-tile-talents {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--soft);
+  border: 0;
+}
+.class-tile-talents:hover {
+  color: var(--text);
+}
+.tp-grid {
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+}
+@media (min-width: 1700px) {
+  .tp-grid {
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+  }
+}

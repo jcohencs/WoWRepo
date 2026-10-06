@@ -145,6 +145,11 @@ export class TtlCache {
     if (persisted) this.scheduleSave();
   }
 
+  /** Saved values whose key starts with `prefix` (saved-to-disk entries only). */
+  *withPrefix<T>(prefix: string): Generator<[string, T]> {
+    for (const [k, e] of this.entries) if (k.startsWith(prefix)) yield [k, e.value as T];
+  }
+
   /** Removes every entry whose key starts with `prefix`. */
   deletePrefix(prefix: string): number {
     let n = 0;

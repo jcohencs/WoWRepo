@@ -108,6 +108,29 @@ describe('saved pages + scheduled puller', () => {
     expect(queries.length).toBe(after);
   });
 
+  it('builds the realm leaderboard from saved pages, without calling Warcraft Logs', async () => {
+    const { site, puller, queries } = setup();
+    await puller.run();
+    const before = queries.length;
+    const board = await site.leaders('nightslayer', raid);
+    expect(queries.length).toBe(before);
+    expect(board.raid?.id).toBe(raid);
+    expect(board.characters).toBe(2);
+    expect(board.specs).toHaveLength(27);
+  });
+
+  it('Refresh with the allowance used up quietly queues the pull and shows the saved page', async () => {
+    const { site, puller, live } = setup();
+    await puller.run();
+    const saved = await site.zoneReport(brannoc, raid);
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.now() + HOUR);
+    vi.spyOn(live, 'headroom').mockReturnValue(0);
+    const shown = await site.refresh(brannoc, raid);
+    expect(shown.updatedAt).toBe(saved.updatedAt);
+    expect(puller.queue().map((j) => j.ref.name)).toEqual(['Brannoc']);
+  });
+
   it('finds everyone who raids on the realms and pulls their pages ahead of time', async () => {
     const { site, puller, queries } = setup();
     await puller.run();

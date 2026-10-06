@@ -42,35 +42,35 @@ function GuideIcon() {
   );
 }
 
-/** Every class with each spec's talent calculator and guide links. */
+/** Every class as a square tile: big class icon, a guide link per spec, and the talent calculator. */
 export function ClassGrid({ navigate }: { navigate: Navigate }) {
   return (
     <section className="class-grid-wrap" aria-labelledby="classes-title">
-      <h2 id="classes-title" className="section-title">
-        Classes
-      </h2>
+      <header className="section-head">
+        <div>
+          <h2 id="classes-title">Classes</h2>
+          <p className="soft">Talent calculators and spec guides.</p>
+        </div>
+      </header>
       <div className="class-grid">
         {CLASS_LIST.map((c) => (
-          <article key={c.name} className="class-card" style={{ '--class': classColor(c.name) } as CSSProperties}>
-            <header>
-              <ClassIcon name={c.name} />
-              <h3>{c.name}</h3>
-              <a className="class-talents" href={talentsUrl(c.name)} target="_blank" rel="noreferrer" title={`${c.name} talent calculator (Wowhead)`}>
-                <TalentsIcon />
-                Talents ↗
-              </a>
-            </header>
-            <ul>
+          <article key={c.name} className="class-tile" style={{ '--class': classColor(c.name) } as CSSProperties}>
+            <ClassIcon name={c.name} size={64} />
+            <h3>{c.name}</h3>
+            <ul className="class-tile-specs">
               {c.specs.map((spec) => (
                 <li key={spec}>
-                  <a href={guidePath(c.name, spec)} onClick={inSite(navigate, guidePath(c.name, spec))}>
-                    <SpecIcon className={c.name} spec={spec} size={22} />
+                  <a href={guidePath(c.name, spec)} onClick={inSite(navigate, guidePath(c.name, spec))} title={`${guideTitle(c.name, spec)} guide`}>
+                    <SpecIcon className={c.name} spec={spec} size={30} />
                     <span>{specLabel(spec)}</span>
-                    <GuideIcon />
                   </a>
                 </li>
               ))}
             </ul>
+            <a className="class-tile-talents" href={talentsUrl(c.name)} target="_blank" rel="noreferrer" title={`${c.name} talent calculator (Wowhead)`}>
+              <TalentsIcon />
+              Talents ↗
+            </a>
           </article>
         ))}
       </div>

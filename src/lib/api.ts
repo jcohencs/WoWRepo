@@ -1,4 +1,4 @@
-import type { ApiError, Comparison, Meta, Region, ZoneReport } from '../../shared/types';
+import type { ApiError, Comparison, Leaderboard, Meta, Region, ZoneReport } from '../../shared/types';
 
 export interface Query {
   region: Region;
@@ -52,6 +52,7 @@ export const api = {
     return hit;
   },
   meta: () => get<Meta>('/api/meta'),
+  leaders: (realm: string, raid?: string) => get<Leaderboard>('/api/leaders', { realm, raid }),
   character: (q: Query, raid?: string, spec?: string, signal?: AbortSignal) =>
     get<ZoneReport>('/api/character', { ...q, raid, spec }, signal),
   compare,

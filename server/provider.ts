@@ -1,4 +1,4 @@
-import type { ApiStatus, Comparison, Raid, Site, ZoneReport } from '../shared/types.js';
+import type { Leaderboard, ApiStatus, Comparison, Raid, Site, ZoneReport } from '../shared/types.js';
 import type { CharacterRef } from './core/input.js';
 
 export interface Provider {
@@ -10,6 +10,8 @@ export interface Provider {
   raids(): Promise<Raid[]>;
   zoneReport(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;
   compare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison>;
+  /** The realm's top 1% players for each class and spec in a raid (main page). */
+  leaders?(realm: string, raidId?: string): Promise<Leaderboard>;
   /** Pulls the character's raid page again now (the page's Refresh button). */
   refresh(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;
 }

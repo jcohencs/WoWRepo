@@ -81,6 +81,12 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
           return send(res, 200, provider.status());
         case '/api/character':
           return send(res, 200, await provider.zoneReport(ref(p), p.get('raid') || undefined, p.get('spec') || undefined));
+        case '/api/leaders': {
+          const realm = p.get('realm') ?? '';
+          if (!REALMS.some((r) => r.slug === realm)) throw new ApiFailure('bad_request', 'Unknown realm.');
+          if (!provider.leaders) throw new ApiFailure('not_found', 'Not available.');
+          return send(res, 200, await provider.leaders(realm, p.get('raid') || undefined));
+        }
         case '/api/refresh':
           return send(res, 200, await provider.refresh(ref(p), p.get('raid') || undefined, p.get('spec') || undefined));
         case '/api/compare': {

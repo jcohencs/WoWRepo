@@ -178,3 +178,9 @@ description: "Task list for TBC Parse Checker"
 - [x] T097 Sidebar summary keeps only Avg parse and Killed; a gold ★ marks a top 1% parse (99+) in the boss list and the boss numbers
 - [x] T098 Race next to the character (read from the Blizzard profile data Warcraft Logs keeps, `gameData`; gear is dropped right away; `npm run doctor` prints it)
 - [x] T099 Performance profile: centred title between lines, explanation removed; slightly larger logo and search bar
+
+## Phase 25: Main page
+
+- [x] T100 Refresh never shows a "busy" message: with the allowance low it queues the pull and shows the saved page
+- [x] T101 "Top 1% on Nightslayer" on the main page: per class and spec, everyone with a 99+ parse in the chosen raid (`GET /api/leaders`, from saved pages), click a name to open their logs
+- [x] T102 Classes section moved below it and redesigned as square tiles with large class icons, spec guide icons and a Talents link

@@ -13,7 +13,10 @@ All responses are JSON. Errors: `{ "error": { "code": string, "message": string 
 → `Comparison` (incl. `weeks`, `benchmark.ladder`, and per side `timeline`, `taken`, `prep`). `week` optional: your best kill in that raid week (epoch ms of the US reset). 404 `not_found` if there is no kill.
 
 ## POST /api/refresh?region=US&realm=nightslayer&name=Foo&raid=black-temple&spec=Fury
-→ `ZoneReport`, pulled again now. Forgets the character's saved comparisons so they re-pull on the next click. A page refreshed in the last 10 minutes is returned as-is; 429 `rate_limited` when the hourly allowance is low (the saved page is still served by `GET /api/character`).
+→ `ZoneReport`, pulled again now. Forgets the character's saved comparisons so they re-pull on the next click. A page refreshed in the last 10 minutes is returned as-is. When the hourly allowance is low the pull is queued for the next pass and the saved page is returned (no error).
+
+## GET /api/leaders?realm=nightslayer&raid=black-temple
+→ `Leaderboard` — every class and spec with the realm's players who have at least one top 1% (99+) parse in the raid (default: latest), most top 1% bosses first. Built from saved pages; no Warcraft Logs calls.
 
 ## GET /api/status
 → `ApiStatus | null` — `{ limitPerHour, pointsSpent, resetsInSec, savedResults }` (null in demo mode).

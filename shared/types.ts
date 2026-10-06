@@ -191,3 +191,30 @@ export interface ApiError {
 /** The realms this app supports (US TBC Anniversary). Add entries here to support more. */
 export const REALMS: readonly { name: string; slug: string }[] = [{ name: 'Nightslayer', slug: 'nightslayer' }];
 export const REALM_REGION: Region = 'US';
+
+/** A player with at least one top 1% (99+) parse in the raid, as one spec. */
+export interface Leader {
+  name: string;
+  /** Bosses parsed 99 or higher as this spec. */
+  topParses: number;
+  /** Their best parse as this spec. */
+  bestParse: number;
+  /** Average parse over the bosses they killed as this spec. */
+  averageParse: number;
+}
+
+export interface SpecLeaders {
+  className: string;
+  spec: string;
+  players: Leader[];
+}
+
+/** Every class and spec with the realm's top 1% players in one raid. */
+export interface Leaderboard {
+  realm: string;
+  raid: { id: string; name: string } | null;
+  /** How many saved character pages the list was built from. */
+  characters: number;
+  specs: SpecLeaders[];
+  updatedAt: number;
+}

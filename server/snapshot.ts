@@ -1,6 +1,7 @@
-import { REALM_REGION, REALMS, type ApiStatus, type Benchmark, type Comparison, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
+import { REALM_REGION, REALMS, type ApiStatus, type Benchmark, type Comparison, type Leaderboard, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
 import { keyString } from './core/benchmark.js';
 import { buildRow, summarise } from './core/report.js';
+import { buildLeaders } from './core/leaders.js';
 import { DAY, HOUR, MINUTE, type TtlCache } from './cache.js';
 import { classByName } from './core/classes.js';
 import type { CharacterRef } from './core/input.js';
@@ -432,17 +433,49 @@ export class SnapshotProvider implements Provider {
     const job: Job = { kind: 'zone', ref, raidId: id!, ...(spec ? { spec } : {}) };
     const at = this.cache.fetchedAt(`view|${jobKey(job)}`);
     if (at != null && Date.now() - at < REFRESH_COOLDOWN) return this.read<ZoneReport>(job);
-    if (this.live.headroom() <= REFRESH_RESERVE) {
-      throw new ApiFailure('rate_limited', 'Warcraft Logs is busy right now, so refreshing has to wait. The saved data is still shown and updates daily.');
-    }
     const who = refKey(ref);
-    for (const prefix of [`char|${who}|`, `kills|${who}|`, `compare2|${who}|`, `view|compare|${who}|`, `notfound|compare|${who}|`, `notfound|zone|${who}|`]) {
-      this.cache.deletePrefix(prefix);
+    // Raw replies are dropped either way, so whenever the pull happens it gets new data.
+    for (const prefix of [`char|${who}|`, `kills|${who}|`, `compare2|${who}|`]) this.cache.deletePrefix(prefix);
+    if (this.live.headroom() <= REFRESH_RESERVE) {
+      // No room this hour: pull it on the next pass and keep showing the saved page, without fuss.
+      this.puller.enqueue(job);
+      return this.read<ZoneReport>(job);
     }
-    if ((await this.puller.pullNow(job)) === 'limited') {
-      throw new ApiFailure('rate_limited', 'Warcraft Logs is busy right now, so refreshing has to wait. The saved data is still shown and updates daily.');
-    }
+    for (const prefix of [`view|compare|${who}|`, `notfound|compare|${who}|`, `notfound|zone|${who}|`]) this.cache.deletePrefix(prefix);
+    await this.puller.pullNow(job); // if the allowance runs out mid-way it is queued for the next pass
     return this.read<ZoneReport>(job);
+  }
+
+  private leaderMemo = new Map<string, { at: number; board: Leaderboard }>();
+
+  /**
+   * The realm's top 1% players for every class and spec in one raid, built from the saved raid
+   * pages (no Warcraft Logs calls). Rebuilt at most every 10 minutes.
+   */
+  async leaders(realm: string, raidId?: string): Promise<Leaderboard> {
+    const raids = await this.raids();
+    const raid = (raidId ? raids.find((r) => r.id === normaliseRaidId(raidId)) : raids[raids.length - 1]) ?? null;
+    const memoKey = `${realm}|${raid?.id ?? ''}`;
+    const memo = this.leaderMemo.get(memoKey);
+    if (memo && Date.now() - memo.at < 10 * MINUTE) return memo.board;
+
+    const pages: ZoneReport[] = [];
+    if (raid) {
+      for (const [key, page] of this.cache.withPrefix<ZoneReport>(`view|zone|${REALM_REGION}|${realm}|`)) {
+        // view|zone|US|realm|Name|raid — pages with a chosen spec on the end are left out.
+        const parts = key.split('|');
+        if (parts.length === 6 && parts[5] === raid.id) pages.push(page);
+      }
+    }
+    const board: Leaderboard = {
+      realm,
+      raid: raid && { id: raid.id, name: raid.name },
+      characters: pages.length,
+      specs: buildLeaders(pages),
+      updatedAt: Date.now(),
+    };
+    this.leaderMemo.set(memoKey, { at: Date.now(), board });
+    return board;
   }
 
   /** Fills each boss row's benchmark back in from the shared saved benchmarks (see `packSaved`). */

@@ -8,6 +8,7 @@ import { RaidSelect } from './components/RaidSelect';
 import { RaidView } from './components/RaidView';
 import { SpecBar } from './components/SpecBar';
 import { SearchBar } from './components/SearchBar';
+import { TopPlayers } from './components/TopPlayers';
 import { api, type Query } from './lib/api';
 
 function readUrl(): { query: Query | null; raid?: string; spec?: string } {
@@ -193,6 +194,7 @@ export function App() {
       {!guide && !query && (
         <>
           <EmptyIntro />
+          <TopPlayers raids={meta?.raids ?? []} onPick={search} />
           <ClassGrid navigate={navigate} />
         </>
       )}

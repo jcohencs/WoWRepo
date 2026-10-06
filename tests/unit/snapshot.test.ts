@@ -278,10 +278,28 @@ describe('saved pages + scheduled puller', () => {
   it('keeps fight logs on disk, trimmed, so they are never fetched twice', async () => {
     const { site, cache } = setup();
     await site.compare(newcomer, 601, 'Fury');
-    const saved = [...cache.withPrefix<{ amounts: object[] }>('tables2|')];
+    const saved = [...cache.withPrefix<{ amounts: object[] }>('tables3|')];
     expect(saved.length).toBeGreaterThan(0);
     for (const [, t] of saved) for (const e of t.amounts) expect(Object.keys(e).sort()).toEqual(expect.arrayContaining(['guid', 'name', 'total']));
     expect([...cache.withPrefix('side|')].length).toBeGreaterThan(0); // withPrefix only lists what goes to disk
+  });
+
+  it('the first click only fetches damage and casts; the extra charts come later, once, and are saved', async () => {
+    const { site, queries } = setup();
+    const c = await site.compare(newcomer, 601, 'Fury');
+    expect(queries.some((q) => q.includes('graph: graph('))).toBe(false);
+    expect(c.you.timeline).toBeUndefined();
+
+    const extras = await site.compareExtras(newcomer, 601, 'Fury');
+    expect(extras.you.timeline?.cumulative.length).toBeGreaterThan(1);
+    expect(extras.you.prep?.food).toBe(1);
+    const asked = queries.filter((q) => q.includes('graph: graph(')).length;
+    expect(asked).toBeGreaterThan(0);
+
+    // Saved into the comparison: reopening has the charts, and asking again costs nothing.
+    expect((await site.compare(newcomer, 601, 'Fury')).you.timeline).toBeDefined();
+    await site.compareExtras(newcomer, 601, 'Fury');
+    expect(queries.filter((q) => q.includes('graph: graph(')).length).toBe(asked);
   });
 
   it('pulls a comparison on first click', async () => {

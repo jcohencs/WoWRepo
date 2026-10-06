@@ -3126,3 +3126,15 @@ button.top-overall:hover {
   width: 200px;
   height: 34px;
 }
+.charts-pending {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 18px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.radar-load {
+  display: block;
+  margin: 10px auto 6px;
+}

@@ -1,4 +1,5 @@
 import type { BossRow, Comparison } from '../../../shared/types';
+import { needsExtras } from '../../lib/api';
 import { amount, integer, metricLabel, percent } from '../../lib/format';
 
 interface Axis {
@@ -57,14 +58,22 @@ const CY = H / 2 + 4;
 const R = 80;
 
 /** You against the top 1% player on each stat at once. Their line is the middle ring; outside it is better. */
-export function PerformanceRadar({ data }: { data: Comparison | null }) {
+export function PerformanceRadar({ data, onLoad }: { data: Comparison | null; onLoad?: () => void }) {
   if (!data) return null;
   const axes = axesFor(data);
   if (axes.length < 3) {
     return (
       <section className="radar-card">
         <p className="sidebar-title">Performance profile</p>
-        <p className="soft radar-empty">{data.ref ? 'Not enough data on this kill to compare yet.' : 'Shows once there is a top 1% log to compare with.'}</p>
+        {data.ref && needsExtras(data) && onLoad ? (
+          <button className="button ghost radar-load" onClick={onLoad}>
+            Load profile
+          </button>
+        ) : (
+          <p className="soft radar-empty">
+            {!data.ref ? 'Shows once there is a top 1% log to compare with.' : needsExtras(data) ? 'Loading…' : 'Not enough data on this kill to compare yet.'}
+          </p>
+        )}
       </section>
     );
   }

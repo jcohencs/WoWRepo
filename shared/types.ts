@@ -63,6 +63,13 @@ export interface RankingEntry {
 }
 
 /** Your best kill of a boss in one raid week (weeks start on the US reset, Tuesday). */
+/** The extra charts of one side of a comparison, fetched after the first click. */
+export interface SideExtras {
+  timeline?: FightSide['timeline'];
+  taken?: FightSide['taken'];
+  prep?: FightSide['prep'];
+}
+
 export interface WeekPoint {
   /** Epoch ms of the week's reset. */
   week: number;

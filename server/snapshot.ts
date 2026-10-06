@@ -1,4 +1,4 @@
-import { REALM_REGION, REALMS, type ApiStatus, type Benchmark, type Comparison, type Leaderboard, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
+import { REALM_REGION, REALMS, type ApiStatus, type Benchmark, type Comparison, type Leaderboard, type SideExtras, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
 import { keyString } from './core/benchmark.js';
 import { buildRow, summarise } from './core/report.js';
 import { lastDailyTime } from './core/schedule.js';
@@ -480,6 +480,26 @@ export class SnapshotProvider implements Provider {
   async compare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison> {
     if (!/^[A-Za-z]+$/.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
     return this.read<Comparison>({ kind: 'compare', ref, encounterId, spec, ...(week ? { week } : {}) });
+  }
+
+  /**
+   * The extra charts of a comparison already shown, fetched when someone scrolls to them and saved
+   * into the comparison so they're never fetched twice.
+   */
+  async compareExtras(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<{ you: SideExtras; ref: SideExtras | null }> {
+    if (!/^[A-Za-z]+$/.test(spec)) throw new ApiFailure('bad_request', 'Invalid spec.');
+    const key = `view|${jobKey({ kind: 'compare', ref, encounterId, spec, ...(week ? { week } : {}) })}`;
+    const saved = this.cache.peekAny<Comparison>(key);
+    if (!saved) throw new ApiFailure('not_found', 'Open the comparison first.');
+    const c = saved.value;
+    const has = (side: Comparison['you'] | null | undefined) => side != null && (side.timeline !== undefined || side.taken !== undefined || side.prep !== undefined);
+    const pick = (side: Comparison['you']): SideExtras => ({ timeline: side.timeline, taken: side.taken, prep: side.prep });
+    if (has(c.you)) return { you: pick(c.you), ref: c.ref ? pick(c.ref) : null };
+    if (this.live.headroom() <= REFRESH_RESERVE) throw new ApiFailure('rate_limited', 'Charts will load when Warcraft Logs has room.');
+    const extras = await this.live.comparisonExtras(c);
+    const merged: Comparison = { ...c, you: { ...c.you, ...extras.you }, ref: c.ref ? { ...c.ref, ...(extras.ref ?? {}) } : null };
+    this.cache.set(key, merged, KEEP);
+    return extras;
   }
 
   private async read<T>(job: Job): Promise<T> {

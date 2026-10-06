@@ -1,4 +1,4 @@
-import type { Benchmark, Comparison, FightSide, Leaderboard, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
+import type { Benchmark, Comparison, FightSide, Leaderboard, SideExtras, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
 import { join, resolve } from 'node:path';
 import { DAY, HOUR, MINUTE, TtlCache } from '../cache.js';
 import {
@@ -11,7 +11,7 @@ import {
   type RawRankingPage,
 } from '../core/benchmark.js';
 import { CLASSES, classById, metricFor, metricForSpec, specLabel, type ClassInfo } from '../core/classes.js';
-import { compareAbilities, type TableEntry } from '../core/compare.js';
+import { compareAbilities, type SideTables, type TableEntry } from '../core/compare.js';
 import { raceFrom } from '../core/race.js';
 import { classRoles, leaderFromRankings } from '../core/leaders.js';
 import { bestPerWeek, preparation, takenBySchool, timelineFromGraph, type Kill } from '../core/fight.js';
@@ -560,45 +560,55 @@ export class WclProvider implements Provider {
   }
 
   /**
-   * Per-ability amounts and casts, plus the fight timeline, damage taken and buffs, in one request.
-   * If Warcraft Logs rejects the extra charts, the breakdown is fetched on its own so it always shows.
+   * Per-ability amounts and casts for one player in one fight: all the first click needs. The extra
+   * charts (timeline, damage taken, buffs) are a separate, later request (`sideExtras`).
    */
-  private sideTables(s: ResolvedSide, dataType: string) {
-    return this.cache.get(`tables2|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`, TTL.report, async () => {
-      type Report = { amounts: ReportTable; casts: ReportTable; graph?: unknown; taken?: ReportTable; buffs?: BuffTable };
-      const fields = (extras: boolean) => `
+  private sideTables(s: ResolvedSide, dataType: string): Promise<SideTables & Partial<SideExtras>> {
+    // Logs saved before the split already include the extra charts.
+    const older = this.cache.peekAny<SideTables & Partial<SideExtras>>(`tables2|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`);
+    if (older) return Promise.resolve(older.value);
+    return this.cache.get(`tables3|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`, TTL.report, async () => {
+      const data = await this.client.query<{ reportData: { report: { amounts: ReportTable; casts: ReportTable } | null } }>(
+        `query($code: String!, $fight: Int!, $source: Int!, $start: Float!, $end: Float!) {
+          reportData { report(code: $code) {
             amounts: table(dataType: ${dataType}, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
-            casts: table(dataType: Casts, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)${
-              extras
-                ? `
-            graph: graph(dataType: ${dataType}, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
-            taken: table(dataType: DamageTaken, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
-            buffs: table(dataType: Buffs, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)`
-                : ''
-            }`;
-      const run = (extras: boolean) =>
-        this.client.query<{ reportData: { report: Report | null } }>(
-          `query($code: String!, $fight: Int!, $source: Int!, $start: Float!, $end: Float!) {
-          reportData { report(code: $code) {${fields(extras)}
+            casts: table(dataType: Casts, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
           } }
         }`,
-          { code: s.code, fight: s.fightId, source: s.sourceId, start: s.startTime, end: s.endTime },
-        );
-      let r: Report | null;
-      try {
-        r = (await run(true)).reportData.report;
-      } catch (err) {
-        if (err instanceof ApiFailure && err.code === 'rate_limited') throw err;
-        console.warn(`[wcl] extra charts unavailable for log ${s.code}, loading the breakdown only: ${(err as Error).message}`);
-        r = (await run(false)).reportData.report;
-      }
+        { code: s.code, fight: s.fightId, source: s.sourceId, start: s.startTime, end: s.endTime },
+      );
+      const r = data.reportData.report;
       if (!r) throw new ApiFailure('upstream', `Report ${s.code} is not available.`);
-      const durationMs = s.endTime - s.startTime;
       // Keep only what the comparison uses, so saved logs stay small.
       const slim = (e: TableEntry) => ({ guid: e.guid, name: e.name, total: e.total, ...(e.abilityIcon ? { abilityIcon: e.abilityIcon } : {}) });
-      const amounts = (r.amounts?.data?.entries ?? []).map(slim);
-      const casts = (r.casts?.data?.entries ?? []).map(slim);
-      const total = amounts.reduce((sum, e) => sum + (e.total || 0), 0);
+      return { durationMs: s.endTime - s.startTime, amounts: (r.amounts?.data?.entries ?? []).map(slim), casts: (r.casts?.data?.entries ?? []).map(slim) };
+    });
+  }
+
+  private extrasKey(s: ResolvedSide, dataType: string) {
+    return `extras1|${s.code}|${s.fightId}|${s.sourceId}|${dataType}`;
+  }
+
+  /** The extra charts for one player in one fight, saved like the rest of the log. */
+  private sideExtras(s: ResolvedSide, dataType: string): Promise<SideExtras> {
+    return this.cache.get(this.extrasKey(s, dataType), TTL.report, async () => {
+      const tables = await this.sideTables(s, dataType);
+      if (tables.timeline !== undefined || tables.taken !== undefined || tables.prep !== undefined) {
+        return { timeline: tables.timeline, taken: tables.taken, prep: tables.prep };
+      }
+      const data = await this.client.query<{ reportData: { report: { graph?: unknown; taken?: ReportTable; buffs?: BuffTable } | null } }>(
+        `query($code: String!, $fight: Int!, $source: Int!, $start: Float!, $end: Float!) {
+          reportData { report(code: $code) {
+            graph: graph(dataType: ${dataType}, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+            taken: table(dataType: DamageTaken, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+            buffs: table(dataType: Buffs, fightIDs: [$fight], sourceID: $source, startTime: $start, endTime: $end)
+          } }
+        }`,
+        { code: s.code, fight: s.fightId, source: s.sourceId, start: s.startTime, end: s.endTime },
+      );
+      const r = data.reportData.report;
+      const durationMs = s.endTime - s.startTime;
+      const total = tables.amounts.reduce((sum, e) => sum + (e.total || 0), 0);
       const safe = <T,>(f: () => T): T | undefined => {
         try {
           return f();
@@ -607,14 +617,22 @@ export class WclProvider implements Provider {
         }
       };
       return {
-        durationMs,
-        amounts,
-        casts,
-        timeline: safe(() => timelineFromGraph(r!.graph, total, durationMs)),
-        taken: r.taken ? safe(() => takenBySchool(r!.taken?.data?.entries ?? [], durationMs)) : undefined,
-        prep: r.buffs ? safe(() => preparation(r!.buffs?.data?.auras ?? r!.buffs?.data?.entries ?? [], casts, r!.buffs?.data?.totalTime || durationMs)) : undefined,
+        timeline: r ? safe(() => timelineFromGraph(r.graph, total, durationMs)) : undefined,
+        taken: r?.taken ? safe(() => takenBySchool(r.taken?.data?.entries ?? [], durationMs)) : undefined,
+        prep: r?.buffs ? safe(() => preparation(r.buffs?.data?.auras ?? r.buffs?.data?.entries ?? [], tables.casts, r.buffs?.data?.totalTime || durationMs)) : undefined,
       };
     });
+  }
+
+  /**
+   * The extra charts for a comparison already shown (asked for when someone scrolls to them), so
+   * the first click only pays for the damage and casts tables.
+   */
+  async comparisonExtras(c: Comparison): Promise<{ you: SideExtras; ref: SideExtras | null }> {
+    const dataType = c.metric === 'hps' ? 'Healing' : 'DamageDone';
+    const load = async (side: FightSide) => this.sideExtras(await this.resolveSide(side.reportCode, side.fightId, side.name, side.server, dataType), dataType);
+    const [you, ref] = await Promise.all([load(c.you), c.ref ? load(c.ref).catch(() => null) : Promise.resolve(null)]);
+    return { you, ref };
   }
 
   /**
@@ -659,9 +677,9 @@ export class WclProvider implements Provider {
       ]);
 
       const toSide = ({ side, tables }: { side: ResolvedSide; tables: Awaited<ReturnType<WclProvider['sideTables']>> }): FightSide => ({
-        timeline: tables.timeline,
-        taken: tables.taken,
-        prep: tables.prep,
+        // The extra charts are only included if this log's were already fetched; otherwise the
+        // page asks for them when someone scrolls to them.
+        ...(this.cache.peekAny<SideExtras>(this.extrasKey(side, dataType))?.value ?? { timeline: tables.timeline, taken: tables.taken, prep: tables.prep }),
         name: side.name,
         server: side.server,
         amount: side.total,

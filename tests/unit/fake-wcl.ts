@@ -116,6 +116,17 @@ export function handler(query: string, variables: Record<string, unknown>) {
       },
     };
   }
+  if (query.includes('graph: graph(')) {
+    return {
+      reportData: {
+        report: {
+          graph: { data: { series: [{ name: 'Total', pointStart: 0, pointInterval: 1000, data: [1, 2, 3, 4] }] } },
+          taken: table([{ name: 'Melee', type: 1, total: 60000 }]),
+          buffs: { data: { totalTime: 120000, auras: [{ name: 'Well Fed', totalUptime: 120000 }] } },
+        },
+      },
+    };
+  }
   if (query.includes('amounts: table')) {
     return {
       reportData: {

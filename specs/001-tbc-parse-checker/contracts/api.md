@@ -18,6 +18,9 @@ All responses are JSON. Errors: `{ "error": { "code": string, "message": string 
 ## GET /api/leaders?realm=nightslayer&raid=black-temple
 → `Leaderboard` — each class's #1 on the realm in the raid (default: latest), from Warcraft Logs' realm rankings (`characterRankings` filtered by class, metric and server, page 1 for every boss): damage for every class (tank specs left out), healing for hybrids, and tanking (Protection Warrior/Paladin, Guardian Druid, ranked by DPS). Score = sum over bosses of the player's amount ÷ the realm's best; pulled once a day at 10:00 AM Eastern (Warcraft Logs takes time to verify logs); a raid never pulled is pulled on first view.
 
+## GET /api/compare-extras?region=US&realm=nightslayer&name=Foo&encounter=601&spec=Fury&week=…
+→ `{ you: SideExtras, ref: SideExtras | null }` — the fight timeline, damage taken and prep for a comparison already opened (the first `/api/compare` only fetches damage and casts). Saved into the comparison; asked for when the charts are scrolled to or the profile is opened. 404 if the comparison wasn't opened; 429 when the allowance is low.
+
 ## GET /api/status
 → `ApiStatus | null` — `{ limitPerHour, pointsSpent, resetsInSec, savedResults }` (null in demo mode).
 

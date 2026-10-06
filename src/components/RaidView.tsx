@@ -32,6 +32,10 @@ export function RaidView({ report, query, site, demo, navigate }: Props) {
   const row = report.rows.find((r) => r.encounter.id === selected) ?? null;
   // The comparison the main area loaded, for the profile under the boss list.
   const [shown, setShown] = useState<Comparison | null>(null);
+  // The profile and prep boxes need the comparison's extra charts; they load when the charts at the
+  // bottom are scrolled to, or when someone asks for the profile.
+  const [wantExtras, setWantExtras] = useState(false);
+  useEffect(() => setWantExtras(false), [row?.encounter.id, row?.spec]);
   useEffect(() => setShown(null), [row?.encounter.id, row?.spec]);
   const s = report.summary;
 
@@ -85,12 +89,14 @@ export function RaidView({ report, query, site, demo, navigate }: Props) {
         </ol>
         </div>
 
-        <ErrorBoundary what="the performance profile" resetKey={shown}>
-          <PerformanceRadar data={shown} />
-        </ErrorBoundary>
-        <ErrorBoundary what="preparation" resetKey={shown}>
-          <PrepChart data={shown} compact />
-        </ErrorBoundary>
+        <div className="sidebar-col">
+          <ErrorBoundary what="the performance profile" resetKey={shown}>
+            <PerformanceRadar data={shown} onLoad={wantExtras ? undefined : () => setWantExtras(true)} />
+          </ErrorBoundary>
+          <ErrorBoundary what="preparation" resetKey={shown}>
+            <PrepChart data={shown} compact />
+          </ErrorBoundary>
+        </div>
         <SpecLinksCard name={report.character.className} spec={row?.spec ?? report.spec ?? report.mainSpec ?? ''} navigate={navigate} />
       </aside>
 
@@ -99,7 +105,7 @@ export function RaidView({ report, query, site, demo, navigate }: Props) {
           <>
             <BossStats row={row} shown={shown} />
             <ErrorBoundary what="this breakdown" resetKey={`${row.encounter.id}|${row.spec}`}>
-              <ComparePanel key={`${row.encounter.id}|${row.spec}|${report.updatedAt}`} query={query} row={row} site={site} demo={demo} onData={setShown} />
+              <ComparePanel key={`${row.encounter.id}|${row.spec}|${report.updatedAt}`} query={query} row={row} site={site} demo={demo} onData={setShown} wantExtras={wantExtras} />
             </ErrorBoundary>
           </>
         ) : (

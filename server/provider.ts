@@ -1,4 +1,4 @@
-import type { Leaderboard, ApiStatus, Comparison, Raid, Site, ZoneReport } from '../shared/types.js';
+import type { Leaderboard, SideExtras, ApiStatus, Comparison, Raid, Site, ZoneReport } from '../shared/types.js';
 import type { CharacterRef } from './core/input.js';
 
 export interface Provider {
@@ -14,6 +14,8 @@ export interface Provider {
   leaders?(realm: string, raidId?: string): Promise<Leaderboard>;
   /** Pulls every released raid's #1 list now, outside the 10:00 AM schedule (admin link). */
   pullLeadersNow?(): Promise<{ raids: string[]; classesWithLeaders: number; message: string }>;
+  /** The extra charts (timeline, damage taken, prep) of a comparison already shown. */
+  compareExtras?(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<{ you: SideExtras; ref: SideExtras | null }>;
   /** Pulls the character's raid page again now (the page's Refresh button). */
   refresh(ref: CharacterRef, raidId?: string, spec?: string): Promise<ZoneReport>;
 }

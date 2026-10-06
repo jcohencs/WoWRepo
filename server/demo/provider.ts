@@ -1,6 +1,6 @@
 import { CLASSES } from '../core/classes.js';
 import { classRoles, TANK_SPECS } from '../core/leaders.js';
-import { REALMS, type Benchmark, type Comparison, type Leaderboard, type Raid, type ZoneReport } from '../../shared/types.js';
+import { REALMS, type Benchmark, type Comparison, type Leaderboard, type Raid, type SideExtras, type ZoneReport } from '../../shared/types.js';
 import { compareAbilities, type SideTables } from '../core/compare.js';
 import { weekStart } from '../core/fight.js';
 import type { CharacterRef } from '../core/input.js';
@@ -131,6 +131,13 @@ export class DemoProvider implements Provider {
     return { realm, raid: { id: raid.id, name: raid.name }, classes, updatedAt: Date.now() };
   }
 
+  async compareExtras(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<{ you: SideExtras; ref: SideExtras | null }> {
+    this.extrasServed.add(`${ref.name}|${encounterId}|${spec}|${week ?? ''}`);
+    const c = await this.fullCompare(ref, encounterId, spec, week);
+    const pick = (s: Comparison['you']): SideExtras => ({ timeline: s.timeline, taken: s.taken, prep: s.prep });
+    return { you: pick(c.you), ref: c.ref ? pick(c.ref) : null };
+  }
+
   async raids(): Promise<Raid[]> {
     return this.allRaids;
   }
@@ -175,7 +182,17 @@ export class DemoProvider implements Provider {
     };
   }
 
+  /** Comparisons whose extra charts were asked for; like the real site, the first click comes without them. */
+  private extrasServed = new Set<string>();
+
   async compare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison> {
+    const full = await this.fullCompare(ref, encounterId, spec, week);
+    if (this.extrasServed.has(`${ref.name}|${encounterId}|${spec}|${week ?? ''}`)) return full;
+    const bare = (s: Comparison['you']) => ({ ...s, timeline: undefined, taken: undefined, prep: undefined });
+    return { ...full, you: bare(full.you), ref: full.ref ? bare(full.ref) : null };
+  }
+
+  private async fullCompare(ref: CharacterRef, encounterId: number, spec: string, week?: number): Promise<Comparison> {
     const zone = TBC_ZONES.find((z) => z.encounters.some((e) => e.id === encounterId));
     if (!zone || !WARRIOR_SPECS.includes(spec)) throw new ApiFailure('not_found', 'No kill for that boss in the demo data.');
     const encounter = zone.encounters.find((e) => e.id === encounterId)!;

@@ -115,6 +115,12 @@ export function createApiHandler(provider: Provider = providerFromEnv(process.en
         }
         case '/api/refresh':
           return send(res, 200, await provider.refresh(ref(p), p.get('raid') || undefined, p.get('spec') || undefined));
+        case '/api/compare-extras': {
+          const spec = p.get('spec') ?? '';
+          if (!spec) throw new ApiFailure('bad_request', 'Missing "spec".');
+          if (!provider.compareExtras) throw new ApiFailure('not_found', 'Not available.');
+          return send(res, 200, await provider.compareExtras(ref(p), intParam(p, 'encounter', true)!, spec, intParam(p, 'week', false)));
+        }
         case '/api/compare': {
           const spec = p.get('spec') ?? '';
           if (!spec) throw new ApiFailure('bad_request', 'Missing "spec".');

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { AbilityLine, BossRow, Comparison, FightSide, Site } from '../../shared/types';
-import { api, type Query } from '../lib/api';
+import { api, needsExtras, type Query } from '../lib/api';
+import { useVisible } from '../lib/useVisible';
 import { percent, specLabel } from '../lib/format';
 import { abilityIcon, reportUrl } from '../lib/links';
 import { AbilityPies, buildSlices } from './AbilityPies';
@@ -16,10 +17,14 @@ interface Props {
   demo: boolean;
   /** Told about each comparison shown, so the sidebar can draw the performance profile. */
   onData?: (c: Comparison) => void;
+  /** The sidebar's profile or prep box is on screen: load the extra charts even if this panel's aren't. */
+  wantExtras?: boolean;
 }
 
-export function ComparePanel({ query, row, site, demo, onData }: Props) {
+export function ComparePanel({ query, row, site, demo, onData, wantExtras = false }: Props) {
   const [data, setData] = useState<Comparison | null>(null);
+  const [chartsRef, chartsSeen] = useVisible();
+  const [extrasFailed, setExtrasFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [tab, setTab] = useState<'casts' | 'abilities'>('casts');
@@ -48,6 +53,27 @@ export function ComparePanel({ query, row, site, demo, onData }: Props) {
       live = false;
     };
   }, [query, row.encounter.id, row.spec, week, attempt]);
+
+  // The extra charts (timeline, damage taken, prep) cost Warcraft Logs points, so they're only
+  // fetched once someone scrolls to them.
+  const pending = data != null && needsExtras(data);
+  useEffect(() => {
+    if (!data || !pending || !(chartsSeen || wantExtras)) return;
+    let live = true;
+    setExtrasFailed(false);
+    api.compareExtras(query, data, week ?? undefined).then(
+      (merged) => {
+        if (!live) return;
+        setData(merged);
+        onData?.(merged);
+      },
+      () => live && setExtrasFailed(true),
+    );
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, pending, chartsSeen, wantExtras]);
 
   // A failed week keeps the kill already on screen; only a first load with nothing to show is an error page.
   if (error && !data)
@@ -141,7 +167,10 @@ export function ComparePanel({ query, row, site, demo, onData }: Props) {
         </div>
       </div>
 
-      <div className="chart-grid">
+      <div className="chart-grid" ref={chartsRef}>
+        {pending && (
+          <p className="charts-pending soft">{extrasFailed ? 'Charts will load when Warcraft Logs has room — try again in a few minutes.' : 'Loading charts…'}</p>
+        )}
         <ErrorBoundary what="the fight timeline" resetKey={data}>
           <FightTimeline data={data} />
         </ErrorBoundary>

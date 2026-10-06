@@ -68,7 +68,7 @@ if (!nameArg) {
     const report = await step(`${ref.name} — ${raid.name}`, () => live.zoneReport(ref, raid.id), (r) => {
       const killed = r.rows.filter((row) => row.best != null);
       const benched = r.rows.filter((row) => row.benchmark != null).length;
-      return `${r.character.className}, ${killed.length}/${r.rows.length} bosses killed, top 1% numbers for ${benched}/${r.rows.length}`;
+      return `${r.character.race ?? "race unknown"} ${r.character.className}, ${killed.length}/${r.rows.length} bosses killed, top 1% numbers for ${benched}/${r.rows.length}`;
     });
     const kill = report?.rows.find((row) => row.best != null && row.benchmark != null);
     if (kill) {

@@ -37,6 +37,14 @@ export function CharacterHeader({ report, site, children, onRefresh, refreshing,
             <p>
               {specs.length === 1 && <SpecIcon className={character.className} spec={specs[0]} size={18} />}
               {spec} {character.className}
+              {character.race && (
+                <>
+                  <span className="dot" aria-hidden>
+                    ·
+                  </span>
+                  {character.race}
+                </>
+              )}
               <span className="dot" aria-hidden>
                 ·
               </span>

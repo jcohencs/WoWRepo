@@ -12,6 +12,7 @@ import {
 } from '../core/benchmark.js';
 import { CLASSES, classById, metricFor, metricForSpec, specLabel, type ClassInfo } from '../core/classes.js';
 import { compareAbilities, type TableEntry } from '../core/compare.js';
+import { raceFrom } from '../core/race.js';
 import { bestPerWeek, preparation, takenBySchool, timelineFromGraph, type Kill } from '../core/fight.js';
 import type { CharacterRef } from '../core/input.js';
 import { normaliseRaidId, raidsFromZones } from '../core/raids.js';
@@ -39,6 +40,10 @@ interface CharacterResponse {
       name: string;
       classID: number;
       server: { name: string; slug: string };
+      /** Blizzard profile data Warcraft Logs keeps for the character (race, gear…); only read for the race. */
+      gameData?: unknown;
+      /** Kept instead of `gameData` (which includes all their gear) once fetched. */
+      race?: string | null;
       dps: ZoneRankings | null;
       hps: ZoneRankings | null;
     };
@@ -98,6 +103,13 @@ interface ResolvedSide {
 const SAFE_NAME = /^[A-Za-z]+$/;
 
 
+
+/** Keeps the race and drops the rest of the profile data (gear), so saved replies stay small. */
+const slimCharacter = (c: CharacterResponse['characterData']['character']): CharacterResponse['characterData']['character'] => {
+  if (!c) return c;
+  const { gameData, ...rest } = c;
+  return { ...rest, race: rest.race ?? raceFrom(gameData) };
+};
 
 const killsFrom = (ranks: EncounterRanks | null | undefined): Kill[] =>
   // Hidden or deleted logs come back without a report; skip them rather than fail.
@@ -269,7 +281,7 @@ export class WclProvider implements Provider {
 
 
     return {
-      character: { name: c.name, realm: c.server.slug, realmName: c.server.name, region: ref.region, className: cls.name },
+      character: { name: c.name, realm: c.server.slug, realmName: c.server.name, region: ref.region, className: cls.name, race: c.race ?? raceFrom(c.gameData) },
       raid,
       rows,
       summary: summarise(rows),
@@ -305,7 +317,7 @@ export class WclProvider implements Provider {
       vars[`r${i}`] = r.region;
       defs.push(`$n${i}: String!`, `$s${i}: String!`, `$r${i}: String!`);
       return `c${i}: character(name: $n${i}, serverSlug: $s${i}, serverRegion: $r${i}) {
-        name classID server { name slug }
+        name classID server { name slug } gameData
         dps: zoneRankings(zoneID: $zone, metric: dps)
         hps: zoneRankings(zoneID: $zone, metric: hps)
       }`;
@@ -316,7 +328,7 @@ export class WclProvider implements Provider {
     );
     let found = 0;
     refs.forEach((ref, i) => {
-      const character = data.characterData[`c${i}`] ?? null;
+      const character = slimCharacter(data.characterData[`c${i}`] ?? null);
       if (character) found++;
       this.cache.set(this.charKey(ref, zoneId), { characterData: { character } } satisfies CharacterResponse, TTL.character);
     });
@@ -347,18 +359,19 @@ export class WclProvider implements Provider {
     });
   }
 
-  private fetchCharacter(ref: CharacterRef, zoneId: number, spec?: string) {
+  private async fetchCharacter(ref: CharacterRef, zoneId: number, spec?: string): Promise<CharacterResponse> {
     const bySpec = spec ? ', specName: $spec' : '';
-    return this.client.query<CharacterResponse>(
+    const data = await this.client.query<CharacterResponse>(
       `query($name: String!, $server: String!, $region: String!, $zone: Int!${spec ? ', $spec: String!' : ''}) {
         characterData { character(name: $name, serverSlug: $server, serverRegion: $region) {
-          name classID server { name slug }
+          name classID server { name slug } gameData
           dps: zoneRankings(zoneID: $zone, metric: dps${bySpec})
           hps: zoneRankings(zoneID: $zone, metric: hps${bySpec})
         } }
       }`,
       { name: ref.name, server: ref.realm, region: ref.region, zone: zoneId, ...(spec ? { spec } : {}) },
     );
+    return { characterData: { character: slimCharacter(data.characterData.character) } };
   }
 
   private bestKillKey(ref: CharacterRef, encounterId: number, spec: string, metric: Metric) {

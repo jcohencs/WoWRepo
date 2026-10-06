@@ -133,7 +133,7 @@ export class DemoProvider implements Provider {
       );
     });
     return {
-      character: { name: ref.name, realm: ref.realm, realmName: realmName(ref.realm), region: ref.region, className: CLASS },
+      character: { name: ref.name, realm: ref.realm, realmName: realmName(ref.realm), region: ref.region, className: CLASS, race: 'Orc' },
       raid,
       rows,
       summary: summarise(rows),

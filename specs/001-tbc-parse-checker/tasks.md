@@ -176,3 +176,5 @@ description: "Task list for TBC Parse Checker"
 - [x] T095 Talents & guide box is only as tall as its content (no longer stretched to the last chart)
 - [x] T096 "Where you sit" follows the kill being compared (best kill or the chosen week), with its DPS in the caption; darker background, box and line colours
 - [x] T097 Sidebar summary keeps only Avg parse and Killed; a gold ★ marks a top 1% parse (99+) in the boss list and the boss numbers
+- [x] T098 Race next to the character (read from the Blizzard profile data Warcraft Logs keeps, `gameData`; gear is dropped right away; `npm run doctor` prints it)
+- [x] T099 Performance profile: centred title between lines, explanation removed; slightly larger logo and search bar

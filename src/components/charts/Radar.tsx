@@ -81,7 +81,6 @@ export function PerformanceRadar({ data }: { data: Comparison | null }) {
   return (
     <section className="radar-card">
       <p className="sidebar-title">Performance profile</p>
-      <p className="soft radar-note">Each stat next to the top 1% player's. Their line is the dashed ring; further out is better.</p>
       <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label={axes.map((a) => `${a.label}: ${percent(a.ratio, 0)} of top 1%`).join('; ')}>
         {[0.5, 1, 1.5].map((ring) => (
           <polygon key={ring} points={poly(() => ring)} className={`radar-ring${ring === 1 ? ' mid' : ''}`} />

@@ -47,6 +47,8 @@ export interface Character {
   realmName: string;
   region: Region;
   className: string;
+  /** e.g. "Orc"; null when Warcraft Logs has no profile data for the character. */
+  race?: string | null;
 }
 
 export interface RankingEntry {

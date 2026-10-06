@@ -538,13 +538,13 @@ export class SnapshotProvider implements Provider {
       if (!wanted.includes(raid.id)) this.cache.set('leaders-wanted', [...wanted, raid.id], 365 * DAY);
       return empty();
     };
+    // Visitors never wait on Warcraft Logs for this: an unsaved list is fetched in the background
+    // (or on the next pass) while the page shows "being pulled" and checks back.
     if (this.live.headroom() <= REFRESH_RESERVE) return later();
-    try {
-      return await load();
-    } catch (err) {
-      if (err instanceof ApiFailure && err.code === 'rate_limited') return later();
-      throw err;
-    }
+    void load().catch((err) => {
+      if (err instanceof ApiFailure && err.code === 'rate_limited') later();
+    });
+    return empty();
   }
 
   /** Admin link: pull the newest raid's #1 list now. */

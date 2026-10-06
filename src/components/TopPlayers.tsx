@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { REALM_REGION, REALMS, type ClassLeader, type Leaderboard, type Raid } from '../../shared/types';
 import { api, type Query } from '../lib/api';
+import { preload } from '../lib/preload';
 import { classColor, classIconUrl } from '../lib/classes';
 import { ago, integer, metricLabel, specLabel } from '../lib/format';
 import { SpecIcon } from './SpecIcon';
@@ -9,11 +10,15 @@ import { SpecIcon } from './SpecIcon';
 export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query, raidId?: string) => void }) {
   const realm = REALMS[0];
   const [raidId, setRaidId] = useState<string | undefined>(undefined);
-  const [board, setBoard] = useState<Leaderboard | null>(null);
+  // The server builds the saved #1 list into the page, so it shows on the first paint.
+  const built = preload().leaders;
+  const [board, setBoard] = useState<Leaderboard | null>(built?.realm === realm.slug ? built : null);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    // Already have the built-in list for the default raid: no need to ask again on first load.
+    if (!raidId && tick === 0 && built?.realm === realm.slug && built.updatedAt != null) return;
     let live = true;
     setError(null);
     api.leaders(realm.slug, raidId).then(

@@ -1,14 +1,35 @@
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
 import { loadWclEnv } from './env.js';
-import { createApiHandler } from './handler.js';
+import { REALMS, type Meta } from '../shared/types.js';
+import { createApiHandler, providerFromEnv } from './handler.js';
 
 loadWclEnv();
 
 const dist = resolve(import.meta.dirname, '../dist');
 const port = Number(process.env.PORT ?? 8787);
-const api = createApiHandler();
+const provider = providerFromEnv(process.env, { schedule: true });
+const api = createApiHandler(provider);
+
+let indexHtml: string | null = null;
+
+/**
+ * The page with the raid list and the saved #1 list built in, so the main page shows them on the
+ * first paint instead of asking the server again. Data goes in a JSON block (not a script), which
+ * the content security policy allows.
+ */
+async function pageWithData(): Promise<string> {
+  indexHtml ??= readFileSync(join(dist, 'index.html'), 'utf8');
+  try {
+    const [raids, leaders] = await Promise.all([provider.raids(), provider.leaders?.(REALMS[0].slug)]);
+    const meta: Meta = { site: provider.site, demo: provider.demo, raids, version: (process.env.RENDER_GIT_COMMIT ?? 'local').slice(0, 7) };
+    const json = JSON.stringify({ meta, leaders: leaders ?? null }).replace(/</g, '\\u003c');
+    return indexHtml.replace('</head>', `<script type="application/json" id="preload">${json}</script></head>`);
+  } catch {
+    return indexHtml;
+  }
+}
 
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -40,6 +61,12 @@ function serveStatic(pathname: string, res: import('node:http').ServerResponse) 
   const safe = normalize(pathname).replace(/^(\.\.[/\\])+/, '');
   let file = join(dist, safe);
   if (!file.startsWith(dist) || !existsSync(file) || statSync(file).isDirectory()) file = join(dist, 'index.html');
+  if (file === join(dist, 'index.html')) {
+    res.setHeader('Content-Type', TYPES['.html']);
+    res.setHeader('Cache-Control', 'no-cache');
+    void pageWithData().then((html) => res.end(html));
+    return;
+  }
   res.setHeader('Content-Type', TYPES[extname(file)] ?? 'application/octet-stream');
   if (file.includes(`${join(dist, 'assets')}`)) res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
   createReadStream(file).pipe(res);

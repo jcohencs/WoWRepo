@@ -10,6 +10,7 @@ import { SpecBar } from './components/SpecBar';
 import { SearchBar } from './components/SearchBar';
 import { TopPlayers } from './components/TopPlayers';
 import { api, type Query } from './lib/api';
+import { preload } from './lib/preload';
 
 function readUrl(): { query: Query | null; raid?: string; spec?: string } {
   const p = new URLSearchParams(location.search);
@@ -30,7 +31,7 @@ function writeUrl(q: Query, raid: string, spec: string | null) {
 
 export function App() {
   const initial = useRef(readUrl());
-  const [meta, setMeta] = useState<Meta | null>(null);
+  const [meta, setMeta] = useState<Meta | null>(() => preload().meta);
   const [metaError, setMetaError] = useState<string | null>(null);
   const [query, setQuery] = useState<Query | null>(initial.current.query);
   const [raidId, setRaidId] = useState<string | undefined>(initial.current.raid);
@@ -44,6 +45,7 @@ export function App() {
   const [refreshNote, setRefreshNote] = useState<string | null>(null);
 
   useEffect(() => {
+    if (preload().meta) return; // built into the page by the server
     api.meta().then(setMeta, (e: Error) => setMetaError(e.message));
   }, []);
 

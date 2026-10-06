@@ -146,6 +146,14 @@ describe('saved pages + scheduled puller', () => {
     expect(pulls()).toBe(first * 2);
   });
 
+  it('a visitor never waits on Warcraft Logs for the #1 list: it comes back empty and is fetched behind the scenes', async () => {
+    const { site, queries } = setup();
+    const first = await site.leaders('nightslayer', 'black-temple');
+    expect(first.updatedAt).toBeNull();
+    await vi.waitFor(async () => expect((await site.leaders('nightslayer', 'black-temple')).updatedAt).not.toBeNull());
+    expect(queries.some((q) => q.includes('className: "'))).toBe(true);
+  });
+
   it('a #1 lookup Warcraft Logs rejects is skipped; the rest of the list is still saved', async () => {
     const cache = new TtlCache({ serveStale: false, persist: persisted, pack: packSaved });
     const { provider: live } = fakeWcl((query, variables) => {

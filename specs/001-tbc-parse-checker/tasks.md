@@ -196,3 +196,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T112 #1 section: bar chart of each class's #1 with Damage / Healing / Tanking buttons (class-coloured bars, best first, click to open), and three small boxes with the overall top damage, healer and tank; both sides line up and don't move when switching
 - [x] T113 #1 pulls: newest raid first; a batch Warcraft Logs rejects is retried one lookup at a time and only the rejected ones are skipped (logged), so the list is always saved
 - [x] T114 Admin link explains what's wrong (no ADMIN_KEY, too short, missing or wrong key); `/api/meta` and the startup log show the running version; startup log says whether the admin link is on
+- [x] T115 The server builds the raid list and the saved #1 list into the page (a JSON block the CSP allows), so the main page shows them on the first paint with no extra requests; visitors never wait on Warcraft Logs for a #1 list (unsaved ones are fetched in the background)

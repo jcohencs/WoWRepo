@@ -2929,101 +2929,185 @@ a.cb-action {
   }
 }
 
-/* ---------- Main page: #1 of each class — a Damage box and a Healing box ---------- */
-.leader-boxes {
+/* ---------- Main page: #1 of each class — bar chart with a role switch, and the overall tops ---------- */
+.leader-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 @media (max-width: 1000px) {
-  .leader-boxes {
+  .leader-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-.leader-box {
+.role-chart {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface);
+  padding: 12px 16px 10px;
 }
-.lb-head {
+.rc-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  gap: 12px;
+  padding-bottom: 10px;
+  margin-bottom: 4px;
   border-bottom: 1px solid var(--line);
-  background: var(--bg);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 13px;
 }
-.leader-box ol {
+.rc-empty {
+  margin: 0;
+  padding: 24px 0;
+}
+.rc-bars {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.leader-box li + li {
+.rc-bars li + li {
   border-top: 1px solid var(--line);
 }
-.lb-row {
+.rc-row {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) minmax(0, 150px) 90px;
+  grid-template-columns: 26px minmax(120px, 200px) minmax(0, 1fr) 64px;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   width: 100%;
-  padding: 10px 16px;
+  padding: 6px 4px;
   border: 0;
-  border-left: 2px solid var(--class);
+  border-radius: var(--radius);
   background: none;
   color: var(--text);
   font: inherit;
   text-align: left;
   cursor: pointer;
 }
-button.lb-row:hover {
+.rc-row:hover {
   background: var(--surface-2);
 }
-.lb-row.empty {
-  cursor: default;
-}
-.lb-icon {
+.rc-row img {
   border: 1px solid var(--class);
   border-radius: var(--radius);
-  background: var(--bg);
 }
-.lb-who {
+.rc-who {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  line-height: 1.25;
 }
-.lb-class {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--class);
-}
-.lb-name {
-  font-size: 16px;
+.rc-name {
+  font-size: 14px;
   font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.lb-spec {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  color: var(--soft);
+.rc-spec {
+  font-size: 12px;
+  color: var(--class);
   white-space: nowrap;
 }
-.lb-amount {
+.rc-track {
+  height: 12px;
+  border-radius: 2px;
+  background: var(--bg);
+  overflow: hidden;
+}
+.rc-bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 2px;
+  background: var(--class);
+  opacity: 0.85;
+}
+.rc-value {
   text-align: right;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.leader-col {
+
+.leader-side {
   display: grid;
-  gap: 16px;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.top-overall {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-left: 2px solid var(--class, var(--line-strong));
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.top-overall:hover {
+  background: var(--surface-2);
+}
+.top-overall.empty {
+  cursor: default;
+  font-size: 13px;
+}
+.to-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--soft);
+}
+.to-main {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.to-main img {
+  border: 1px solid var(--class);
+  border-radius: var(--radius);
+}
+.to-who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.to-name {
+  font-size: 17px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.to-spec {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--class);
+}
+.to-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.to-value small {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--soft);
+}
+.to-foot {
+  font-size: 12px;
+}
+/* Keep the chart the height of the 9-class damage list, so switching roles doesn't move the page. */
+.role-chart {
+  min-height: 392px;
 }

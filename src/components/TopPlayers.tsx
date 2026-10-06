@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { REALM_REGION, REALMS, type Leaderboard, type Raid } from '../../shared/types';
+import { REALM_REGION, REALMS, type ClassLeader, type Leaderboard, type Raid } from '../../shared/types';
 import { api, type Query } from '../lib/api';
 import { classColor, classIconUrl } from '../lib/classes';
 import { ago, integer, metricLabel, specLabel } from '../lib/format';
@@ -60,11 +60,12 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
       {error ? (
         <p className="state">{error}</p>
       ) : (
-        <div className="leader-boxes">
-          <LeaderBox role={ROLES[0]} board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
-          <div className="leader-col">
-            <LeaderBox role={ROLES[1]} board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
-            <LeaderBox role={ROLES[2]} board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
+        <div className="leader-layout">
+          <RoleChart board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
+          <div className="leader-side">
+            {ROLES.map((role) => (
+              <TopOverall key={role.role} role={role} board={board} realm={realm.slug} onPick={(q) => onPick(q, board?.raid?.id)} />
+            ))}
           </div>
         </div>
       )}
@@ -78,70 +79,100 @@ const ROLES = [
   { role: 'tank' as const, metric: 'dps' as const, label: 'Tanking', classes: new Set(['Druid', 'Paladin', 'Warrior']) },
 ];
 
-/** One box per role: a row per class with its icon on the left, the player in the middle and their DPS/HPS on the right. */
-function LeaderBox({
-  role,
-  board,
-  realm,
-  onPick,
-}: {
-  role: (typeof ROLES)[number];
-  board: Leaderboard | null;
-  realm: string;
-  onPick: (q: Query) => void;
-}) {
-  const classes = (board?.classes ?? CLASS_ORDER.map((className) => ({ className, leaders: [] }))).filter(
-    ({ className }) => !role.classes || role.classes.has(className),
-  );
+type RoleDef = (typeof ROLES)[number];
+
+/** The role's #1 of every class it applies to, best first. Lists saved before tanking existed have no role on their entries. */
+function roleLeaders(board: Leaderboard | null, role: RoleDef): ClassLeader[] {
+  return (board?.classes ?? [])
+    .filter(({ className }) => !role.classes || role.classes.has(className))
+    .flatMap(({ leaders }) => leaders.filter((l) => (l.role ?? (l.metric === 'hps' ? 'healing' : 'damage')) === role.role))
+    .sort((a, b) => b.perSecond - a.perSecond);
+}
+
+/** Bar chart of each class's #1 for one role; buttons switch between damage, healing and tanking. */
+function RoleChart({ board, realm, onPick }: { board: Leaderboard | null; realm: string; onPick: (q: Query) => void }) {
+  const [roleKey, setRoleKey] = useState<RoleDef['role']>('damage');
+  const role = ROLES.find((r) => r.role === roleKey)!;
+  const rows = roleLeaders(board, role);
+  const max = Math.max(1, ...rows.map((r) => r.perSecond));
   const pending = !board || board.updatedAt == null;
+  const unit = metricLabel(role.metric);
   return (
-    <section className="leader-box" aria-label={`#1 ${role.label.toLowerCase()} of each class`}>
-      <header className="lb-head">
-        <span>{role.label}</span>
-        <span className="soft">{metricLabel(role.metric)}</span>
+    <section className="role-chart">
+      <header className="rc-head">
+        <div className="segmented" role="tablist" aria-label="Role">
+          {ROLES.map((r) => (
+            <button key={r.role} role="tab" aria-selected={r.role === roleKey} aria-pressed={r.role === roleKey} onClick={() => setRoleKey(r.role)}>
+              {r.label}
+            </button>
+          ))}
+        </div>
+        <span className="soft">#1 of each class · {unit}</span>
       </header>
-      <ol>
-        {classes.map(({ className, leaders }) => {
-          // Lists saved before tanking was added have no role; their entries are damage or healing.
-          const leader = leaders.find((l) => (l.role ?? (l.metric === 'hps' ? 'healing' : 'damage')) === role.role);
-          const style = { '--class': classColor(className) } as CSSProperties;
-          const icon = (
-            <img className="lb-icon" src={classIconUrl(className)} alt="" width={36} height={36} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
-          );
-          return (
-            <li key={className} style={style}>
-              {leader ? (
-                <button
-                  className="lb-row"
-                  onClick={() => onPick({ region: REALM_REGION, realm, name: leader.name })}
-                  title={`${leader.name} (${specLabel(leader.spec)}): in the realm's top 100 ${className}s on ${leader.bosses} of ${leader.bossCount} bosses, #1 on ${leader.firsts}`}
-                >
-                  {icon}
-                  <span className="lb-who">
-                    <span className="lb-class">{className}</span>
-                    <span className="lb-name">{leader.name}</span>
+      {rows.length === 0 ? (
+        <p className="rc-empty soft">{pending ? 'Being pulled from Warcraft Logs…' : 'No ranked kills yet.'}</p>
+      ) : (
+        <ol className="rc-bars" aria-label={`#1 ${role.label.toLowerCase()} of each class, ${unit}`}>
+          {rows.map((l) => (
+            <li key={l.className} style={{ '--class': classColor(l.className) } as CSSProperties}>
+              <button
+                className="rc-row"
+                onClick={() => onPick({ region: REALM_REGION, realm, name: l.name })}
+                title={`${l.name} (${specLabel(l.spec)} ${l.className}): ${integer(l.perSecond)} ${unit} on average, ranked on ${l.bosses} of ${l.bossCount} bosses, #1 on ${l.firsts}`}
+              >
+                <img src={classIconUrl(l.className)} alt="" width={26} height={26} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+                <span className="rc-who">
+                  <span className="rc-name">{l.name}</span>
+                  <span className="rc-spec">
+                    {specLabel(l.spec)} {l.className}
                   </span>
-                  <span className="lb-spec">
-                    {leader.spec && <SpecIcon className={className} spec={leader.spec} size={16} />}
-                    {specLabel(leader.spec)}
-                  </span>
-                  <span className="lb-amount">{integer(leader.perSecond)}</span>
-                </button>
-              ) : (
-                <div className="lb-row empty">
-                  {icon}
-                  <span className="lb-who">
-                    <span className="lb-class">{className}</span>
-                    <span className="lb-name soft">{pending ? 'Pulling…' : 'No ranked kills yet'}</span>
-                  </span>
-                </div>
-              )}
+                </span>
+                <span className="rc-track">
+                  <span className="rc-bar" style={{ width: `${(l.perSecond / max) * 100}%` }} />
+                </span>
+                <span className="rc-value">{integer(l.perSecond)}</span>
+              </button>
             </li>
-          );
-        })}
-      </ol>
+          ))}
+        </ol>
+      )}
     </section>
   );
 }
 
-const CLASS_ORDER = ['Druid', 'Hunter', 'Mage', 'Paladin', 'Priest', 'Rogue', 'Shaman', 'Warlock', 'Warrior'];
+/** Small box: the best of one role across every class. */
+function TopOverall({ role, board, realm, onPick }: { role: RoleDef; board: Leaderboard | null; realm: string; onPick: (q: Query) => void }) {
+  const top = roleLeaders(board, role)[0];
+  const title = role.role === 'damage' ? 'Top damage' : role.role === 'healing' ? 'Top healer' : 'Top tank';
+  if (!top) {
+    return (
+      <div className="top-overall empty">
+        <span className="to-label">{title}</span>
+        <span className="soft">{!board || board.updatedAt == null ? 'Being pulled…' : 'No ranked kills yet'}</span>
+      </div>
+    );
+  }
+  return (
+    <button className="top-overall" style={{ '--class': classColor(top.className) } as CSSProperties} onClick={() => onPick({ region: REALM_REGION, realm, name: top.name })}>
+      <span className="to-label">{title}</span>
+      <span className="to-main">
+        <img src={classIconUrl(top.className)} alt="" width={40} height={40} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = 'hidden')} />
+        <span className="to-who">
+          <span className="to-name">{top.name}</span>
+          <span className="to-spec">
+            {top.spec && <SpecIcon className={top.className} spec={top.spec} size={14} />}
+            {specLabel(top.spec)} {top.className}
+          </span>
+        </span>
+        <span className="to-value">
+          {integer(top.perSecond)}
+          <small>{metricLabel(top.metric)}</small>
+        </span>
+      </span>
+      <span className="to-foot soft">
+        {top.firsts > 0 ? `#1 ${top.className} on ${top.firsts}` : `Ranked on ${top.bosses}`} of {top.bossCount} {top.bossCount === 1 ? 'boss' : 'bosses'}
+      </span>
+    </button>
+  );
+}
+

@@ -193,3 +193,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T109 #1 section is a single box: a column per class, a Damage row and a Healing row, lines between every cell
 - [x] T110 #1 section split into a Damage box and a Healing box; one row per class with the class icon on the left, then class and player, spec, and DPS/HPS on the right
 - [x] T111 Tanking #1 (Protection Warrior, Protection Paladin, Guardian Druid; ranked by DPS like Warcraft Logs ranks TBC tanks) in its own box under Healing; tanks left out of the damage list; saved lists re-pulled once for the new role
+- [x] T112 #1 section: bar chart of each class's #1 with Damage / Healing / Tanking buttons (class-coloured bars, best first, click to open), and three small boxes with the overall top damage, healer and tank; both sides line up and don't move when switching

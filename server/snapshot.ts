@@ -1,9 +1,8 @@
 import { REALM_REGION, REALMS, type ApiStatus, type Benchmark, type Comparison, type Leaderboard, type Metric, type Raid, type ZoneReport } from '../shared/types.js';
 import { keyString } from './core/benchmark.js';
 import { buildRow, summarise } from './core/report.js';
-import { buildLeaders } from './core/leaders.js';
 import { DAY, HOUR, MINUTE, type TtlCache } from './cache.js';
-import { classByName } from './core/classes.js';
+import { CLASSES, classByName } from './core/classes.js';
 import type { CharacterRef } from './core/input.js';
 import { normaliseRaidId, raidsFromZones } from './core/raids.js';
 import { TBC_ZONES } from './core/zones.js';
@@ -202,6 +201,22 @@ export class Puller {
 
     // 2. Find who raids on each realm (re-checked daily).
     for (const realm of REALMS) if ((await this.discover(realm.slug)) === 'limited') return;
+
+    // #1 of each class for the newest raid, from Warcraft Logs' realm rankings (daily).
+    const latest = this.cachedRaids().at(-1);
+    if (latest) {
+      for (const realm of REALMS) {
+        const at = this.cache.fetchedAt(this.live.leadersKey(REALM_REGION, realm.slug, latest.id));
+        if ((at == null || Date.now() - at > DAY) && this.live.headroom() > SWEEP_RESERVE) {
+          try {
+            await this.live.classLeaders(REALM_REGION, realm.slug, latest);
+          } catch (err) {
+            if (err instanceof ApiFailure && err.code === 'rate_limited') return;
+            console.error(`[logsforever] Pulling the #1 players on ${realm.name} failed: ${err instanceof Error ? err.message : err}`);
+          }
+        }
+      }
+    }
 
     // 3. Pull everyone on the realms, newest raid first.
     await this.sweep();
@@ -446,36 +461,39 @@ export class SnapshotProvider implements Provider {
     return this.read<ZoneReport>(job);
   }
 
-  private leaderMemo = new Map<string, { at: number; board: Leaderboard }>();
+  private leadersLoading: Promise<Leaderboard> | null = null;
 
   /**
-   * The realm's #1 player of every class in one raid, built from the saved raid
-   * pages (no Warcraft Logs calls). Rebuilt at most every 10 minutes.
+   * The realm's #1 player of every class in a raid, from Warcraft Logs' realm rankings. The saved
+   * list is shown (refreshed daily by the puller, or in the background when a visitor finds it
+   * stale); a raid nobody has asked for is pulled now if the allowance allows.
    */
   async leaders(realm: string, raidId?: string): Promise<Leaderboard> {
     const raids = await this.raids();
     const raid = (raidId ? raids.find((r) => r.id === normaliseRaidId(raidId)) : raids[raids.length - 1]) ?? null;
-    const memoKey = `${realm}|${raid?.id ?? ''}`;
-    const memo = this.leaderMemo.get(memoKey);
-    if (memo && Date.now() - memo.at < 10 * MINUTE) return memo.board;
-
-    const pages: ZoneReport[] = [];
-    if (raid) {
-      for (const [key, page] of this.cache.withPrefix<ZoneReport>(`view|zone|${REALM_REGION}|${realm}|`)) {
-        // view|zone|US|realm|Name|raid — pages with a chosen spec on the end are left out.
-        const parts = key.split('|');
-        if (parts.length === 6 && parts[5] === raid.id) pages.push(page);
-      }
-    }
-    const board: Leaderboard = {
+    const empty = (): Leaderboard => ({
       realm,
       raid: raid && { id: raid.id, name: raid.name },
-      characters: pages.length,
-      classes: buildLeaders(pages, raid?.encounters.length ?? 0),
-      updatedAt: Date.now(),
+      classes: Object.values(CLASSES).map((c) => ({ className: c.name, leaders: [] })),
+      updatedAt: null,
+    });
+    if (!raid) return empty();
+    const saved = this.cache.peekAny<Leaderboard>(this.live.leadersKey(REALM_REGION, realm, raid.id));
+    const load = () => {
+      this.leadersLoading ??= this.live.classLeaders(REALM_REGION, realm, raid).finally(() => (this.leadersLoading = null));
+      return this.leadersLoading;
     };
-    this.leaderMemo.set(memoKey, { at: Date.now(), board });
-    return board;
+    if (saved) {
+      if (!saved.fresh && this.live.headroom() > REFRESH_RESERVE) void load().catch(() => undefined);
+      return saved.value;
+    }
+    if (this.live.headroom() <= REFRESH_RESERVE) return empty();
+    try {
+      return await load();
+    } catch (err) {
+      if (err instanceof ApiFailure && err.code === 'rate_limited') return empty();
+      throw err;
+    }
   }
 
   /** Fills each boss row's benchmark back in from the shared saved benchmarks (see `packSaved`). */

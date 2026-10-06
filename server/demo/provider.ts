@@ -1,4 +1,4 @@
-import { CLASSES, metricFor } from '../core/classes.js';
+import { CLASSES } from '../core/classes.js';
 import { REALMS, type Benchmark, type Comparison, type Leaderboard, type Raid, type ZoneReport } from '../../shared/types.js';
 import { compareAbilities, type SideTables } from '../core/compare.js';
 import { weekStart } from '../core/fight.js';
@@ -101,31 +101,34 @@ export class DemoProvider implements Provider {
 
   private readonly allRaids = raidsFromZones(TBC_ZONES);
 
-  /** A made-up #1 player for every class. */
+  /** A made-up #1 player for every class (and a healing #1 for hybrids). */
   async leaders(realm: string, raidId?: string): Promise<Leaderboard> {
     const raids = await this.raids();
     const raid = raids.find((r) => r.id === raidId) ?? raids[raids.length - 1];
-    const names = ['Thraganssa', 'Zulva', 'Torbelnok', 'Kazul', 'Aetor', 'Gannokae', 'Nokssaka', 'Lisshygor', 'Brannoc'];
+    const names = ['Thraganssa', 'Zulva', 'Torbelnok', 'Kazul', 'Aetor', 'Gannokae', 'Nokssaka', 'Lisshygor', 'Brannoc', 'Morwenna', 'Belrin', 'Dashthradash', 'Aerinnok'];
     const r = rng(raid.encounters.length * 97 + realm.length);
-    const classes = Object.values(CLASSES).map((c, i) => {
-      const spec = c.specs.filter((sp) => sp !== 'Guardian')[Math.floor(r() * (c.specs.length - (c.name === 'Druid' ? 1 : 0)))];
-      const metric = metricFor(c.name, spec);
-      const bosses = Math.max(1, raid.encounters.length - Math.floor(r() * 2));
-      return {
-        className: c.name,
-        leader: {
-          className: c.name,
-          name: names[i],
-          spec,
-          metric,
-          averageParse: 93 + r() * 6.5,
-          perSecond: metric === 'hps' ? 1300 + r() * 600 : 1700 + r() * 900,
-          bosses,
-          topParses: Math.floor(r() * (bosses + 1)),
-        },
-      };
-    });
-    return { realm, raid: { id: raid.id, name: raid.name }, characters: 1530, classes, updatedAt: Date.now() };
+    let n = 0;
+    const classes = Object.values(CLASSES).map((c) => ({
+      className: c.name,
+      leaders: (['dps', 'hps'] as const)
+        .filter((m) => m === 'dps' || c.healers.length > 0)
+        .map((metric) => {
+          const pool = c.specs.filter((sp) => sp !== 'Guardian' && !(sp === 'Protection' && metric === 'dps') && (metric === 'hps') === c.healers.includes(sp));
+          const spec = pool[Math.floor(r() * pool.length)];
+          const bossCount = raid.encounters.length;
+          return {
+            className: c.name,
+            name: names[n++ % names.length],
+            spec,
+            metric,
+            perSecond: metric === 'hps' ? 1300 + r() * 600 : 1700 + r() * 900,
+            bosses: Math.max(1, bossCount - Math.floor(r() * 2)),
+            firsts: Math.floor(r() * (bossCount + 1)),
+            bossCount,
+          };
+        }),
+    }));
+    return { realm, raid: { id: raid.id, name: raid.name }, classes, updatedAt: Date.now() };
   }
 
   async raids(): Promise<Raid[]> {

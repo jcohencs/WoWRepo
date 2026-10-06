@@ -108,16 +108,17 @@ describe('saved pages + scheduled puller', () => {
     expect(queries.length).toBe(after);
   });
 
-  it('builds the realm leaderboard from saved pages, without calling Warcraft Logs', async () => {
+  it('pulls each class’s #1 from Warcraft Logs’ realm rankings once, then serves the saved list', async () => {
     const { site, puller, queries } = setup();
-    await puller.run();
+    await puller.run(); // the puller fetches the newest raid's list
+    const board = await site.leaders('nightslayer');
+    expect(board.classes).toHaveLength(9);
+    expect(board.classes.find((c) => c.className === 'Warrior')?.leaders.map((l) => [l.name, l.metric])).toEqual([['Brannoc', 'dps']]);
+    expect(board.classes.find((c) => c.className === 'Priest')?.leaders.map((l) => l.metric)).toEqual(['dps', 'hps']);
+    expect(queries.some((q) => q.includes('className: "Priest", metric: hps'))).toBe(true);
     const before = queries.length;
-    const board = await site.leaders('nightslayer', raid);
+    await site.leaders('nightslayer');
     expect(queries.length).toBe(before);
-    expect(board.raid?.id).toBe(raid);
-    expect(board.characters).toBe(2);
-    expect(board.classes.map((c) => c.className)).toHaveLength(9);
-    expect(board.classes.find((c) => c.className === 'Warrior')?.leader?.name).toMatch(/Brannoc|Morwenna/);
   });
 
   it('Refresh with the allowance used up quietly queues the pull and shows the saved page', async () => {

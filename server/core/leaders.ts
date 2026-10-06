@@ -1,50 +1,43 @@
-import type { ClassLeader, Metric, ZoneReport } from '../../shared/types.js';
+import type { ClassLeader, Metric } from '../../shared/types.js';
+import type { RawRanking } from './benchmark.js';
 import { CLASSES } from './classes.js';
 
-/** A parse of 99 or more is the top 1%. */
-export const TOP_PARSE = 99;
+/** Classes that heal as well as deal damage: they get a healing #1 next to the DPS #1. */
+export const HYBRIDS = new Set(Object.values(CLASSES).filter((c) => c.healers.length > 0).map((c) => c.name));
+
+/** Which role lists each class has: DPS for everyone, healing too for hybrids. */
+export const roleMetrics = (className: string): Metric[] => (HYBRIDS.has(className) ? ['dps', 'hps'] : ['dps']);
 
 /**
- * The #1 player of each class: the best average parse as one spec. To keep one lucky kill from
- * topping the list, only players with the most bosses killed (at least 3, or every boss in a
- * smaller raid) count, unless nobody in the class has that many yet.
+ * The realm's #1 of one class and role from Warcraft Logs' realm rankings for each boss (best
+ * first). Each boss scores a player their amount as a share of the realm's best on it, so the #1
+ * is whoever comes closest to the top across the whole raid, not someone who only killed one boss.
  */
-export function buildLeaders(pages: ZoneReport[], bossCount: number): { className: string; leader: ClassLeader | null }[] {
-  const minBosses = Math.min(3, Math.max(1, bossCount));
-  const byClass = new Map<string, ClassLeader[]>();
-  for (const page of pages) {
-    const className = page.character?.className;
-    if (!className || !Array.isArray(page.rows)) continue;
-    const bySpec = new Map<string, { metric: Metric; parses: number[]; amounts: number[] }>();
-    for (const row of page.rows) {
-      if (row.best == null || row.rankPercent == null) continue;
-      const spec = row.spec === 'Guardian' ? 'Feral' : row.spec;
-      const s = bySpec.get(spec) ?? { metric: row.metric, parses: [], amounts: [] };
-      s.parses.push(row.rankPercent);
-      s.amounts.push(row.best);
-      bySpec.set(spec, s);
-    }
-    for (const [spec, s] of bySpec) {
-      const list = byClass.get(className) ?? [];
-      list.push({
-        className,
-        name: page.character.name,
-        spec,
-        metric: s.metric,
-        averageParse: s.parses.reduce((a, b) => a + b, 0) / s.parses.length,
-        perSecond: s.amounts.reduce((a, b) => a + b, 0) / s.amounts.length,
-        bosses: s.parses.length,
-        topParses: s.parses.filter((p) => p >= TOP_PARSE).length,
-      });
-      byClass.set(className, list);
-    }
+export function leaderFromRankings(className: string, metric: Metric, bosses: RawRanking[][]): ClassLeader | null {
+  type Tally = { score: number; amounts: number[]; firsts: number; specs: Map<string, number> };
+  const players = new Map<string, Tally>();
+  for (const rankings of bosses) {
+    const top = rankings[0]?.amount ?? 0;
+    if (top <= 0) continue;
+    const seen = new Set<string>();
+    rankings.forEach((r, i) => {
+      if (!r?.name || seen.has(r.name)) return; // a player's best kill is listed first
+      seen.add(r.name);
+      const p: Tally = players.get(r.name) ?? { score: 0, amounts: [], firsts: 0, specs: new Map<string, number>() };
+      p.score += r.amount / top;
+      p.amounts.push(r.amount);
+      if (i === 0) p.firsts++;
+      if (r.spec) p.specs.set(r.spec, (p.specs.get(r.spec) ?? 0) + 1);
+      players.set(r.name, p);
+    });
   }
-
-  return Object.values(CLASSES).map((cls) => {
-    const all = byClass.get(cls.name) ?? [];
-    const enough = all.filter((c) => c.bosses >= minBosses);
-    const pool = enough.length ? enough : all;
-    const leader = [...pool].sort((a, b) => b.averageParse - a.averageParse || b.bosses - a.bosses || b.perSecond - a.perSecond || a.name.localeCompare(b.name))[0] ?? null;
-    return { className: cls.name, leader };
-  });
+  const best = [...players.entries()].sort(
+    ([an, a], [bn, b]) => b.score - a.score || b.firsts - a.firsts || avg(b.amounts) - avg(a.amounts) || an.localeCompare(bn),
+  )[0];
+  if (!best) return null;
+  const [name, p] = best;
+  const spec = [...p.specs.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? '';
+  return { className, name, spec, metric, perSecond: avg(p.amounts), bosses: p.amounts.length, firsts: p.firsts, bossCount: bosses.length };
 }
+
+const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);

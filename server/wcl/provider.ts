@@ -1,4 +1,4 @@
-import type { Benchmark, Comparison, FightSide, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
+import type { Benchmark, Comparison, FightSide, Leaderboard, Metric, Raid, Site, Zone, ZoneReport } from '../../shared/types.js';
 import { join, resolve } from 'node:path';
 import { DAY, HOUR, MINUTE, TtlCache } from '../cache.js';
 import {
@@ -13,6 +13,7 @@ import {
 import { CLASSES, classById, metricFor, metricForSpec, specLabel, type ClassInfo } from '../core/classes.js';
 import { compareAbilities, type TableEntry } from '../core/compare.js';
 import { raceFrom } from '../core/race.js';
+import { leaderFromRankings, roleMetrics } from '../core/leaders.js';
 import { bestPerWeek, preparation, takenBySchool, timelineFromGraph, type Kill } from '../core/fight.js';
 import type { CharacterRef } from '../core/input.js';
 import { normaliseRaidId, raidsFromZones } from '../core/raids.js';
@@ -357,6 +358,48 @@ export class WclProvider implements Provider {
       const page = data.worldData[`q${i}`]?.characterRankings;
       return { names: (page?.rankings ?? []).map((r) => r.name), hasMore: Boolean(page?.hasMorePages) };
     });
+  }
+
+  leadersKey(region: string, realm: string, raidId: string) {
+    return `leaders2|${region}|${realm}|${raidId}`;
+  }
+
+  /**
+   * The realm's #1 player of every class in a raid, straight from Warcraft Logs: each class's realm
+   * rankings for every boss (DPS, and healing for hybrid classes), a batch of bosses per request.
+   * Saved for a day.
+   */
+  async classLeaders(region: string, realm: string, raid: Raid): Promise<Leaderboard> {
+    const items = Object.values(CLASSES).flatMap((cls) =>
+      roleMetrics(cls.name).flatMap((metric) => raid.encounters.map((e) => ({ className: cls.name, metric, encounterId: e.id }))),
+    );
+    const pages: RawRanking[][] = [];
+    const BATCH = 18;
+    for (let i = 0; i < items.length; i += BATCH) {
+      const chunk = items.slice(i, i + BATCH);
+      const data = await this.client.query<{ worldData: Record<string, { characterRankings: RawRankingPage } | null> }>(
+        `query($region: String!, $realm: String!) { worldData { ${chunk
+          .map(
+            (it, j) =>
+              `q${j}: encounter(id: ${it.encounterId}) { characterRankings(className: "${it.className}", metric: ${it.metric}, page: 1, serverRegion: $region, serverSlug: $realm) }`,
+          )
+          .join('\n')} } }`,
+        { region, realm },
+      );
+      chunk.forEach((_, j) => pages.push(data.worldData[`q${j}`]?.characterRankings?.rankings ?? []));
+    }
+    const classes = Object.values(CLASSES).map((cls) => ({
+      className: cls.name,
+      leaders: roleMetrics(cls.name)
+        .map((metric) => {
+          const bosses = items.map((it, k) => ({ it, k })).filter(({ it }) => it.className === cls.name && it.metric === metric).map(({ k }) => pages[k]);
+          return leaderFromRankings(cls.name, metric, bosses);
+        })
+        .filter((l): l is NonNullable<typeof l> => l != null),
+    }));
+    const board: Leaderboard = { realm, raid: { id: raid.id, name: raid.name }, classes, updatedAt: Date.now() };
+    this.cache.set(this.leadersKey(region, realm, raid.id), board, DAY);
+    return board;
   }
 
   private async fetchCharacter(ref: CharacterRef, zoneId: number, spec?: string): Promise<CharacterResponse> {

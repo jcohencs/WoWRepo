@@ -3030,3 +3030,54 @@ button.leader-card:hover {
 .lc-stars .top-star {
   margin: 0 3px 0 0;
 }
+
+/* #1 cards: one row per role (damage, and healing for hybrids) */
+.leader-card {
+  cursor: default;
+  gap: 0;
+  align-items: stretch;
+}
+.lc-none {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+.lc-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 6px;
+  margin: 0 -6px;
+  width: calc(100% + 12px);
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.lc-row + .lc-row {
+  margin-top: 4px;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+.lc-row:hover {
+  background: var(--surface-2);
+}
+.lc-role {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--soft);
+}
+.lc-row .lc-amount {
+  margin-top: 2px;
+  font-size: 22px;
+}
+.lc-row .lc-foot {
+  font-size: 12px;
+  font-weight: 500;
+}

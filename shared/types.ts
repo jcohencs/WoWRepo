@@ -192,29 +192,29 @@ export interface ApiError {
 export const REALMS: readonly { name: string; slug: string }[] = [{ name: 'Nightslayer', slug: 'nightslayer' }];
 export const REALM_REGION: Region = 'US';
 
-/** The realm's best player of one class in a raid. */
+/** The realm's best player of one class and role (DPS or healing) in a raid, from Warcraft Logs' realm rankings. */
 export interface ClassLeader {
   className: string;
   name: string;
+  /** The spec they're ranked as most often. */
   spec: string;
   metric: Metric;
-  /** Average parse over the bosses they killed as this spec. */
-  averageParse: number;
-  /** Average of their best DPS / HPS on each of those bosses. */
+  /** Average of their DPS / HPS on the bosses they're ranked on. */
   perSecond: number;
-  /** Bosses killed as this spec. */
+  /** Bosses they're in the realm's top 100 for. */
   bosses: number;
-  /** Of those, how many are top 1% (99+) parses. */
-  topParses: number;
+  /** Bosses where they're the realm's #1 for their class. */
+  firsts: number;
+  /** Bosses in the raid. */
+  bossCount: number;
 }
 
-/** The #1 player of every class on the realm in one raid. */
+/** The #1 players of every class on the realm in one raid. */
 export interface Leaderboard {
   realm: string;
   raid: { id: string; name: string } | null;
-  /** How many saved character pages the list was built from. */
-  characters: number;
-  /** One entry per class, in class order; null where nobody has a kill yet. */
-  classes: { className: string; leader: ClassLeader | null }[];
-  updatedAt: number;
+  /** One entry per class, in class order: the DPS #1, and the healing #1 for hybrid classes. */
+  classes: { className: string; leaders: ClassLeader[] }[];
+  /** When Warcraft Logs was last asked; null if never. */
+  updatedAt: number | null;
 }

@@ -16,7 +16,7 @@ All responses are JSON. Errors: `{ "error": { "code": string, "message": string 
 → `ZoneReport`, pulled again now. Forgets the character's saved comparisons so they re-pull on the next click. A page refreshed in the last 10 minutes is returned as-is. When the hourly allowance is low the pull is queued for the next pass and the saved page is returned (no error).
 
 ## GET /api/leaders?realm=nightslayer&raid=black-temple
-→ `Leaderboard` — the realm's #1 player of each class in the raid (default: latest): best average parse as one spec among players with at least 3 bosses killed (fewer in a small raid, or if nobody has that many), with their average DPS/HPS. Built from saved pages; no Warcraft Logs calls.
+→ `Leaderboard` — each class's #1 on the realm in the raid (default: latest), from Warcraft Logs' realm rankings (`characterRankings` filtered by class, metric and server, page 1 for every boss): DPS for every class plus healing for hybrids. Score = sum over bosses of the player's amount ÷ the realm's best; saved for a day and refreshed by the puller.
 
 ## GET /api/status
 → `ApiStatus | null` — `{ limitPerHour, pointsSpent, resetsInSec, savedResults }` (null in demo mode).

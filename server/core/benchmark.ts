@@ -8,6 +8,7 @@ export interface RawRanking {
   duration: number;
   report: { code: string; fightID: number };
   server?: { name?: string };
+  spec?: string;
 }
 
 export interface RawRankingPage {

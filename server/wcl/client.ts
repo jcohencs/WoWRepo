@@ -21,6 +21,7 @@ export function describeQuery(query: string, variables: Record<string, unknown> 
   const count = (re: RegExp) => (query.match(re) ?? []).length;
   const who = typeof variables.name === 'string' ? ` ${variables.name}` : '';
   if (/expansions/.test(query)) return 'raid list';
+  if (/serverSlug: \$realm/.test(query) && /className: "/.test(query)) return `#1 of each class (${count(/characterRankings\(/g)} boss rankings)`;
   if (/serverSlug: \$realm/.test(query)) return `realm raiders (${count(/characterRankings\(/g)} pages)`;
   if (/c0: character\(/.test(query)) return `characters ×${count(/: character\(/g)}`;
   if (/zoneRankings/.test(query)) return `character${who}`;

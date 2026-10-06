@@ -199,27 +199,37 @@ export class Puller {
       this.cache.set('queue', this.queue().filter((j) => jobKey(j) !== jobKey(job)), KEEP);
     }
 
-    // 2. Find who raids on each realm (re-checked daily).
+    // 2. The #1 of each class (a few requests a day): the newest raid daily, plus any raid a visitor
+    //    opened that wasn't saved yet. Runs before the sweep so it never waits behind it.
+    if ((await this.pullLeaders()) === 'limited') return;
+
+    // 3. Find who raids on each realm (re-checked daily).
     for (const realm of REALMS) if ((await this.discover(realm.slug)) === 'limited') return;
 
-    // #1 of each class for the newest raid, from Warcraft Logs' realm rankings (daily).
-    const latest = this.cachedRaids().at(-1);
-    if (latest) {
+    // 4. Pull everyone on the realms, newest raid first.
+    await this.sweep();
+  }
+
+  private async pullLeaders(): Promise<'ok' | 'limited'> {
+    const raids = this.cachedRaids();
+    const wanted = this.cache.peekAny<string[]>('leaders-wanted')?.value ?? [];
+    const ids = [...new Set([...wanted, raids.at(-1)?.id].filter((id): id is string => Boolean(id)))];
+    for (const id of ids) {
+      const raid = raids.find((r) => r.id === id);
       for (const realm of REALMS) {
-        const at = this.cache.fetchedAt(this.live.leadersKey(REALM_REGION, realm.slug, latest.id));
-        if ((at == null || Date.now() - at > DAY) && this.live.headroom() > SWEEP_RESERVE) {
-          try {
-            await this.live.classLeaders(REALM_REGION, realm.slug, latest);
-          } catch (err) {
-            if (err instanceof ApiFailure && err.code === 'rate_limited') return;
-            console.error(`[logsforever] Pulling the #1 players on ${realm.name} failed: ${err instanceof Error ? err.message : err}`);
-          }
+        if (!raid) continue;
+        const at = this.cache.fetchedAt(this.live.leadersKey(REALM_REGION, realm.slug, raid.id));
+        if (at != null && Date.now() - at < DAY) continue;
+        try {
+          await this.live.classLeaders(REALM_REGION, realm.slug, raid);
+        } catch (err) {
+          if (err instanceof ApiFailure && err.code === 'rate_limited') return 'limited';
+          console.error(`[logsforever] Pulling the #1 players on ${realm.name} failed: ${err instanceof Error ? err.message : err}`);
         }
       }
     }
-
-    // 3. Pull everyone on the realms, newest raid first.
-    await this.sweep();
+    if (wanted.length) this.cache.delete('leaders-wanted');
+    return 'ok';
   }
 
   /** Works through the realm's boss rankings, a few pages per request, collecting raider names. */
@@ -487,11 +497,17 @@ export class SnapshotProvider implements Provider {
       if (!saved.fresh && this.live.headroom() > REFRESH_RESERVE) void load().catch(() => undefined);
       return saved.value;
     }
-    if (this.live.headroom() <= REFRESH_RESERVE) return empty();
+    const later = () => {
+      // Not now: the next pass pulls it before anything else.
+      const wanted = this.cache.peekAny<string[]>('leaders-wanted')?.value ?? [];
+      if (!wanted.includes(raid.id)) this.cache.set('leaders-wanted', [...wanted, raid.id], 365 * DAY);
+      return empty();
+    };
+    if (this.live.headroom() <= REFRESH_RESERVE) return later();
     try {
       return await load();
     } catch (err) {
-      if (err instanceof ApiFailure && err.code === 'rate_limited') return empty();
+      if (err instanceof ApiFailure && err.code === 'rate_limited') return later();
       throw err;
     }
   }

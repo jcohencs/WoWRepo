@@ -186,3 +186,4 @@ description: "Task list for TBC Parse Checker"
 - [x] T102 Classes section moved below it and redesigned as square tiles with large class icons, spec guide icons and a Talents link
 - [x] T103 Main page reworked: welcome box ("Welcome to LogsForever") with the three steps; "#1 on Nightslayer" shows each class's best player (average parse, average DPS/HPS, top 1% count); classes and guides at the bottom
 - [x] T104 "#1 on Nightslayer" now comes from Warcraft Logs' realm rankings (each class, every boss): a damage #1 for every class and a healing #1 for Druid, Paladin, Priest and Shaman; pulled daily by the background job and saved
+- [x] T105 #1 list: pulled right after the queue each pass (not held back by the sweep's reserve); a raid a visitor opens while the allowance is used up is remembered and pulled first next pass; the page re-checks every minute while it says "Being pulled"; log label "#1 of each class (N boss rankings)"

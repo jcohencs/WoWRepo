@@ -11,6 +11,7 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
   const [raidId, setRaidId] = useState<string | undefined>(undefined);
   const [board, setBoard] = useState<Leaderboard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -22,7 +23,15 @@ export function TopPlayers({ raids, onPick }: { raids: Raid[]; onPick: (q: Query
     return () => {
       live = false;
     };
-  }, [realm.slug, raidId]);
+  }, [realm.slug, raidId, tick]);
+
+  // While the list is still being pulled from Warcraft Logs, look again every minute.
+  const pending = board != null && board.updatedAt == null;
+  useEffect(() => {
+    if (!pending) return;
+    const t = setTimeout(() => setTick((n) => n + 1), 60_000);
+    return () => clearTimeout(t);
+  }, [pending, tick]);
 
   return (
     <section className="top-players" aria-labelledby="top-players-title">

@@ -125,3 +125,13 @@ describe('WclClient rate limit', () => {
   });
 
 });
+
+describe('request log labels', () => {
+  it('names the #1-of-each-class request apart from finding raiders', async () => {
+    const { describeQuery } = await import('../../server/wcl/client');
+    expect(describeQuery('query($region: String!, $realm: String!) { worldData { q0: encounter(id: 1) { characterRankings(className: "Mage", metric: dps, page: 1, serverRegion: $region, serverSlug: $realm) } } }')).toBe(
+      '#1 of each class (1 boss rankings)',
+    );
+    expect(describeQuery('query($region: String!, $realm: String!) { worldData { q0: encounter(id: 1) { characterRankings(metric: dps, page: 1, serverRegion: $region, serverSlug: $realm) } } }')).toBe('realm raiders (1 pages)');
+  });
+});

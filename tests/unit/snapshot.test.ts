@@ -121,6 +121,19 @@ describe('saved pages + scheduled puller', () => {
     expect(queries.length).toBe(before);
   });
 
+  it('a #1 list asked for while the allowance is used up is pulled first on the next pass', async () => {
+    const { site, puller, live } = setup();
+    await puller.run();
+    const spy = vi.spyOn(live, 'headroom').mockReturnValue(0);
+    const waiting = await site.leaders('nightslayer', 'mount-hyjal');
+    expect(waiting.updatedAt).toBeNull();
+    spy.mockRestore();
+    await puller.run();
+    const ready = await site.leaders('nightslayer', 'mount-hyjal');
+    expect(ready.updatedAt).not.toBeNull();
+    expect(ready.raid?.id).toBe('mount-hyjal');
+  });
+
   it('Refresh with the allowance used up quietly queues the pull and shows the saved page', async () => {
     const { site, puller, live } = setup();
     await puller.run();
